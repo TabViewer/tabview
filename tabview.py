@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+#!/usr/bin/env python
 
 # tabview.py -- View a tab-delimited file in a spreadsheet-like display.
 # Contributed by A.M. Kuchling <amk@amk.ca>
@@ -17,9 +17,8 @@
 #    Insert     : Memorize this position
 #    Delete     : Return to memorized position (if any)
 #
-# TODO :
-#    A 'G' for Goto: enter a cell like AA260 and move there
-#    A key to re-read the tab-delimited file
+# TODO: A 'G' for Goto: enter a cell like AA260 and move there
+# TODO: A key to re-read the tab-delimited file
 #
 # Possible projects:
 #    Allow editing of cells, and then saving the modified data
@@ -46,47 +45,53 @@
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
+#
+#
+# 3/16/2011
+# Modified by Scott Hansen
+# - Code cleanup and convert to python 3 compatible
+# - Added a delimeter argument on the command line
+# - Added default delimeter for .txt and .csv (TAB and ,)
+# - Switched to CSV module for importing the file
+# - Added vim-type navigation (h,j,k,l)
 
-import curses, re, string
+import sys, curses, re, string, csv, traceback
+from os.path import splitext
 
 def yx2str(y,x):
     "Convert a coordinate pair like 1,26 to AA2"
-    if x<26: s=chr(65+x)
+    if x < 26:
+        s = chr(65 + x)
     else:
-        x=x-26
-        s=chr(65+ (x/26) ) + chr(65+ (x%26) )
-    s=s+str(y+1)
+        x = x - 26
+        s = chr(65 + (x//26) ) + chr(65 + (x % 26) )
+    s = s + '-' + str(y + 1)
     return s
 
-coord_pat = re.compile('^(?P<x>[a-zA-Z]{1,2})(?P<y>\d+)$')
+coord_pat = re.compile('^(?P<x>[a-zA-Z]{1,2})-(?P<y>\d+)$')
 
 def str2yx(s):
     "Convert a string like A1 to a coordinate pair like 0,0"
     match = coord_pat.match(s)
-    if not match: return None
-    y,x = match.group('y', 'x')
-    x = string.upper(x)
-    if len(x)==1: x=ord(x)-65
+    if not match:
+        return None
+    y, x = match.group('y', 'x')
+    x = x.upper()
+    if len(x) == 1:
+        x = ord(x) - 65
     else:
-        x= (ord(x[0])-65)*26 + ord(x[1])-65 + 26
-    return string.atoi(y)-1, x
-
-assert yx2str(0,0) == 'A1'
-assert yx2str(1,26) == 'AA2'
-assert str2yx('AA2') == (1,26)
-assert str2yx('B2') == (1,1)
+        x = (ord(x[0]) - 65) * 26 + ord(x[1]) - 65 + 26
+    return int(y) - 1, x
 
 class TabFile:
-    def __init__(self, scr, filename, column_width=20):
-        self.scr=scr ; self.filename = filename
+    def __init__(self, scr, filename, delim, column_width=20):
+        self.scr = scr
+        self.filename = filename
         self.column_width = column_width
-        f=open(filename, 'r')
         self.data = []
-        while (1):
-            L=f.readline()
-            if L=="": break
-            self.data.append( string.split(L, '\t') )
-#           if len(self.data)>6: break # XXX
+        rows = csv.reader(open(filename, 'r'), delimiter = delim)
+        for i in rows:
+            self.data.append(i)
         self.x, self.y = 0,0
         self.win_x, self.win_y = 0,0
         self.max_y, self.max_x = self.scr.getmaxyx()
@@ -99,9 +104,12 @@ class TabFile:
 
         # This is a method because I didn't want to have the code to
         # handle the End key be aware of the internals of the TabFile object.
-        yp=self.y+self.win_y ; xp=self.x+self.win_x
-        if len(self.data)<=yp: end=0
-        else: end=len(self.data[yp])-1
+        yp = self.y + self.win_y 
+        xp=self.x + self.win_x
+        if len(self.data) <= yp:
+            end = 0
+        else:
+            end=len(self.data[yp]) - 1
 
         # If the end column is on-screen, just change the
         # .x value appropriately.
@@ -109,128 +117,177 @@ class TabFile:
             self.x = end - self.win_x
         else:
             if end<self.num_columns:
-                self.win_x = 0 ; self.x = end
+                self.win_x = 0 
+                self.x = end
             else:
-                self.x = self.num_columns-1
-                self.win_x = end-self.x
-
+                self.x = self.num_columns - 1
+                self.win_x = end - self.x
 
     def display(self):
         """Refresh the current display"""
+        self.scr.addstr(0, 0, yx2str(self.y + self.win_y, self.x + self.win_x)
+                        + '    ', curses.A_REVERSE)
 
-        self.scr.addstr(0,0,
-                        yx2str(self.y + self.win_y, self.x+self.win_x)+'    ',
-                        curses.A_REVERSE)
-
-        for y in range(0, self.max_y-3):
-            self.scr.move(y+2,0) ; self.scr.clrtoeol()
+        for y in range(0, self.max_y - 3):
+            self.scr.move(y + 2, 0) 
+            self.scr.clrtoeol()
             for x in range(0, int(self.max_x / self.column_width) ):
                 self.scr.attrset(curses.A_NORMAL)
-                yp=y+self.win_y ; xp=x+self.win_x
-                if len(self.data)<=yp: s=""
-                elif len(self.data[yp])<=xp: s=""
-                else: s=self.data[yp][xp]
-                s = string.ljust(s, 15)[0:15]
-                if x==self.x and y==self.y: self.scr.attrset(curses.A_STANDOUT)
-                self.scr.addstr(y+2, x*self.column_width, s)
+                yp = y + self.win_y
+                xp=x + self.win_x
+                if len(self.data) <= yp:
+                    s = ""
+                elif len(self.data[yp]) <= xp:
+                    s = ""
+                else:
+                    s = self.data[yp][xp]
+                s = s.ljust(15)[0:15]
+                if x == self.x and y == self.y:
+                    self.scr.attrset(curses.A_STANDOUT)
+                self.scr.addstr(y + 2, x * self.column_width, s)
 
-        yp=self.y+self.win_y ; xp=self.x+self.win_x
-        if len(self.data)<=yp: s=""
-        elif len(self.data[yp])<=xp: s=""
-        else: s=self.data[yp][xp]
+        yp = self.y + self.win_y
+        xp = self.x+self.win_x
+        if len(self.data) <= yp:
+            s = ""
+        elif len(self.data[yp]) <= xp:
+            s = ""
+        else:
+            s = self.data[yp][xp]
 
-        self.scr.move(1,0) ; self.scr.clrtoeol()
+        self.scr.move(1,0)
+        self.scr.clrtoeol()
         self.scr.addstr(s[0:self.max_x])
         self.scr.refresh()
 
 def main(stdscr):
-    import string, curses, sys
-
-    if len(sys.argv)==1:
-        print 'Usage: tabview.py <filename>'
-        return
-    filename=sys.argv[1]
+    filename = sys.argv[1]
+    ext = splitext(filename)[1]
+    try:
+        delim = sys.argv[2]
+    except IndexError:
+        if ext.lower() == '.txt':
+            delim = '\t' 
+        else:
+            delim = ','
 
     # Clear the screen and display the menu of keys
     stdscr.clear()
-    file = TabFile(stdscr, filename)
+    file = TabFile(stdscr, filename, delim)
 
     # Main loop:
     while (1):
-        stdscr.move(file.y+2, file.x*file.column_width)     # Move the cursor
-        c=stdscr.getch()                # Get a keystroke
-        if 0<c<256:
-            c=chr(c)
+        stdscr.move(file.y + 2, file.x * file.column_width)     # Move the cursor
+        c = stdscr.getch()                # Get a keystroke
+        if 0 < c < 256:
+            c = chr(c)
             # Q or q exits
-            if c in 'Qq': break
-            # Tab pages one screen to the right
-            elif c=='\t':
+            if c in 'Qq':
+                break
+            elif c == 'j':
+                c = curses.KEY_DOWN
+            elif c == 'k':
+                c = curses.KEY_UP
+            elif c == 'h':
+                c = curses.KEY_LEFT
+            elif c == 'l':
+                c = curses.KEY_RIGHT
+            elif c == 'J':
+                c = curses.KEY_NPAGE
+            elif c == 'K':
+                c = curses.KEY_PPAGE
+            # Tab or 'L' pages one screen to the right
+            elif c == '\t' or c == 'L':
                 file.win_x = file.win_x + file.num_columns
                 file.display()
-            else: pass                  # Ignore incorrect keys
+            elif c == 'H':
+                # TODO: page left
+                pass
+                #file.win_x = file.win_x - file.num_columns
+                #file.display()
+            elif c == 'm':
+                c = curses.KEY_IC
+            elif c == 'g':
+                c = curses.KEY_DC
+            else: 
+                pass                  # Ignore incorrect keys
 
         # Cursor keys
-        elif c==curses.key_up:
-            if file.y == 0:
-                if file.win_y>0: file.win_y = file.win_y - 1
-            else: file.y=file.y-1
+        if c == curses.KEY_UP:
+            if file.y  ==  0:
+                if file.win_y > 0:
+                    file.win_y = file.win_y - 1
+            else:
+                file.y=file.y - 1
             file.display()
-        elif c==curses.key_down:
-            if file.y < file.max_y-3 -1: file.y=file.y+1
-            else: file.win_y = file.win_y+1
+        elif c == curses.KEY_DOWN:
+            if file.y < file.max_y-3 - 1:
+                file.y=file.y + 1
+            else:
+                file.win_y = file.win_y + 1
             file.display()
-        elif c==curses.key_left:
+        elif c == curses.KEY_LEFT:
             if file.x == 0:
-                if file.win_x>0: file.win_x = file.win_x - 1
-            else: file.x=file.x-1
+                if file.win_x > 0:
+                    file.win_x = file.win_x - 1
+            else:
+                file.x=file.x - 1
             file.display()
-        elif c==curses.key_right:
-            if file.x < int(file.max_x/file.column_width)-1: file.x=file.x+1
-            else: file.win_x = file.win_x+1
+        elif c == curses.KEY_RIGHT:
+            if file.x < int(file.max_x/file.column_width) - 1:
+                file.x=file.x + 1
+            else:
+                file.win_x = file.win_x + 1
             file.display()
 
         # Home key moves to the start of this line
-        elif c==curses.key_home:
+        elif c == curses.KEY_HOME:
             file.win_x = file.x = 0
             file.display()
         # End key moves to the end of this line
-        elif c==curses.key_end:
+        elif c == curses.KEY_END:
             file.move_to_end()
             file.display()
 
         # PageUp moves up a page
-        elif c==curses.key_ppage:
+        elif c == curses.KEY_PPAGE:
             file.win_y = file.win_y - (file.max_y - 2)
-            if file.win_y<0: file.win_y = 0
+            if file.win_y < 0:
+                file.win_y = 0
             file.display()
         # PageDn moves down a page
-        elif c==curses.key_npage:
+        elif c == curses.KEY_NPAGE:
             file.win_y = file.win_y + (file.max_y - 2)
-            if file.win_y<0: file.win_y = 0
+            if file.win_y < 0:
+                file.win_y = 0
             file.display()
 
-        # Insert memorizes the current position
-        elif c==curses.key_ic:
+        # Insert or 'm' memorizes the current position
+        elif c == curses.KEY_IC:
             file.save_y, file.save_x = file.y + file.win_y, file.x + file.win_x
-        # Delete restores a saved position
-        elif c==curses.key_dc:
+        # Delete or 'g' restores a saved position
+        elif c == curses.KEY_DC:
             if hasattr(file, 'save_y'):
                 file.x = file.y = 0
                 file.win_y, file.win_x = file.save_y, file.save_x
                 file.display()
         else:
-            stdscr.addstr(0,50, curses.keyname(c)+ ' pressed')
+            #stdscr.addstr(0,50, curses.keyname(c)+ ' pressed')
             stdscr.refresh()
             pass                        # Ignore incorrect keys
 
-if __name__=='__main__':
-    import curses, traceback
+if __name__ == '__main__':
+    if len(sys.argv) == 1:
+        print ("Usage: tabview.py <filename> <delimeter>\nDefault "
+        "delimiter is , for *.csv and TAB for *.txt")
+        sys.exit()
     try:
         # Initialize curses
         stdscr=curses.initscr()
         # Turn off echoing of keys, and enter cbreak mode,
         # where no buffering is performed on keyboard input
-        curses.noecho() ; curses.cbreak()
+        curses.noecho()
+        curses.cbreak()
 
         # In keypad mode, escape sequences for special keys
         # (like the cursor keys) will be interpreted and
@@ -239,12 +296,14 @@ if __name__=='__main__':
         main(stdscr)                    # Enter the main loop
         # Set everything back to normal
         stdscr.keypad(0)
-        curses.echo() ; curses.nocbreak()
+        curses.echo() 
+        curses.nocbreak()
         curses.endwin()                 # Terminate curses
     except:
         # In the event of an error, restore the terminal
         # to a sane state.
         stdscr.keypad(0)
-        curses.echo() ; curses.nocbreak()
+        curses.echo()
+        curses.nocbreak()
         curses.endwin()
         traceback.print_exc()           # Print the exception
