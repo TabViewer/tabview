@@ -7,16 +7,6 @@
   position is shown in the top-left corner of the screen; below it are
   shown the contents of that cell.
 
-   Movement keys are:
-     Cursor keys: Move the highlighted cell, scrolling if required.
-     Q or q     : Quit
-     TAB        : Page right a screen
-     Home       : Move to the start of this line
-     End        : Move to the end of this line
-     PgUp/PgDn  : Move a page up or down
-     Insert     : Memorize this position
-     Delete     : Return to memorized position (if any)
-
   TODO: A 'G' for Goto: enter a cell like AA260 and move there
   TODO: A key to re-read the tab-delimited file
   TODO: Generalize to read a list-of-lists as a CSV object
@@ -58,11 +48,17 @@
   - Switched to CSV module for importing the file
   - Added vim-type navigation (h,j,k,l)
 
+  1/7/2013
+  - Further code cleanup and significant reorganization.
+  - Use curses.wrapper for initialization
+  - Added csv sniffing to automatically detect delimiter
+
 """
 import argparse
 import csv
 import curses
 import re
+import sys
 import traceback
 
 def csv_sniff(fn):
@@ -88,7 +84,7 @@ def csv_sniff(fn):
         return dialect.delimiter
 
 def process_data(fn):
-    """Given a filename, return it as a list of lists.
+    """Given a filename, return the file as a list of lists.
 
     """
     data = []
@@ -99,7 +95,7 @@ def process_data(fn):
     return data
 
 class Viewer:
-    """Create the viewer object
+    """The actual CSV viewer class.
 
     Args:
         scr: curses window object
@@ -116,139 +112,142 @@ class Viewer:
         self.win_x, self.win_y = 0,0
         self.max_y, self.max_x = self.scr.getmaxyx()
         self.num_columns = int(self.max_x/self.column_width)
+        self.keys()
         self.scr.clear()
         self.display()
+
+    def keys(self):
+        """Define methods for each allowed key press.
+
+        """
+        def quit():
+            sys.exit()
+
+        def down():
+            if self.y < self.max_y-3 - 1:
+                self.y=self.y + 1
+            else:
+                self.win_y = self.win_y + 1
+
+        def up():
+            if self.y  ==  0:
+                if self.win_y > 0:
+                    self.win_y = self.win_y - 1
+            else:
+                self.y=self.y - 1
+
+        def left():
+            if self.x == 0:
+                if self.win_x > 0:
+                    self.win_x = self.win_x - 1
+            else:
+                self.x=self.x - 1
+
+        def right():
+            if self.x < int(self.max_x/self.column_width) - 1:
+                self.x=self.x + 1
+            else:
+                self.win_x = self.win_x + 1
+
+        def next_page():
+            self.win_y = self.win_y + (self.max_y - 2)
+            if self.win_y < 0:
+                self.win_y = 0
+
+        def prev_page():
+            self.win_y = self.win_y - (self.max_y - 2)
+            if self.win_y < 0:
+                self.win_y = 0
+
+        def mark():
+            self.save_y, self.save_x = self.y + self.win_y, self.x + self.win_x
+
+        def goto_mark():
+            if hasattr(self, 'save_y'):
+                self.x = self.y = 0
+                self.win_y, self.win_x = self.save_y, self.save_x
+
+        def page_right():
+            self.win_x = self.win_x + self.num_columns
+
+        def page_left ():
+            # TODO: page left
+            #self.win_x = self.win_x - self.num_columns
+            #self.display()
+            pass
+
+        def home():
+            self.win_x = self.x = 0
+
+        def end():
+            yp = self.y + self.win_y
+            xp=self.x + self.win_x
+            if len(self.data) <= yp:
+                end = 0
+            else:
+                end=len(self.data[yp]) - 1
+
+            # If the end column is on-screen, just change the
+            # .x value appropriately.
+            if self.win_x <= end < self.win_x + self.num_columns:
+                self.x = end - self.win_x
+            else:
+                if end<self.num_columns:
+                    self.win_x = 0
+                    self.x = end
+                else:
+                    self.x = self.num_columns - 1
+                    self.win_x = end - self.x
+
+        self.keys = {
+                     'j':   down,
+                     'k':   up,
+                     'h':   left,
+                     'l':   right,
+                     'J':   next_page,
+                     'K':   prev_page,
+                     'm':   mark,
+                     'g':   goto_mark,
+                     'L':   page_right,
+                     '\t':  page_right,
+                     'H':   page_left,
+                     'q':   quit,
+                     'Q':   quit,
+                     '$':   end,
+                     '^':   home,
+                     curses.KEY_UP:     up,
+                     curses.KEY_DOWN:   down,
+                     curses.KEY_LEFT:   left,
+                     curses.KEY_RIGHT:  right,
+                     curses.KEY_HOME:   home,
+                     curses.KEY_END:    end,
+                     curses.KEY_PPAGE:  prev_page,
+                     curses.KEY_NPAGE:  next_page,
+                     curses.KEY_IC:     mark,
+                     curses.KEY_DC:     goto_mark,
+                    }
 
     def run(self):
         # Clear the screen and display the menu of keys
         # Main loop:
         while True:
             self.scr.move(self.y + 2, self.x * self.column_width)     # Move the cursor
-            if self.handle_key() is False:
-                break
+            self.handle_keys()
 
-    def handle_key(self):
-        c = self.scr.getch()                # Get a keystroke
+    def handle_keys(self):
+        """Determine what method to call for each keypress.
+
+        """
+        c = self.scr.getch()  # Get a keystroke
         if 0 < c < 256:
             c = chr(c)
-            # Q or q exits
-            if c in 'Qq':
-                return False
-            elif c == 'j':
-                c = curses.KEY_DOWN
-            elif c == 'k':
-                c = curses.KEY_UP
-            elif c == 'h':
-                c = curses.KEY_LEFT
-            elif c == 'l':
-                c = curses.KEY_RIGHT
-            elif c == 'J':
-                c = curses.KEY_NPAGE
-            elif c == 'K':
-                c = curses.KEY_PPAGE
-            # Tab or 'L' pages one screen to the right
-            elif c == '\t' or c == 'L':
-                self.win_x = self.win_x + self.num_columns
-                self.display()
-            elif c == 'H':
-                # TODO: page left
-                pass
-                #self.win_x = self.win_x - self.num_columns
-                #self.display()
-            elif c == 'm':
-                c = curses.KEY_IC
-            elif c == 'g':
-                c = curses.KEY_DC
-            else:
-                pass                  # Ignore incorrect keys
-
-        # Cursor keys
-        if c == curses.KEY_UP:
-            if self.y  ==  0:
-                if self.win_y > 0:
-                    self.win_y = self.win_y - 1
-            else:
-                self.y=self.y - 1
+        try:
+            self.keys[c]()
             self.display()
-        elif c == curses.KEY_DOWN:
-            if self.y < self.max_y-3 - 1:
-                self.y=self.y + 1
-            else:
-                self.win_y = self.win_y + 1
-            self.display()
-        elif c == curses.KEY_LEFT:
-            if self.x == 0:
-                if self.win_x > 0:
-                    self.win_x = self.win_x - 1
-            else:
-                self.x=self.x - 1
-            self.display()
-        elif c == curses.KEY_RIGHT:
-            if self.x < int(self.max_x/self.column_width) - 1:
-                self.x=self.x + 1
-            else:
-                self.win_x = self.win_x + 1
-            self.display()
-
-        # Home key moves to the start of this line
-        elif c == curses.KEY_HOME:
-            self.win_x = self.x = 0
-            self.display()
-        # End key moves to the end of this line
-        elif c == curses.KEY_END:
-            self.move_to_end()
-            self.display()
-
-        # PageUp moves up a page
-        elif c == curses.KEY_PPAGE:
-            self.win_y = self.win_y - (self.max_y - 2)
-            if self.win_y < 0:
-                self.win_y = 0
-            self.display()
-        # PageDn moves down a page
-        elif c == curses.KEY_NPAGE:
-            self.win_y = self.win_y + (self.max_y - 2)
-            if self.win_y < 0:
-                self.win_y = 0
-            self.display()
-
-        # Insert or 'm' memorizes the current position
-        elif c == curses.KEY_IC:
-            self.save_y, self.save_x = self.y + self.win_y, self.x + self.win_x
-        # Delete or 'g' restores a saved position
-        elif c == curses.KEY_DC:
-            if hasattr(self, 'save_y'):
-                self.x = self.y = 0
-                self.win_y, self.win_x = self.save_y, self.save_x
-                self.display()
-        else:
-            #stdscr.addstr(0,50, curses.keyname(c)+ ' pressed')
+        except KeyError:
+            # Ignore incorrect keys
             self.scr.refresh()
-            pass                        # Ignore incorrect keys
-
-    def move_to_end(self):
-        """Move the highlighted location to the end of the current line."""
-
-        # This is a method because I didn't want to have the code to
-        # handle the End key be aware of the internals of the TabFile object.
-        yp = self.y + self.win_y
-        xp=self.x + self.win_x
-        if len(self.data) <= yp:
-            end = 0
-        else:
-            end=len(self.data[yp]) - 1
-
-        # If the end column is on-screen, just change the
-        # .x value appropriately.
-        if self.win_x <= end < self.win_x + self.num_columns:
-            self.x = end - self.win_x
-        else:
-            if end<self.num_columns:
-                self.win_x = 0
-                self.x = end
-            else:
-                self.x = self.num_columns - 1
-                self.win_x = end - self.x
+            pass
 
     def display(self):
         """Refresh the current display"""
@@ -323,21 +322,15 @@ def curses_init(fn):
     """
     curses.wrapper(main, fn)
 
-def help():
-    """Open README file and return as a string.
-
-    """
-    with open("README", 'r') as f:
-        txt = f.readlines()
-    return "".join(txt)
-
 def arg_parse():
     """Parse filename and show help
 
     """
+    with open("README", 'r') as f:
+        help_txt = "".join(f.readlines())
     parser = argparse.ArgumentParser(formatter_class=
                                      argparse.RawDescriptionHelpFormatter,
-                                     description=help())
+                                     description=help_txt)
     parser.add_argument('filename')
     return parser.parse_args()
 
