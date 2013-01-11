@@ -12,6 +12,7 @@
   TODO: Generalize to read a list-of-lists as a CSV object
   TODO: Encoding detection?
   TODO: Variable width columns
+  TODO: Python 2.7 compatibility
 
   Possible projects:
      Allow editing of cells, and then saving the modified data
@@ -124,10 +125,12 @@ class Viewer:
             sys.exit()
 
         def down():
-            if self.y < self.max_y-3 - 1:
-                self.y=self.y + 1
-            else:
-                self.win_y = self.win_y + 1
+            end = len(self.data) - 1
+            if self.win_y + self.y < end:
+                if self.y < self.max_y - 4:
+                    self.y = self.y + 1
+                else:
+                    self.win_y = self.win_y + 1
 
         def up():
             if self.y  ==  0:
@@ -144,20 +147,39 @@ class Viewer:
                 self.x=self.x - 1
 
         def right():
-            if self.x < int(self.max_x/self.column_width) - 1:
+            yp = self.y + self.win_y
+            end = len(self.data[yp]) - 1
+            if self.win_x + self.x >= end:
+                pass
+            elif self.x < int(self.max_x/self.column_width) - 1:
                 self.x=self.x + 1
             else:
                 self.win_x = self.win_x + 1
 
-        def next_page():
-            self.win_y = self.win_y + (self.max_y - 2)
-            if self.win_y < 0:
-                self.win_y = 0
+        def page_down():
+            end = len(self.data) - 1
+            if self.win_y + self.max_y - 2 > end:
+                pass
+            else:
+                self.win_y = self.win_y + (self.max_y - 2)
 
-        def prev_page():
+        def page_up():
             self.win_y = self.win_y - (self.max_y - 2)
             if self.win_y < 0:
                 self.win_y = 0
+
+        def page_right():
+            yp = self.y + self.win_y
+            end = len(self.data[yp]) - 1
+            if self.win_x + self.num_columns > end:
+                pass
+            else:
+                self.win_x = self.win_x + self.num_columns
+
+        def page_left ():
+            self.win_x = self.win_x - self.num_columns
+            if self.win_x < 0:
+                self.win_x = 0
 
         def mark():
             self.save_y, self.save_x = self.y + self.win_y, self.x + self.win_x
@@ -167,32 +189,31 @@ class Viewer:
                 self.x = self.y = 0
                 self.win_y, self.win_x = self.save_y, self.save_x
 
-        def page_right():
-            self.win_x = self.win_x + self.num_columns
-
-        def page_left ():
-            # TODO: page left
-            #self.win_x = self.win_x - self.num_columns
-            #self.display()
-            pass
-
         def home():
-            self.win_x = self.x = 0
+            self.win_x = self.x = self.win_y = self.y = 0
 
         def end():
+            end = len(self.data) + 3
+            self.win_y = end - self.max_y
+            self.y = self.max_y - 4
+
+        def line_home():
+            self.win_x = self.x = 0
+
+        def line_end():
             yp = self.y + self.win_y
-            xp=self.x + self.win_x
+            xp = self.x + self.win_x
             if len(self.data) <= yp:
                 end = 0
             else:
-                end=len(self.data[yp]) - 1
+                end = len(self.data[yp]) - 1
 
             # If the end column is on-screen, just change the
             # .x value appropriately.
             if self.win_x <= end < self.win_x + self.num_columns:
                 self.x = end - self.win_x
             else:
-                if end<self.num_columns:
+                if end < self.num_columns:
                     self.win_x = 0
                     self.x = end
                 else:
@@ -204,25 +225,26 @@ class Viewer:
                      'k':   up,
                      'h':   left,
                      'l':   right,
-                     'J':   next_page,
-                     'K':   prev_page,
+                     'J':   page_down,
+                     'K':   page_up,
                      'm':   mark,
-                     'g':   goto_mark,
+                     "'":   goto_mark,
                      'L':   page_right,
-                     '\t':  page_right,
                      'H':   page_left,
                      'q':   quit,
                      'Q':   quit,
-                     '$':   end,
-                     '^':   home,
+                     '$':   line_end,
+                     '^':   line_home,
+                     'g':   home,
+                     'G':   end,
                      curses.KEY_UP:     up,
                      curses.KEY_DOWN:   down,
                      curses.KEY_LEFT:   left,
                      curses.KEY_RIGHT:  right,
-                     curses.KEY_HOME:   home,
-                     curses.KEY_END:    end,
-                     curses.KEY_PPAGE:  prev_page,
-                     curses.KEY_NPAGE:  next_page,
+                     curses.KEY_HOME:   line_home,
+                     curses.KEY_END:    line_end,
+                     curses.KEY_PPAGE:  page_up,
+                     curses.KEY_NPAGE:  page_down,
                      curses.KEY_IC:     mark,
                      curses.KEY_DC:     goto_mark,
                     }
@@ -231,7 +253,9 @@ class Viewer:
         # Clear the screen and display the menu of keys
         # Main loop:
         while True:
-            self.scr.move(self.y + 2, self.x * self.column_width)     # Move the cursor
+            # Move the cursor back to the highlighted block, then wait
+            # for a valid keypress
+            self.scr.move(self.y + 2, self.x * self.column_width)
             self.handle_keys()
 
     def handle_keys(self):
@@ -251,40 +275,47 @@ class Viewer:
 
     def display(self):
         """Refresh the current display"""
-        self.scr.addstr(0, 0,
-                        self.yx2str(self.y + self.win_y, self.x + self.win_x)
-                        + '    ', curses.A_REVERSE)
+        # Print the current cursor cell in the top left corner
+        self.scr.move(0,0)
+        self.scr.clrtoeol()
+        self.scr.addstr(0, 0, "  {}  ".format(
+                        self.yx2str(self.y + self.win_y, self.x + self.win_x)),
+                        curses.A_REVERSE)
 
+        # Adds the current cell content into row 2
+        yp = self.y + self.win_y
+        xp = self.x+self.win_x
+        if len(self.data) <= yp or len(self.data[yp]) <= xp:
+            s = ""
+        else:
+            s = self.data[yp][xp]
+        self.scr.move(0,20)
+        self.scr.clrtoeol()
+        self.scr.addstr(s[0:self.max_x-20], curses.A_NORMAL)
+
+        # Print a divider line
+        self.scr.move(1,0)
+        self.scr.clrtoeol()
+        self.scr.hline(curses.ACS_HLINE, self.max_x)
+
+        # Print the table data
         for y in range(0, self.max_y - 3):
             self.scr.move(y + 2, 0)
             self.scr.clrtoeol()
             for x in range(0, int(self.max_x / self.column_width) ):
                 self.scr.attrset(curses.A_NORMAL)
                 yp = y + self.win_y
-                xp=x + self.win_x
-                if len(self.data) <= yp:
-                    s = ""
-                elif len(self.data[yp]) <= xp:
+                xp = x + self.win_x
+                if len(self.data) <= yp or len(self.data[yp]) <= xp:
                     s = ""
                 else:
                     s = self.data[yp][xp]
                 s = s.ljust(15)[0:15]
                 if x == self.x and y == self.y:
-                    self.scr.attrset(curses.A_STANDOUT)
-                self.scr.addstr(y + 2, x * self.column_width, s)
-
-        yp = self.y + self.win_y
-        xp = self.x+self.win_x
-        if len(self.data) <= yp:
-            s = ""
-        elif len(self.data[yp]) <= xp:
-            s = ""
-        else:
-            s = self.data[yp][xp]
-
-        self.scr.move(1,0)
-        self.scr.clrtoeol()
-        self.scr.addstr(s[0:self.max_x])
+                    self.scr.attrset(curses.A_REVERSE)
+                # Note: the string is offset right by 1 space in each
+                # column to ensure the whole string is reverse video.
+                self.scr.addstr(y + 2, x * self.column_width, " {}".format(s))
         self.scr.refresh()
 
     def yx2str(self,y,x):

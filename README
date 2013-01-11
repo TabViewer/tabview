@@ -1,5 +1,5 @@
 tabview.py -- View a CSV file in a spreadsheet-like display.
-Posted by Scott Hansen <scottandchrystie at gmail dot com>
+Posted by Scott Hansen <firecat4153 at gmail dot com>
 
 Original code forked from:
 http://www.amk.ca/files/simple/tabview.txt
@@ -9,23 +9,23 @@ The highlighted position is shown in the top-left corner of the screen; below
 it are shown the contents of that cell.
 
 Requires:
-	Python 2.6+ or Python 3+
+	Python 3+
 
 Usage:
-	tabview.py <filname> [<csv delimeter>]
+	tabview.py <filname>
 
 Example:
-	./tabview.py test.csv \t
+	./tabview.py test.csv
 
 Movement keys are:
 
 	Cursor keys or 
 	 h,j,k,l   	: Move the highlighted cell, scrolling if required.
 	Q or q     	: Quit
-	TAB or L   	: Page right a screen
-	Home       	: Move to the start of this line
-	End        	: Move to the end of this line
+	Home or ^      	: Move to the start of this line
+	End or $       	: Move to the end of this line
 	PgUp/PgDn
 	 or J/K    	: Move a page up or down
+	H,L		: Page left or right
 	Insert or m    	: Memorize this position
-	Delete or g    	: Return to memorized position (if any)
+	Delete or '    	: Return to memorized position (if any)
