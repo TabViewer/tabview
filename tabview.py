@@ -208,8 +208,7 @@ class Viewer:
             "Display current cell in a pop-up window"
             yp = self.y + self.win_y
             xp = self.x + self.win_x
-            s = self.data[yp][xp]
-            s = wrap(self.data[yp][xp], 58, subsequent_indent="  ")
+            s = wrap(str(self.data[yp][xp]), 58, subsequent_indent="  ")
             lines = len(s) + 2
             scr2 = curses.newwin(lines,60,15,15)
             scr2.move(0,0)
@@ -288,7 +287,7 @@ class Viewer:
         if len(self.data) <= yp or len(self.data[yp]) <= xp:
             s = ""
         else:
-            s = self.data[yp][xp]
+            s = str(self.data[yp][xp])
         self.scr.move(0,20)
         self.scr.clrtoeol()
         self.scr.addstr(s[0:self.max_x-20], curses.A_NORMAL)
@@ -309,7 +308,7 @@ class Viewer:
                 if len(self.data) <= yp or len(self.data[yp]) <= xp:
                     s = ""
                 else:
-                    s = self.data[yp][xp]
+                    s = str(self.data[yp][xp])
                 s = s.ljust(15)[0:15]
                 if x == self.x and y == self.y:
                     self.scr.attrset(curses.A_REVERSE)
