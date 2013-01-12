@@ -4,6 +4,17 @@
   Scott Hansen <firecat four one five three at gmail dot com>
   Based on code contributed by A.M. Kuchling <amk at amk dot ca>
 
+  Usage:
+      From command line:  ./tabview.py <filename>
+      From python command line to view an object:
+          import tabview
+          a = [["a","b","c"], ["d","e","f"]]
+          tabview.view(a)
+      From python command line to view a file:
+          import tabview
+          data = tabview.process_file(filename)
+          tabview.view(data)
+
   Copyright (c) 2013, Scott Hansen
   Copyright (c) 2010, Andrew M. Kuchling
 
@@ -57,7 +68,7 @@ def csv_sniff(fn):
         dialect = csv.Sniffer().sniff(fn[0])
         return dialect.delimiter
 
-def process_data(fn):
+def process_file(fn):
     """Given a filename, return the file as a list of lists.
 
     """
@@ -330,20 +341,24 @@ class Viewer:
             x = (ord(x[0]) - 65) * 26 + ord(x[1]) - 65 + 26
         return int(y) - 1, x
 
-def main(stdscr, fn):
-    Viewer(stdscr, process_data(fn)).run()
+def main(stdscr, data):
+    Viewer(stdscr, data).run()
 
-def curses_init(fn):
+def view(data):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
     exceptions.
 
+    Args:
+        data: list of lists, tuple of tuples, etc. Any tabular data.
+
     """
-    curses.wrapper(main, fn)
+    curses.wrapper(main, data)
 
 def arg_parse():
-    """Parse filename and show help
+    """Parse filename and show help. Assumes README is in the same
+    directory as tabview.py
 
     """
     script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -358,5 +373,5 @@ def arg_parse():
 
 if __name__ == '__main__':
     args = arg_parse()
-    fn = args.filename
-    curses_init(fn)
+    data = process_file(args.filename)
+    view(data)

@@ -8,14 +8,18 @@ Contributed by A.M. Kuchling <amk@amk.ca>
 The highlighted position is shown in the top-left corner of the screen; below
 it are shown the contents of that cell.
 
-Requires:
-	Python 3+
+Requires: Python 3+
 
 Usage:
-	tabview.py <filname>
-
-Example:
-	./tabview.py test.csv
+	From command line:  ./tabview.py <filename>
+        From python command line to view an object:
+          import tabview
+          a = [["a","b","c"], ["d","e","f"]]
+          tabview.view(a)
+        From python command line to view a file:
+          import tabview
+          data = tabview.process_file(filename)
+          tabview.view(data)
 
 Movement keys are:
 
@@ -29,3 +33,4 @@ Movement keys are:
 	H,L		: Page left or right
 	Insert or m    	: Memorize this position
 	Delete or '    	: Return to memorized position (if any)
+	Enter		: View full cell contents in pop-up window.
