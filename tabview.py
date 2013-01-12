@@ -25,27 +25,15 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
   THE SOFTWARE.
 
-
-  3/16/2011
-  Modified by Scott Hansen
-  - Code cleanup and convert to python 3 compatible
-  - Added a delimeter argument on the command line
-  - Added default delimeter for .txt and .csv (TAB and ,)
-  - Switched to CSV module for importing the file
-  - Added vim-type navigation (h,j,k,l)
-
-  1/7/2013
-  - Further code cleanup and significant reorganization.
-  - Use curses.wrapper for initialization
-  - Added csv sniffing to automatically detect delimiter
-
 """
 import argparse
 import csv
 import curses
+import os.path
 import re
 import sys
 import traceback
+from textwrap import wrap
 
 def csv_sniff(fn):
     """Given a filename or a list of lists, sniff the dialect of the
@@ -205,6 +193,20 @@ class Viewer:
                     self.x = self.num_columns - 1
                     self.win_x = end - self.x
 
+        def show_cell():
+            "Display current cell in a pop-up window"
+            yp = self.y + self.win_y
+            xp = self.x + self.win_x
+            s = self.data[yp][xp]
+            s = wrap(self.data[yp][xp], 58, subsequent_indent="  ")
+            lines = len(s) + 2
+            scr2 = curses.newwin(lines,60,15,15)
+            scr2.move(0,0)
+            scr2.addstr(1, 1, "\n".join(s))
+            scr2.box()
+            while not scr2.getch():
+                pass
+
         self.keys = {
                      'j':   down,
                      'k':   up,
@@ -232,6 +234,8 @@ class Viewer:
                      curses.KEY_NPAGE:  page_down,
                      curses.KEY_IC:     mark,
                      curses.KEY_DC:     goto_mark,
+                     curses.KEY_ENTER:  show_cell,
+                     '\n':  show_cell,
                     }
 
     def run(self):
@@ -342,7 +346,9 @@ def arg_parse():
     """Parse filename and show help
 
     """
-    with open("README", 'r') as f:
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+    fn = os.path.join(script_dir, "README")
+    with open(fn, 'r') as f:
         help_txt = "".join(f.readlines())
     parser = argparse.ArgumentParser(formatter_class=
                                      argparse.RawDescriptionHelpFormatter,
