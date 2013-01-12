@@ -1,25 +1,10 @@
 #!/usr/bin/env python
 
 """ tabview.py -- View a tab-delimited file in a spreadsheet-like display.
-  Contributed by A.M. Kuchling <amk@amk.ca>
+  Scott Hansen <firecat four one five three at gmail dot com>
+  Based on code contributed by A.M. Kuchling <amk at amk dot ca>
 
-  The tab-delimited file is displayed on screen.  The highlighted
-  position is shown in the top-left corner of the screen; below it are
-  shown the contents of that cell.
-
-  TODO: A 'G' for Goto: enter a cell like AA260 and move there
-  TODO: A key to re-read the tab-delimited file
-  TODO: Generalize to read a list-of-lists as a CSV object
-  TODO: Encoding detection?
-  TODO: Variable width columns
-  TODO: Python 2.7 compatibility
-
-  Possible projects:
-     Allow editing of cells, and then saving the modified data
-     Add formula evaluation, and you've got a simple spreadsheet
-  program.  (Actually, you should allow displaying both via curses and
-  via a Tk widget.)
-
+  Copyright (c) 2013, Scott Hansen
   Copyright (c) 2010, Andrew M. Kuchling
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
