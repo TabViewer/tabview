@@ -60,7 +60,7 @@ def csv_sniff(fn):
     """
     try:
         # If fn is a filename
-        with open(fn) as f:
+        with open(fn, 'r', encoding='latin-1') as f:
             dialect = csv.Sniffer().sniff(f.readline())
             return dialect.delimiter
     except TypeError:
