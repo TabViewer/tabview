@@ -35,3 +35,6 @@ Keybindings:
 	Insert or m    	: Memorize this position
 	Delete or '    	: Return to memorized position (if any)
 	Enter		: View full cell contents in pop-up window.
+	/		: Search
+	n		: Next search result
+	p		: Previous search result

@@ -97,6 +97,8 @@ class Viewer:
         self.win_x, self.win_y = 0,0
         self.max_y, self.max_x = self.scr.getmaxyx()
         self.num_columns = int(self.max_x/self.column_width)
+        self.res = []
+        self.res_idx = 0
         self.keys()
         self.scr.clear()
         self.display()
@@ -226,12 +228,41 @@ class Viewer:
             while not scr2.getch():
                 pass
 
-        def search_forward():
-            "Search forward for string and goto that spot"
-            pass
+        def search():
+            """Search (case independent) from the top for string and goto
+            that spot"""
+            scr2 = curses.newwin(4,40,15,15)
+            scr2.box()
+            scr2.move(1,1)
+            scr2.addstr("Search: ")
+            curses.echo()
+            search = scr2.getstr().decode(sys.stdout.encoding).lower()
+            curses.noecho()
+            if search:
+                self.res = [(y,x) for y,line in enumerate(self.data) for x,item
+                            in enumerate(line) if search in item.lower()]
+                self.res_idx = 0
+                self.x = self.y = 0
+            else:
+                self.res = []
+            if self.res:
+                self.win_y, self.win_x = self.res[self.res_idx]
 
-        def search_backward():
-            pass
+        def next_result():
+            if self.res:
+                if self.res_idx < len(self.res) - 1:
+                    self.res_idx += 1
+                else:
+                    self.res_idx = 0
+                self.win_y, self.win_x = self.res[self.res_idx]
+
+        def prev_result():
+            if self.res:
+                if self.res_idx > 0:
+                    self.res_idx -= 1
+                else:
+                    self.res_idx = len(self.res) - 1
+                self.win_y, self.win_x = self.res[self.res_idx]
 
         def help():
             script_dir = os.path.dirname(os.path.realpath(__file__))
@@ -266,8 +297,9 @@ class Viewer:
                      'g':   home,
                      'G':   end,
                      '\n':  show_cell,
-                     '/':   search_forward,
-                     '?':   search_backward,
+                     '/':   search,
+                     'n':   next_result,
+                     'p':   prev_result,
                      curses.KEY_F1:     help,
                      curses.KEY_UP:     up,
                      curses.KEY_DOWN:   down,
