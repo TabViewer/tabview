@@ -21,8 +21,9 @@ Usage:
           data = tabview.process_file(filename)
           tabview.view(data)
 
-Movement keys are:
+Keybindings:
 
+	F1		: Show this list of keybindings
 	Cursor keys or 
 	 h,j,k,l   	: Move the highlighted cell, scrolling if required.
 	Q or q     	: Quit

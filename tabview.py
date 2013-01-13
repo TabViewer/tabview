@@ -44,7 +44,7 @@ import os.path
 import re
 import sys
 import traceback
-from textwrap import wrap
+from textwrap import wrap,fill
 
 def csv_sniff(fn):
     """Given a filename or a list of lists, sniff the dialect of the
@@ -226,6 +226,28 @@ class Viewer:
             while not scr2.getch():
                 pass
 
+        def search_forward():
+            "Search forward for string and goto that spot"
+            pass
+
+        def search_backward():
+            pass
+
+        def help():
+            script_dir = os.path.dirname(os.path.realpath(__file__))
+            fn = os.path.join(script_dir, "README")
+            with open(fn, 'r') as f:
+                help_txt = f.readlines()
+            idx = help_txt.index('Keybindings:\n')
+            help_txt = [i for i in help_txt[idx:]]
+            lines = len(help_txt) + 2
+            scr2 = curses.newwin(lines,82,5,5)
+            scr2.move(0,0)
+            scr2.addstr(1, 1, " ".join(help_txt))
+            scr2.box()
+            while not scr2.getch():
+                pass
+
         self.keys = {
                      'j':   down,
                      'k':   up,
@@ -244,6 +266,9 @@ class Viewer:
                      'g':   home,
                      'G':   end,
                      '\n':  show_cell,
+                     '/':   search_forward,
+                     '?':   search_backward,
+                     curses.KEY_F1:     help,
                      curses.KEY_UP:     up,
                      curses.KEY_DOWN:   down,
                      curses.KEY_LEFT:   left,
