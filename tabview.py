@@ -247,14 +247,14 @@ class Viewer:
                 # Don't display popup if the cursor if somehow off the
                 # end of the normal row, for example if the list has an
                 # uneven number of columns
-                s = wrap(str(self.data[yp][xp]), 58, subsequent_indent="  ")
+                s = wrap(str(self.data[yp][xp]), 78, subsequent_indent="  ")
             except IndexError:
                 return
             if not s:
                 # Only display pop-up if cells have contents
                 return
             lines = len(s) + 2
-            scr2 = curses.newwin(lines,60,15,15)
+            scr2 = curses.newwin(lines,80,5,5)
             scr2.move(0,0)
             scr2.addstr(1, 1, "\n".join(s))
             scr2.box()
