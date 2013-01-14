@@ -40,13 +40,14 @@
 import argparse
 import csv
 import curses
+import locale
 import os.path
 import re
 import sys
 import traceback
 from textwrap import wrap,fill
 
-def csv_sniff(fn):
+def csv_sniff(fn, enc):
     """Given a filename or a list of lists, sniff the dialect of the
     file and return the delimiter. This should keep any errors from
     popping up with tab or comma delimited files.
@@ -54,13 +55,14 @@ def csv_sniff(fn):
     Args:
         fn - complete file path/name or list like
             ["col1,col2,col3","data1,data2,data3","data1...]
+        enc - python encoding value ('utf_8','latin-1','cp870', etc)
     Returns:
         delimiter - ',' or '\t' or other delimiter
 
     """
     try:
         # If fn is a filename
-        with open(fn, 'r', encoding='latin-1') as f:
+        with open(fn, 'r', encoding=enc) as f:
             dialect = csv.Sniffer().sniff(f.readline())
             return dialect.delimiter
     except TypeError:
@@ -68,13 +70,44 @@ def csv_sniff(fn):
         dialect = csv.Sniffer().sniff(fn[0])
         return dialect.delimiter
 
-def process_file(fn):
+def set_encoding(fn=None):
+    """Return the default system encoding. If a filename is passed, try
+    to decode the file with the default system encoding or from a short
+    list of encoding types to test.
+
+    Args:
+        fn(optional) - complete path to file
+
+    Returns:
+        enc - system encoding
+
+    """
+    enc_list = ['UTF-8', 'LATIN-1', 'UTF-16']
+    locale.setlocale(locale.LC_ALL, '')
+    code = locale.getpreferredencoding()
+    if code not in enc_list:
+        enc_list.insert(0, code)
+    if fn is not None:
+        for c in enc_list:
+            try:
+                with open(fn, 'r', encoding=c) as f:
+                    f.read(5000)
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+            return c
+        print("Encoding not detected. Please pass encoding value manually")
+    else:
+        return code
+
+def process_file(fn, enc=None):
     """Given a filename, return the file as a list of lists.
 
     """
+    if enc is None:
+        enc = set_encoding(fn)
     data = []
-    with open(fn, 'r', encoding="latin-1") as f:
-        csv_obj = csv.reader(f, delimiter=csv_sniff(fn))
+    with open(fn, 'r', encoding=enc) as f:
+        csv_obj = csv.reader(f, delimiter=csv_sniff(fn,enc))
         for row in csv_obj:
             data.append(row)
     return data
@@ -434,9 +467,13 @@ def arg_parse():
                                      argparse.RawDescriptionHelpFormatter,
                                      description=help_txt)
     parser.add_argument('filename')
+    parser.add_argument('--encoding', '-e', help="Encoding, if required.  "
+                        "If the file is UTF-8 or Latin-1(iso8859-1) it should "
+                        "be detected automatically. If not, you can pass "
+                        "'CP720', or 'iso8859_2', for example.")
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = arg_parse()
-    data = process_file(args.filename)
+    data = process_file(args.filename, args.encoding)
     view(data)
