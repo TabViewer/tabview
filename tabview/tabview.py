@@ -461,7 +461,8 @@ def process_file(fn, enc=None):
     return data
 
 def readme():
-    fn = "README.rst"
+    path = os.path.dirname(os.path.realpath(__file__))
+    fn = os.path.join(path, "README.rst")
     with open(fn, 'r') as f:
         return f.readlines()
 
