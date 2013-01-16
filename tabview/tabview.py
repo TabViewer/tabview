@@ -15,103 +15,15 @@
           data = tabview.process_file(filename)
           tabview.view(data)
 
-  Copyright (c) 2013, Scott Hansen
-  Copyright (c) 2010, Andrew M. Kuchling
-
-  Permission is hereby granted, free of charge, to any person obtaining a copy
-  of this software and associated documentation files (the "Software"), to deal
-  in the Software without restriction, including without limitation the rights
-  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-  copies of the Software, and to permit persons to whom the Software is
-  furnished to do so, subject to the following conditions:
-
-  The above copyright notice and this permission notice shall be included in
-  all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-  THE SOFTWARE.
-
 """
-import argparse
 import csv
 import curses
 import locale
 import os.path
 import re
 import sys
-import traceback
 from operator import itemgetter
-from textwrap import wrap,fill
-
-def csv_sniff(fn, enc):
-    """Given a filename or a list of lists, sniff the dialect of the
-    file and return the delimiter. This should keep any errors from
-    popping up with tab or comma delimited files.
-
-    Args:
-        fn - complete file path/name or list like
-            ["col1,col2,col3","data1,data2,data3","data1...]
-        enc - python encoding value ('utf_8','latin-1','cp870', etc)
-    Returns:
-        delimiter - ',' or '\t' or other delimiter
-
-    """
-    try:
-        # If fn is a filename
-        with open(fn, 'r', encoding=enc) as f:
-            dialect = csv.Sniffer().sniff(f.readline())
-            return dialect.delimiter
-    except TypeError:
-        # If fn is a list, check the first item in the list
-        dialect = csv.Sniffer().sniff(fn[0])
-        return dialect.delimiter
-
-def set_encoding(fn=None):
-    """Return the default system encoding. If a filename is passed, try
-    to decode the file with the default system encoding or from a short
-    list of encoding types to test.
-
-    Args:
-        fn(optional) - complete path to file
-
-    Returns:
-        enc - system encoding
-
-    """
-    enc_list = ['UTF-8', 'LATIN-1', 'UTF-16']
-    locale.setlocale(locale.LC_ALL, '')
-    code = locale.getpreferredencoding()
-    if code not in enc_list:
-        enc_list.insert(0, code)
-    if fn is not None:
-        for c in enc_list:
-            try:
-                with open(fn, 'r', encoding=c) as f:
-                    f.read(5000)
-            except (UnicodeDecodeError, UnicodeError):
-                continue
-            return c
-        print("Encoding not detected. Please pass encoding value manually")
-    else:
-        return code
-
-def process_file(fn, enc=None):
-    """Given a filename, return the file as a list of lists.
-
-    """
-    if enc is None:
-        enc = set_encoding(fn)
-    data = []
-    with open(fn, 'r', encoding=enc) as f:
-        csv_obj = csv.reader(f, delimiter=csv_sniff(fn,enc))
-        for row in csv_obj:
-            data.append(row)
-    return data
+from textwrap import wrap
 
 class Viewer:
     """The actual CSV viewer class.
@@ -124,9 +36,7 @@ class Viewer:
     """
     def __init__(self, scr, data, column_width=20):
         self.scr = scr
-        for idx, i in enumerate(data):
-            data[idx] = [str(j) for j in i]
-        self.data = data
+        self.data = [[str(j) for j in i] for i in data]
         self.header = self.data[0]
         self.header_offset = 3
         self.column_width = column_width
@@ -314,12 +224,10 @@ class Viewer:
                 self.win_y, self.win_x = self.res[self.res_idx]
 
         def help():
-            script_dir = os.path.dirname(os.path.realpath(__file__))
-            fn = os.path.join(script_dir, "README")
-            with open(fn, 'r') as f:
-                help_txt = f.readlines()
+            help_txt = readme()
             idx = help_txt.index('Keybindings:\n')
-            help_txt = [i for i in help_txt[idx:]]
+            help_txt = [i.replace('*','') for i in help_txt[idx:]
+                        if '=' not in i]
             lines = len(help_txt) + 2
             scr2 = curses.newwin(lines,82,5,5)
             scr2.move(0,0)
@@ -366,6 +274,7 @@ class Viewer:
                      't':   toggle_header,
                      's':   sort_by_column,
                      'S':   sort_by_column_reverse,
+                     '?':   help,
                      curses.KEY_F1:     help,
                      curses.KEY_UP:     up,
                      curses.KEY_DOWN:   down,
@@ -386,7 +295,7 @@ class Viewer:
         while True:
             # Move the cursor back to the highlighted block, then wait
             # for a valid keypress
-            self.scr.move(self.y + self.header_offset, 
+            self.scr.move(self.y + self.header_offset,
                           self.x * self.column_width)
             self.handle_keys()
 
@@ -498,8 +407,78 @@ class Viewer:
             x = (ord(x[0]) - 65) * 26 + ord(x[1]) - 65 + 26
         return int(y) - 1, x
 
+def csv_sniff(fn, enc):
+    """Given a filename or a list of lists, sniff the dialect of the
+    file and return the delimiter. This should keep any errors from
+    popping up with tab or comma delimited files.
+
+    Args:
+        fn - complete file path/name or list like
+            ["col1,col2,col3","data1,data2,data3","data1...]
+        enc - python encoding value ('utf_8','latin-1','cp870', etc)
+    Returns:
+        delimiter - ',' or '\t' or other delimiter
+
+    """
+    try:
+        # If fn is a filename
+        with open(fn, 'r', encoding=enc) as f:
+            dialect = csv.Sniffer().sniff(f.readline())
+            return dialect.delimiter
+    except TypeError:
+        # If fn is a list, check the first item in the list
+        dialect = csv.Sniffer().sniff(fn[0])
+        return dialect.delimiter
+
 def main(stdscr, data):
     Viewer(stdscr, data).run()
+
+def process_file(fn, enc=None):
+    """Given a filename, return the file as a list of lists.
+
+    """
+    if enc is None:
+        enc = set_encoding(fn)
+    data = []
+    with open(fn, 'r', encoding=enc) as f:
+        csv_obj = csv.reader(f, delimiter=csv_sniff(fn,enc))
+        for row in csv_obj:
+            data.append(row)
+    return data
+
+def readme():
+    fn = "README.txt"
+    with open(fn, 'r') as f:
+        return f.readlines()
+
+def set_encoding(fn=None):
+    """Return the default system encoding. If a filename is passed, try
+    to decode the file with the default system encoding or from a short
+    list of encoding types to test.
+
+    Args:
+        fn(optional) - complete path to file
+
+    Returns:
+        enc - system encoding
+
+    """
+    enc_list = ['UTF-8', 'LATIN-1', 'UTF-16']
+    locale.setlocale(locale.LC_ALL, '')
+    code = locale.getpreferredencoding()
+    if code not in enc_list:
+        enc_list.insert(0, code)
+    if fn is not None:
+        for c in enc_list:
+            try:
+                with open(fn, 'r', encoding=c) as f:
+                    f.read(5000)
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+            return c
+        print("Encoding not detected. Please pass encoding value manually")
+    else:
+        return code
 
 def view(data):
     """The curses.wrapper passes stdscr as the first argument to main +
@@ -512,27 +491,3 @@ def view(data):
 
     """
     curses.wrapper(main, data)
-
-def arg_parse():
-    """Parse filename and show help. Assumes README is in the same
-    directory as tabview.py
-
-    """
-    script_dir = os.path.dirname(os.path.realpath(__file__))
-    fn = os.path.join(script_dir, "README")
-    with open(fn, 'r') as f:
-        help_txt = "".join(f.readlines())
-    parser = argparse.ArgumentParser(formatter_class=
-                                     argparse.RawDescriptionHelpFormatter,
-                                     description=help_txt)
-    parser.add_argument('filename')
-    parser.add_argument('--encoding', '-e', help="Encoding, if required.  "
-                        "If the file is UTF-8 or Latin-1(iso8859-1) it should "
-                        "be detected automatically. If not, you can pass "
-                        "'CP720', or 'iso8859_2', for example.")
-    return parser.parse_args()
-
-if __name__ == '__main__':
-    args = arg_parse()
-    data = process_file(args.filename, args.encoding)
-    view(data)

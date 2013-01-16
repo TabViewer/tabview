@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+
+""" tabview -- View a tab-delimited file in a spreadsheet-like display.
+  Scott Hansen <firecat four one five three at gmail dot com>
+  Based on code contributed by A.M. Kuchling <amk at amk dot ca>
+
+  Usage:
+      From command line:  ./tabview.py <filename>
+      From python command line to view an object:
+          import tabview
+          a = [["a","b","c"], ["d","e","f"]]
+          tabview.view(a)
+      From python command line to view a file:
+          import tabview
+          data = tabview.process_file(filename)
+          tabview.view(data)
+
+"""
+import argparse
+from tabview.tabview import process_file, readme, view
+
+def arg_parse():
+    """Parse filename and show help. Assumes README is in the same
+    directory as tabview.py
+
+    """
+    parser = argparse.ArgumentParser(formatter_class=
+                                     argparse.RawDescriptionHelpFormatter,
+                                     description="".join(readme()))
+    import pdb; pdb.set_trace
+    parser.add_argument('filename')
+    parser.add_argument('--encoding', '-e', help="Encoding, if required.  "
+                        "If the file is UTF-8 or Latin-1(iso8859-1) it should "
+                        "be detected automatically. If not, you can pass "
+                        "'CP720', or 'iso8859_2', for example.")
+    return parser.parse_args()
+
+if __name__ == '__main__':
+    args = arg_parse()
+    data = process_file(args.filename, args.encoding)
+    view(data)
