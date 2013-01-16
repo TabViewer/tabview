@@ -45,6 +45,7 @@ import os.path
 import re
 import sys
 import traceback
+from operator import itemgetter
 from textwrap import wrap,fill
 
 def csv_sniff(fn, enc):
@@ -123,8 +124,10 @@ class Viewer:
     """
     def __init__(self, scr, data, column_width=20):
         self.scr = scr
-        self.header = data[0]
+        for idx, i in enumerate(data):
+            data[idx] = [str(j) for j in i]
         self.data = data
+        self.header = self.data[0]
         self.header_offset = 3
         self.column_width = column_width
         self.coord_pat = re.compile('^(?P<x>[a-zA-Z]{1,2})-(?P<y>\d+)$')
@@ -331,6 +334,14 @@ class Viewer:
             else:
                 self.header_offset = 3
 
+        def sort_by_column():
+            xp = self.x + self.win_x
+            self.data = sorted(self.data, key=itemgetter(xp))
+
+        def sort_by_column_reverse():
+            xp = self.x + self.win_x
+            self.data = sorted(self.data, key=itemgetter(xp), reverse=True)
+
         self.keys = {
                      'j':   down,
                      'k':   up,
@@ -353,6 +364,8 @@ class Viewer:
                      'n':   next_result,
                      'p':   prev_result,
                      't':   toggle_header,
+                     's':   sort_by_column,
+                     'S':   sort_by_column_reverse,
                      curses.KEY_F1:     help,
                      curses.KEY_UP:     up,
                      curses.KEY_DOWN:   down,
