@@ -38,3 +38,4 @@ Keybindings:
 	/		: Search
 	n		: Next search result
 	p		: Previous search result
+	t		: Toggle fixed header row

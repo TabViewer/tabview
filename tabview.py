@@ -123,7 +123,9 @@ class Viewer:
     """
     def __init__(self, scr, data, column_width=20):
         self.scr = scr
-        self.data = data
+        self.header = data[0]
+        self.data = data[1:]
+        self.header_offset = 3
         self.column_width = column_width
         self.coord_pat = re.compile('^(?P<x>[a-zA-Z]{1,2})-(?P<y>\d+)$')
         self.x, self.y = 0,0
@@ -312,6 +314,14 @@ class Viewer:
             while not scr2.getch():
                 pass
 
+        def toggle_header():
+            if self.header_offset == 3:
+                self.header_offset = 2
+                self.data.insert(0, self.header)
+            else:
+                self.header_offset = 3
+                self.data.pop(0)
+
         self.keys = {
                      'j':   down,
                      'k':   up,
@@ -333,6 +343,7 @@ class Viewer:
                      '/':   search,
                      'n':   next_result,
                      'p':   prev_result,
+                     't':   toggle_header,
                      curses.KEY_F1:     help,
                      curses.KEY_UP:     up,
                      curses.KEY_DOWN:   down,
@@ -353,7 +364,8 @@ class Viewer:
         while True:
             # Move the cursor back to the highlighted block, then wait
             # for a valid keypress
-            self.scr.move(self.y + 2, self.x * self.column_width)
+            self.scr.move(self.y + self.header_offset, 
+                          self.x * self.column_width)
             self.handle_keys()
 
     def handle_keys(self):
@@ -380,9 +392,9 @@ class Viewer:
                         self.yx2str(self.y + self.win_y, self.x + self.win_x)),
                         curses.A_REVERSE)
 
-        # Adds the current cell content into row 2
+        # Adds the current cell content after the 'current cell' display
         yp = self.y + self.win_y
-        xp = self.x+self.win_x
+        xp = self.x + self.win_x
         if len(self.data) <= yp or len(self.data[yp]) <= xp:
             s = ""
         else:
@@ -396,9 +408,26 @@ class Viewer:
         self.scr.clrtoeol()
         self.scr.hline(curses.ACS_HLINE, self.max_x)
 
+        # Print the header if the correct offset is set
+        if self.header_offset == 3:
+            self.scr.move(2, 0)
+            self.scr.clrtoeol()
+            for x in range(0, int(self.max_x / self.column_width) ):
+                self.scr.attrset(curses.A_NORMAL)
+                xp = x + self.win_x
+                if len(self.header) <= xp:
+                    s = ""
+                else:
+                    s = str(self.header[xp])
+                s = s.ljust(15)[0:15]
+                # Note: the string is offset right by 1 space in each
+                # column to ensure the whole string is reverse video.
+                self.scr.addstr(2, x * self.column_width, " {}".format(s),
+                                curses.A_BOLD)
+
         # Print the table data
         for y in range(0, self.max_y - 3):
-            self.scr.move(y + 2, 0)
+            self.scr.move(y + self.header_offset, 0)
             self.scr.clrtoeol()
             for x in range(0, int(self.max_x / self.column_width) ):
                 self.scr.attrset(curses.A_NORMAL)
@@ -413,7 +442,8 @@ class Viewer:
                     self.scr.attrset(curses.A_REVERSE)
                 # Note: the string is offset right by 1 space in each
                 # column to ensure the whole string is reverse video.
-                self.scr.addstr(y + 2, x * self.column_width, " {}".format(s))
+                self.scr.addstr(y + self.header_offset, x * self.column_width,
+                                " {}".format(s))
         self.scr.refresh()
 
     def yx2str(self,y,x):
