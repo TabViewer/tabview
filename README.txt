@@ -20,40 +20,40 @@ Python 3+
 Usage:
 ------
 
-* From command line:  `tabview.py <filename>`
+* From command line:  ``tabview.py <filename>``
 * From python command line to view an object::
 
-        import tabview
+        import tabview.tabview as t
         a = [["a","b","c"], ["d","e","f"]]
-        tabview.view(a)
+        t.view(a)
 
 * From python command line to view a file::
 
-        import tabview
-        data = tabview.process_file(filename)
-        tabview.view(data)
+        import tabview.tabview as t
+        data = t.process_file(filename)
+        t.view(data)
 
 Keybindings:
 ---------------
 
 ========================   =================================================
-*F1 or ?*                  Show this list of keybindings
-*Cursor keys or h,j,k,l*   Move the highlighted cell, scrolling if required.
-*Q or q*                   Quit
-*Home or ^*                Move to the start of this line
-*End or $*                 Move to the end of this line
-*PgUp/PgDn or J/K*         Move a page up or down
-*H,L*                      Page left or right
-*g*                        Goto top of current column
-*[num]G*                   Goto line <num> or bottom of current column 
+**F1 or ?**                  Show this list of keybindings
+**Cursor keys or h,j,k,l**   Move the highlighted cell, scrolling if required.
+**Q or q**                   Quit
+**Home or ^**                Move to the start of this line
+**End or $**                 Move to the end of this line
+**PgUp/PgDn or J/K**         Move a page up or down
+**H,L**                      Page left or right
+**g**                        Goto top of current column
+**[num]G**                   Goto line <num> or bottom of current column 
                              if num not given
-*Insert or m*              Memorize this position
-*Delete or '*              Return to memorized position (if any)
-*Enter*                    View full cell contents in pop-up window.
-*/*                        Search
-*n*                        Next search result
-*p*                        Previous search result
-*t*                        Toggle fixed header row
-*s*                        Sort the table by the current column (ascending)
-*S*                        Sort the table by the current column (descending)
-============               =================================================
+**Insert or m**              Memorize this position
+**Delete or '**              Return to memorized position (if any)
+**Enter**                    View full cell contents in pop-up window.
+**/**                        Search
+**n**                        Next search result
+**p**                        Previous search result
+**t**                        Toggle fixed header row
+**s**                        Sort the table by the current column (ascending)
+**S**                        Sort the table by the current column (descending)
+========================   =================================================

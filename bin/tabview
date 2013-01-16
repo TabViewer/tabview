@@ -7,13 +7,13 @@
   Usage:
       From command line:  ./tabview.py <filename>
       From python command line to view an object:
-          import tabview
+          import tabview.tabview as t
           a = [["a","b","c"], ["d","e","f"]]
-          tabview.view(a)
+          t.view(a)
       From python command line to view a file:
-          import tabview
-          data = tabview.process_file(filename)
-          tabview.view(data)
+          import tabview.tabview as t
+          data = t.process_file(filename)
+          t.view(data)
 
 """
 import argparse

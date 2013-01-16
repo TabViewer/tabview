@@ -7,13 +7,13 @@
   Usage:
       From command line:  ./tabview.py <filename>
       From python command line to view an object:
-          import tabview
+          import tabview.tabview as t
           a = [["a","b","c"], ["d","e","f"]]
-          tabview.view(a)
+          t.view(a)
       From python command line to view a file:
-          import tabview
-          data = tabview.process_file(filename)
-          tabview.view(data)
+          import tabview.tabview as t
+          data = t.process_file(filename)
+          t.view(data)
 
 """
 import csv
@@ -240,7 +240,7 @@ class Viewer:
         def help():
             help_txt = readme()
             idx = help_txt.index('Keybindings:\n')
-            help_txt = [i.replace('*','') for i in help_txt[idx:]
+            help_txt = [i.replace('**','') for i in help_txt[idx:]
                         if '=' not in i]
             lines = len(help_txt) + 2
             scr2 = curses.newwin(lines,82,5,5)
