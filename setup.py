@@ -14,5 +14,6 @@ setup(
         scripts = ['bin/tabview'],
         package_data = {'tabview': ['README.txt']},
         data_files = [('share/doc/tabview',
-                       ['README.txt', 'LICENSE.txt'])]
+                       ['README.txt', 'LICENSE.txt'])],
+        license = "MIT",
 )
