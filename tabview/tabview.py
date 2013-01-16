@@ -461,7 +461,7 @@ def process_file(fn, enc=None):
     return data
 
 def readme():
-    fn = "README.txt"
+    fn = "README.rst"
     with open(fn, 'r') as f:
         return f.readlines()
 
