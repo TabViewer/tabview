@@ -36,7 +36,7 @@ Usage:
 Keybindings:
 ---------------
 
-========================   =================================================
+==========================   =================================================
 **F1 or ?**                  Show this list of keybindings
 **Cursor keys or h,j,k,l**   Move the highlighted cell, scrolling if required.
 **Q or q**                   Quit
@@ -56,4 +56,4 @@ Keybindings:
 **t**                        Toggle fixed header row
 **s**                        Sort the table by the current column (ascending)
 **S**                        Sort the table by the current column (descending)
-========================   =================================================
+==========================   =================================================
