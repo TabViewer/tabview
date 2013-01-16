@@ -128,19 +128,33 @@ class Viewer:
             self.win_y = self.y = 0
 
         def goto():
+            end = len(self.data)
             if not self.modifier:
                 # Goto the bottom of the current column if no modifier
                 # is present
-                end = len(self.data) + 3
-                self.win_y = end - self.max_y
-                self.y = self.max_y - 4
+                if self.win_y > end - self.max_y + self.header_offset:
+                    # If on the last page already, just move self.y
+                    self.y = end - self.win_y - 1
+                else:
+                    self.win_y = end - self.max_y + self.header_offset
+                    self.y = self.max_y - self.header_offset - 1
             else:
                 # Goto line number given if available
-                end = len(self.data) - 1
-                if int(self.modifier) + self.max_y - 2 < end:
-                    self.y = 0
-                    self.win_y = int(self.modifier) - 1
-                    self.modifier = str()
+                m = int(self.modifier)
+                if m > 0 and m <= end:
+                    if self.win_y > end - self.max_y + self.header_offset:
+                        if m <= self.win_y:
+                            # If going back up off the last page:
+                            self.y = 0
+                            self.win_y = m - 1
+                        else:
+                            # If on the last page already and staying
+                            # there, just move self.y
+                            self.y = m - 1 - self.win_y
+                    else:
+                        self.y = 0
+                        self.win_y = m - 1
+                self.modifier = str()
 
         def line_home():
             self.win_x = self.x = 0
