@@ -124,7 +124,7 @@ class Viewer:
     def __init__(self, scr, data, column_width=20):
         self.scr = scr
         self.header = data[0]
-        self.data = data[1:]
+        self.data = data
         self.header_offset = 3
         self.column_width = column_width
         self.coord_pat = re.compile('^(?P<x>[a-zA-Z]{1,2})-(?P<y>\d+)$')
@@ -134,6 +134,7 @@ class Viewer:
         self.num_columns = int(self.max_x/self.column_width)
         self.res = []
         self.res_idx = 0
+        self.modifier = str()
         self.keys()
         self.scr.clear()
         self.display()
@@ -211,12 +212,22 @@ class Viewer:
                 self.win_y, self.win_x = self.save_y, self.save_x
 
         def home():
-            self.win_x = self.x = self.win_y = self.y = 0
+            self.win_y = self.y = 0
 
-        def end():
-            end = len(self.data) + 3
-            self.win_y = end - self.max_y
-            self.y = self.max_y - 4
+        def goto():
+            if not self.modifier:
+                # Goto the bottom of the current column if no modifier
+                # is present
+                end = len(self.data) + 3
+                self.win_y = end - self.max_y
+                self.y = self.max_y - 4
+            else:
+                # Goto line number given if available
+                end = len(self.data) - 1
+                if int(self.modifier) + self.max_y - 2 < end:
+                    self.y = 0
+                    self.win_y = int(self.modifier) - 1
+                    self.modifier = str()
 
         def line_home():
             self.win_x = self.x = 0
@@ -317,10 +328,8 @@ class Viewer:
         def toggle_header():
             if self.header_offset == 3:
                 self.header_offset = 2
-                self.data.insert(0, self.header)
             else:
                 self.header_offset = 3
-                self.data.pop(0)
 
         self.keys = {
                      'j':   down,
@@ -338,7 +347,7 @@ class Viewer:
                      '$':   line_end,
                      '^':   line_home,
                      'g':   home,
-                     'G':   end,
+                     'G':   goto,
                      '\n':  show_cell,
                      '/':   search,
                      'n':   next_result,
@@ -377,11 +386,18 @@ class Viewer:
             c = chr(c)
         try:
             self.keys[c]()
-            self.display()
         except KeyError:
             # Ignore incorrect keys
             self.scr.refresh()
-            pass
+            # Append digits as a key modifier, clear the modifier if not
+            # a digit
+            if c.isdigit():
+                self.modifier = "{}{}".format(self.modifier, c)
+            else:
+                self.modifier = str()
+        else:
+            self.display()
+            self.modifier = str()
 
     def display(self):
         """Refresh the current display"""
@@ -426,7 +442,7 @@ class Viewer:
                                 curses.A_BOLD)
 
         # Print the table data
-        for y in range(0, self.max_y - 3):
+        for y in range(0, self.max_y - self.header_offset):
             self.scr.move(y + self.header_offset, 0)
             self.scr.clrtoeol()
             for x in range(0, int(self.max_x / self.column_width) ):

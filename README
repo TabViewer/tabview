@@ -32,6 +32,8 @@ Keybindings:
 	PgUp/PgDn
 	 or J/K    	: Move a page up or down
 	H,L		: Page left or right
+	g		: Goto top of current column
+	[num]G		: Goto line <num> or bottom of current column if num not given
 	Insert or m    	: Memorize this position
 	Delete or '    	: Return to memorized position (if any)
 	Enter		: View full cell contents in pop-up window.
