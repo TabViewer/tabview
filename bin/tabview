@@ -27,7 +27,6 @@ def arg_parse():
     parser = argparse.ArgumentParser(formatter_class=
                                      argparse.RawDescriptionHelpFormatter,
                                      description="".join(readme()))
-    import pdb; pdb.set_trace
     parser.add_argument('filename')
     parser.add_argument('--encoding', '-e', help="Encoding, if required.  "
                         "If the file is UTF-8 or Latin-1(iso8859-1) it should "
