@@ -32,6 +32,13 @@ Requires:
 
 Python 3+
 
+Installation:
+-------------
+
+* ``# python setup.py install``  OR
+* ``$ python setup.py install --user``  OR
+* `Archlinux AUR package <https://aur.archlinux.org/packages/tabview-git/>`_
+
 Usage:
 ------
 
