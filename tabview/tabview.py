@@ -228,6 +228,7 @@ class Viewer:
                     self.res_idx += 1
                 else:
                     self.res_idx = 0
+                self.x = self.y = 0
                 self.win_y, self.win_x = self.res[self.res_idx]
 
         def prev_result():
@@ -236,6 +237,7 @@ class Viewer:
                     self.res_idx -= 1
                 else:
                     self.res_idx = len(self.res) - 1
+                self.x = self.y = 0
                 self.win_y, self.win_x = self.res[self.res_idx]
 
         def help():
