@@ -25,6 +25,7 @@ import sys
 from operator import itemgetter
 from textwrap import wrap
 
+
 class Viewer:
     """The actual CSV viewer class.
 
@@ -40,11 +41,11 @@ class Viewer:
         self.header = self.data[0]
         self.header_offset = 3
         self.column_width = column_width
-        self.coord_pat = re.compile('^(?P<x>[a-zA-Z]{1,2})-(?P<y>\d+)$')
-        self.x, self.y = 0,0
-        self.win_x, self.win_y = 0,0
+        self.coord_pat = re.compile('^(?P<x>[a-zA-Z]{1, 2})-(?P<y>\d+)$')
+        self.x, self.y = 0, 0
+        self.win_x, self.win_y = 0, 0
         self.max_y, self.max_x = self.scr.getmaxyx()
-        self.num_columns = int(self.max_x/self.column_width)
+        self.num_columns = int(self.max_x / self.column_width)
         self.res = []
         self.res_idx = 0
         self.modifier = str()
@@ -68,26 +69,26 @@ class Viewer:
                     self.win_y = self.win_y + 1
 
         def up():
-            if self.y  ==  0:
+            if self.y == 0:
                 if self.win_y > 0:
                     self.win_y = self.win_y - 1
             else:
-                self.y=self.y - 1
+                self.y = self.y - 1
 
         def left():
             if self.x == 0:
                 if self.win_x > 0:
                     self.win_x = self.win_x - 1
             else:
-                self.x=self.x - 1
+                self.x = self.x - 1
 
         def right():
             yp = self.y + self.win_y
             end = len(self.data[yp]) - 1
             if self.win_x + self.x >= end:
                 pass
-            elif self.x < int(self.max_x/self.column_width) - 1:
-                self.x=self.x + 1
+            elif self.x < int(self.max_x / self.column_width) - 1:
+                self.x = self.x + 1
             else:
                 self.win_x = self.win_x + 1
 
@@ -111,7 +112,7 @@ class Viewer:
             else:
                 self.win_x = self.win_x + self.num_columns
 
-        def page_left ():
+        def page_left():
             self.win_x = self.win_x - self.num_columns
             if self.win_x < 0:
                 self.win_x = 0
@@ -161,7 +162,6 @@ class Viewer:
 
         def line_end():
             yp = self.y + self.win_y
-            xp = self.x + self.win_x
             if len(self.data) <= yp:
                 end = 0
             else:
@@ -194,8 +194,8 @@ class Viewer:
                 # Only display pop-up if cells have contents
                 return
             lines = len(s) + 2
-            scr2 = curses.newwin(lines,80,5,5)
-            scr2.move(0,0)
+            scr2 = curses.newwin(lines, 80, 5, 5)
+            scr2.move(0, 0)
             scr2.addstr(1, 1, "\n".join(s))
             scr2.box()
             while not scr2.getch():
@@ -204,16 +204,17 @@ class Viewer:
         def search():
             """Search (case independent) from the top for string and goto
             that spot"""
-            scr2 = curses.newwin(4,40,15,15)
+            scr2 = curses.newwin(4, 40, 15, 15)
             scr2.box()
-            scr2.move(1,1)
+            scr2.move(1, 1)
             scr2.addstr("Search: ")
             curses.echo()
             search = scr2.getstr().decode(sys.stdout.encoding).lower()
             curses.noecho()
             if search:
-                self.res = [(y,x) for y,line in enumerate(self.data) for x,item
-                            in enumerate(line) if search in item.lower()]
+                self.res = [(y, x) for y, line in enumerate(self.data) for
+                            x, item in enumerate(line)
+                            if search in item.lower()]
                 self.res_idx = 0
                 self.x = self.y = 0
             else:
@@ -240,11 +241,11 @@ class Viewer:
         def help():
             help_txt = readme()
             idx = help_txt.index('Keybindings:\n')
-            help_txt = [i.replace('**','') for i in help_txt[idx:]
+            help_txt = [i.replace('**', '') for i in help_txt[idx:]
                         if '=' not in i]
             lines = len(help_txt) + 2
-            scr2 = curses.newwin(lines,82,5,5)
-            scr2.move(0,0)
+            scr2 = curses.newwin(lines, 82, 5, 5)
+            scr2.move(0, 0)
             scr2.addstr(1, 1, " ".join(help_txt))
             scr2.box()
             while not scr2.getch():
@@ -264,8 +265,7 @@ class Viewer:
             xp = self.x + self.win_x
             self.data = sorted(self.data, key=itemgetter(xp), reverse=True)
 
-        self.keys = {
-                     'j':   down,
+        self.keys = {'j':   down,
                      'k':   up,
                      'h':   left,
                      'l':   right,
@@ -301,7 +301,7 @@ class Viewer:
                      curses.KEY_IC:     mark,
                      curses.KEY_DC:     goto_mark,
                      curses.KEY_ENTER:  show_cell,
-                    }
+                     }
 
     def run(self):
         # Clear the screen and display the menu of keys
@@ -338,7 +338,7 @@ class Viewer:
     def display(self):
         """Refresh the current display"""
         # Print the current cursor cell in the top left corner
-        self.scr.move(0,0)
+        self.scr.move(0, 0)
         self.scr.clrtoeol()
         self.scr.addstr(0, 0, "  {}  ".format(
                         self.yx2str(self.y + self.win_y, self.x + self.win_x)),
@@ -351,12 +351,12 @@ class Viewer:
             s = ""
         else:
             s = str(self.data[yp][xp])
-        self.scr.move(0,20)
+        self.scr.move(0, 20)
         self.scr.clrtoeol()
-        self.scr.addstr(s[0:self.max_x-20], curses.A_NORMAL)
+        self.scr.addstr(s[0: self.max_x - 20], curses.A_NORMAL)
 
         # Print a divider line
-        self.scr.move(1,0)
+        self.scr.move(1, 0)
         self.scr.clrtoeol()
         self.scr.hline(curses.ACS_HLINE, self.max_x)
 
@@ -364,7 +364,7 @@ class Viewer:
         if self.header_offset == 3:
             self.scr.move(2, 0)
             self.scr.clrtoeol()
-            for x in range(0, int(self.max_x / self.column_width) ):
+            for x in range(0, int(self.max_x / self.column_width)):
                 self.scr.attrset(curses.A_NORMAL)
                 xp = x + self.win_x
                 if len(self.header) <= xp:
@@ -381,7 +381,7 @@ class Viewer:
         for y in range(0, self.max_y - self.header_offset):
             self.scr.move(y + self.header_offset, 0)
             self.scr.clrtoeol()
-            for x in range(0, int(self.max_x / self.column_width) ):
+            for x in range(0, int(self.max_x / self.column_width)):
                 self.scr.attrset(curses.A_NORMAL)
                 yp = y + self.win_y
                 xp = x + self.win_x
@@ -398,19 +398,19 @@ class Viewer:
                                 " {}".format(s))
         self.scr.refresh()
 
-    def yx2str(self,y,x):
+    def yx2str(self, y, x):
         "Convert a coordinate pair like 1,26 to AA2"
         if x < 26:
             s = chr(65 + x)
         else:
             x = x - 26
-            s = chr(65 + (x//26) ) + chr(65 + (x % 26) )
+            s = chr(65 + (x // 26)) + chr(65 + (x % 26))
         s = s + '-' + str(y + 1)
         return s
 
-    def str2yx(self,s):
+    def str2yx(self, s):
         "Convert a string like A1 to a coordinate pair like 0,0"
-        match = coord_pat.match(s)
+        match = self.coord_pat.match(s)
         if not match:
             return None
         y, x = match.group('y', 'x')
@@ -420,6 +420,7 @@ class Viewer:
         else:
             x = (ord(x[0]) - 65) * 26 + ord(x[1]) - 65 + 26
         return int(y) - 1, x
+
 
 def csv_sniff(fn, enc):
     """Given a filename or a list of lists, sniff the dialect of the
@@ -444,8 +445,10 @@ def csv_sniff(fn, enc):
         dialect = csv.Sniffer().sniff(fn[0])
         return dialect.delimiter
 
+
 def main(stdscr, data):
     Viewer(stdscr, data).run()
+
 
 def process_file(fn, enc=None):
     """Given a filename, return the file as a list of lists.
@@ -455,16 +458,18 @@ def process_file(fn, enc=None):
         enc = set_encoding(fn)
     data = []
     with open(fn, 'r', encoding=enc) as f:
-        csv_obj = csv.reader(f, delimiter=csv_sniff(fn,enc))
+        csv_obj = csv.reader(f, delimiter=csv_sniff(fn, enc))
         for row in csv_obj:
             data.append(row)
     return data
+
 
 def readme():
     path = os.path.dirname(os.path.realpath(__file__))
     fn = os.path.join(path, "README.rst")
     with open(fn, 'r') as f:
         return f.readlines()
+
 
 def set_encoding(fn=None):
     """Return the default system encoding. If a filename is passed, try
@@ -494,6 +499,7 @@ def set_encoding(fn=None):
         print("Encoding not detected. Please pass encoding value manually")
     else:
         return code
+
 
 def view(data):
     """The curses.wrapper passes stdscr as the first argument to main +
