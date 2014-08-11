@@ -42,7 +42,7 @@ Installation:
 Usage:
 ------
 
-* From command line:  ``tabview.py <filename>``
+* From command line:  ``tabview <filename>``
 * From python command line to view an object::
 
         import tabview.tabview as t

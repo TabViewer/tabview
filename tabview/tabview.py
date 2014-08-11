@@ -1,19 +1,7 @@
-#!/usr/bin/env python
-
 """ tabview.py -- View a tab-delimited file in a spreadsheet-like display.
+
   Scott Hansen <firecat four one five three at gmail dot com>
   Based on code contributed by A.M. Kuchling <amk at amk dot ca>
-
-  Usage:
-      From command line:  ./tabview.py <filename>
-      From python command line to view an object:
-          import tabview.tabview as t
-          a = [["a","b","c"], ["d","e","f"]]
-          t.view(a)
-      From python command line to view a file:
-          import tabview.tabview as t
-          data = t.process_file(filename)
-          t.view(data)
 
 """
 import csv
