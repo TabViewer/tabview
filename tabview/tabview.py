@@ -269,6 +269,7 @@ class Viewer:
                      'Q':   quit,
                      '$':   line_end,
                      '^':   line_home,
+                     '0':   line_home,
                      'g':   home,
                      'G':   goto,
                      '\n':  show_cell,
