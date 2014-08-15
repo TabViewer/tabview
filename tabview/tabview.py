@@ -118,7 +118,7 @@ class Viewer:
 
         def goto():
             end = len(self.data)
-            if not self.modifier:
+            if self.modifier == str():
                 # Goto the bottom of the current column if no modifier
                 # is present
                 if self.win_y > end - self.max_y + self.header_offset:
@@ -311,19 +311,40 @@ class Viewer:
         c = self.scr.getch()  # Get a keystroke
         if 0 < c < 256:
             c = chr(c)
+        # Digits are commands without a modifier
         try:
-            self.keys[c]()
+            found_digit = c.isdigit()
+        except AttributeError:
+            # Since .isdigit() doesn't exist if c > 256, we need to catch the
+            # error for those keys.
+            found_digit = False
+        has_modifier = not self.modifier == str()
+        try:
+            if found_digit and has_modifier:
+                # Add the digit to the modifier rather than executing a command
+                self.handle_modifier(c)
+            else:
+                self.keys[c]()
         except KeyError:
             # Ignore incorrect keys
-            self.scr.refresh()
-            # Append digits as a key modifier, clear the modifier if not
-            # a digit
-            if c.isdigit():
-                self.modifier = "{}{}".format(self.modifier, c)
-            else:
-                self.modifier = str()
+            self.handle_modifier(c)
         else:
             self.display()
+            if not found_digit:
+                # Don't clear the modifier if we the last character was a digit
+                self.modifier = str()
+
+    def handle_modifier(self, mod):
+        """Append digits as a key modifier, clear the modifier if not
+        a digit.
+
+        Args:
+            mod: potential modifier key
+        """
+        self.scr.refresh()
+        if mod.isdigit():
+            self.modifier = "{}{}".format(self.modifier, mod)
+        else:
             self.modifier = str()
 
     def display(self):
