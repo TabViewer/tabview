@@ -342,9 +342,13 @@ class Viewer:
             mod: potential modifier key
         """
         self.scr.refresh()
-        if mod.isdigit():
-            self.modifier = "{}{}".format(self.modifier, mod)
-        else:
+        try:
+            if mod.isdigit():
+                self.modifier = "{}{}".format(self.modifier, mod)
+            else:
+                self.modifier = str()
+        except AttributeError:
+            # Ignore illegal keys
             self.modifier = str()
 
     def display(self):
