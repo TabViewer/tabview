@@ -23,7 +23,7 @@ Features:
 * Full-text search, n and p to cycle between search results
 * 'Enter' to view the full cell contents
 * Yank cell contents to the clipboard
-* File can be reloaded in-place if desired
+* File can be reloaded in-place if the data changes.
 * F1 or ? for keybindings
 * Can also use from python command line to visualize any tabular data (e.g.
   list-of-lists)
@@ -80,7 +80,7 @@ Keybindings:
 **t**                        Toggle fixed header row
 **s**                        Sort the table by the current column (ascending)
 **S**                        Sort the table by the current column (descending)
-**r**                        Reload file/data.
+**r**                        Reload file/data. Also resets sort order
 **y**                        Yank cell contents to the clipboard
                              (requires xsel or xclip)
 ==========================   =================================================

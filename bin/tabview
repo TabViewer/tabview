@@ -29,9 +29,10 @@ def arg_parse():
                                      description="".join(readme()))
     parser.add_argument('filename')
     parser.add_argument('--encoding', '-e', help="Encoding, if required.  "
-                        "If the file is UTF-8 or Latin-1(iso8859-1) it should "
-                        "be detected automatically. If not, you can pass "
-                        "'CP720', or 'iso8859_2', for example.")
+                        "If the file is UTF-8, Latin-1(iso8859-1) or a few "
+                        "other common encodings, it should be detected "
+                        "automatically. If not, you can pass "
+                        "'CP720', or 'iso8859-2', for example.")
     return parser.parse_args()
 
 if __name__ == '__main__':
