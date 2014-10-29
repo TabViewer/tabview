@@ -55,8 +55,7 @@ Usage:
 * From python command line to view a file::
 
         import tabview.tabview as t
-        data = t.process_file(filename)
-        t.view(data)
+        t.view(fn=<filename>)
 
 Keybindings:
 ---------------
