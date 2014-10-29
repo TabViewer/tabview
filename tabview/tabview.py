@@ -507,7 +507,8 @@ def set_encoding(fn=None):
         enc - system encoding
 
     """
-    enc_list = ['UTF-8', 'LATIN-1', 'UTF-16']
+    enc_list = ['UTF-8', 'LATIN-1', 'iso8859-1', 'iso8859-2',
+                'UTF-16', 'CP720']
     locale.setlocale(locale.LC_ALL, '')
     code = locale.getpreferredencoding()
     if code not in enc_list:
@@ -516,7 +517,7 @@ def set_encoding(fn=None):
         for c in enc_list:
             try:
                 with open(fn, 'r', encoding=c) as f:
-                    f.read(5000)
+                    f.read()
             except (UnicodeDecodeError, UnicodeError):
                 continue
             return c
