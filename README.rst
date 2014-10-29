@@ -22,6 +22,7 @@ Features:
 * Sort ascending or descending by any column
 * Full-text search, n and p to cycle between search results
 * 'Enter' to view the full cell contents
+* Yank cell contents to the clipboard
 * F1 or ? for keybindings
 * Can also use from python command line to visualize any tabular data (e.g.
   list-of-lists)
@@ -30,7 +31,8 @@ Features:
 Requires: 
 ---------
 
-Python 3+
+* Python 3+
+* Xsel or xclip (Optional - only required for 'yank' to clipboard)
 
 Installation:
 -------------
@@ -78,4 +80,6 @@ Keybindings:
 **t**                        Toggle fixed header row
 **s**                        Sort the table by the current column (ascending)
 **S**                        Sort the table by the current column (descending)
+**y**                        Yank cell contents to the clipboard
+                             (requires xsel or xclip)
 ==========================   =================================================

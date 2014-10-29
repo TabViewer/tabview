@@ -11,6 +11,7 @@ import os.path
 import re
 import sys
 from operator import itemgetter
+from subprocess import Popen, PIPE
 from textwrap import wrap
 
 
@@ -257,6 +258,18 @@ class Viewer:
             xp = self.x + self.win_x
             self.data = sorted(self.data, key=itemgetter(xp), reverse=True)
 
+        def yank_cell():
+            yp = self.y + self.win_y
+            xp = self.x + self.win_x
+            s = self.data[yp][xp]
+            for cmd in (['xclip', '-selection', 'clipboard'],
+                        ['xsel', '-i']):
+                try:
+                    Popen(cmd, stdin=PIPE,
+                          universal_newlines=True).communicate(input=s)
+                except FileNotFoundError:
+                    pass
+
         self.keys = {'j':   down,
                      'k':   up,
                      'h':   left,
@@ -281,6 +294,7 @@ class Viewer:
                      't':   toggle_header,
                      's':   sort_by_column,
                      'S':   sort_by_column_reverse,
+                     'y':   yank_cell,
                      '?':   help,
                      curses.KEY_F1:     help,
                      curses.KEY_UP:     up,
