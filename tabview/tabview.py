@@ -29,6 +29,7 @@ class Viewer:
         self.reload = False
         self.data = [[str(j) for j in i] for i in data]
         self.header = self.data[0]
+        del self.data[0]
         self.header_offset = 3
         self.column_width = column_width
         self.coord_pat = re.compile('^(?P<x>[a-zA-Z]{1, 2})-(?P<y>\d+)$')
@@ -251,8 +252,10 @@ class Viewer:
         def toggle_header():
             if self.header_offset == 3:
                 self.header_offset = 2
+                self.data.insert(0, self.header)
             else:
                 self.header_offset = 3
+                del self.data[self.data.index(self.header)]
 
         def sort_by_column():
             xp = self.x + self.win_x
