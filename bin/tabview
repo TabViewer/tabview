@@ -12,12 +12,11 @@
           t.view(a)
       From python command line to view a file:
           import tabview.tabview as t
-          data = t.process_file(filename)
-          t.view(data)
+          t.view(fn=<filename>[, enc=<encoding>])
 
 """
 import argparse
-from tabview.tabview import process_file, readme, view
+from tabview.tabview import readme, view
 
 
 def arg_parse():
@@ -37,5 +36,4 @@ def arg_parse():
 
 if __name__ == '__main__':
     args = arg_parse()
-    data = process_file(args.filename, args.encoding)
-    view(data)
+    view(fn=args.filename, enc=args.encoding)

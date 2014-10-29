@@ -26,6 +26,7 @@ class Viewer:
     """
     def __init__(self, scr, data, column_width=20):
         self.scr = scr
+        self.reload = False
         self.data = [[str(j) for j in i] for i in data]
         self.header = self.data[0]
         self.header_offset = 3
@@ -48,6 +49,9 @@ class Viewer:
         """
         def quit():
             sys.exit()
+
+        def reload():
+            self.reload = True
 
         def down():
             end = len(self.data) - 1
@@ -295,6 +299,7 @@ class Viewer:
                      's':   sort_by_column,
                      'S':   sort_by_column_reverse,
                      'y':   yank_cell,
+                     'r':   reload,
                      '?':   help,
                      curses.KEY_F1:     help,
                      curses.KEY_UP:     up,
@@ -313,7 +318,7 @@ class Viewer:
     def run(self):
         # Clear the screen and display the menu of keys
         # Main loop:
-        while True:
+        while not self.reload and True:
             # Move the cursor back to the highlighted block, then wait
             # for a valid keypress
             self.scr.move(self.y + self.header_offset,
@@ -540,7 +545,7 @@ def set_encoding(fn=None):
         return code
 
 
-def view(data):
+def view(data=None, fn=None, enc=None):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -548,6 +553,14 @@ def view(data):
 
     Args:
         data: list of lists, tuple of tuples, etc. Any tabular data.
+            If 'data' is passed, 'fn' and 'enc' will be ignored
+        fn: filename
+        enc: encoding for file
 
     """
-    curses.wrapper(main, data)
+    while True:
+        if data is not None:
+            d = data
+        elif fn is not None:
+            d = process_file(fn, enc)
+        curses.wrapper(main, d)
