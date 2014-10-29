@@ -175,7 +175,9 @@ class Viewer:
                 # Don't display popup if the cursor if somehow off the
                 # end of the normal row, for example if the list has an
                 # uneven number of columns
-                s = wrap(str(self.data[yp][xp]), 78, subsequent_indent="  ")
+                s = self.data[yp][xp].splitlines()
+                s = [wrap(i, 78, subsequent_indent="  ") for i in s]
+                s = [i for j in s for i in j]
             except IndexError:
                 return
             if not s:
@@ -367,6 +369,8 @@ class Viewer:
             s = ""
         else:
             s = str(self.data[yp][xp])
+        if '\n' in s:
+            s = s.replace('\n', '\\n')
         self.scr.move(0, 20)
         self.scr.clrtoeol()
         self.scr.addstr(s[0: self.max_x - 20], curses.A_NORMAL)
@@ -388,6 +392,8 @@ class Viewer:
                 else:
                     s = str(self.header[xp])
                 s = s.ljust(15)[0:15]
+                if '\n' in s:
+                    s = s.replace('\n', '\\n')
                 # Note: the string is offset right by 1 space in each
                 # column to ensure the whole string is reverse video.
                 self.scr.addstr(2, x * self.column_width, " {}".format(s),
@@ -408,6 +414,8 @@ class Viewer:
                 s = s.ljust(15)[0:15]
                 if x == self.x and y == self.y:
                     self.scr.attrset(curses.A_REVERSE)
+                if '\n' in s:
+                    s = s.replace('\n', '\\n')
                 # Note: the string is offset right by 1 space in each
                 # column to ensure the whole string is reverse video.
                 self.scr.addstr(y + self.header_offset, x * self.column_width,
