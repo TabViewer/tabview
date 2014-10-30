@@ -7,6 +7,7 @@
 import csv
 import curses
 import locale
+import os
 import os.path
 import re
 import sys
@@ -269,6 +270,11 @@ class Viewer:
             yp = self.y + self.win_y
             xp = self.x + self.win_x
             s = self.data[yp][xp]
+            # Bail out if not running in X
+            try:
+                os.environ['DISPLAY']
+            except KeyError:
+                return
             for cmd in (['xclip', '-selection', 'clipboard'],
                         ['xsel', '-i']):
                 try:
