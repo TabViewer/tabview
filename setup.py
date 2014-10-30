@@ -3,7 +3,7 @@
 from distutils.core import setup
 
 setup(name="tabview",
-      version="1.0.1",
+      version="1.1.0",
       description="A curses command-line CSV and list (tabular data) viewer",
       long_description=open('README.rst').read(),
       author="Scott Hansen",
