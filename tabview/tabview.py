@@ -442,6 +442,7 @@ class Viewer:
                 # column to ensure the whole string is reverse video.
                 self.scr.addstr(y + self.header_offset, x * self.column_width,
                                 " {}".format(s))
+                self.scr.attrset(curses.A_NORMAL)
         self.scr.refresh()
 
     def yx2str(self, y, x):
