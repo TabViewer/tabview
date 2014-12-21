@@ -266,6 +266,28 @@ class Viewer:
             xp = self.x + self.win_x
             self.data = sorted(self.data, key=itemgetter(xp), reverse=True)
 
+        def sort_by_column_natural():
+            xp = self.x + self.win_x
+            self.data = sorted_nicely(self.data, itemgetter(xp))
+
+        def sort_by_column_natural_reverse():
+            xp = self.x + self.win_x
+            self.data = sorted_nicely(self.data, itemgetter(xp), rev=True)
+
+        def sorted_nicely(ls, key, rev=False):
+            """ Sort the given iterable in the way that humans expect.
+
+            From StackOverflow: http://goo.gl/nGBUrQ
+
+            """
+            def convert(text):
+                return int(text) if text.isdigit() else text
+
+            def alphanum_key(item):
+                return [convert(c) for c in re.split('([0-9]+)', key(item))]
+
+            return sorted(ls, key=alphanum_key, reverse=rev)
+
         def yank_cell():
             yp = self.y + self.win_y
             xp = self.x + self.win_x
@@ -305,6 +327,8 @@ class Viewer:
                      'n':   next_result,
                      'p':   prev_result,
                      't':   toggle_header,
+                     'a':   sort_by_column_natural,
+                     'A':   sort_by_column_natural_reverse,
                      's':   sort_by_column,
                      'S':   sort_by_column_reverse,
                      'y':   yank_cell,

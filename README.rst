@@ -20,6 +20,7 @@ Features:
   ' - goto mark, etc.) 
 * Toggle persistent header row
 * Sort ascending or descending by any column
+* Sort in 'natural order' to improve numeric sorting
 * Full-text search, n and p to cycle between search results
 * 'Enter' to view the full cell contents
 * Yank cell contents to the clipboard
@@ -81,6 +82,8 @@ Keybindings:
 **t**                        Toggle fixed header row
 **s**                        Sort the table by the current column (ascending)
 **S**                        Sort the table by the current column (descending)
+**a**                        'Natural Sort' the table (ascending)
+**A**                        'Natural Sort' the table (descending)
 **r**                        Reload file/data. Also resets sort order
 **y**                        Yank cell contents to the clipboard
                              (requires xsel or xclip)
