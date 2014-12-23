@@ -6,6 +6,7 @@
 """
 import csv
 import curses
+import _curses
 import locale
 import os
 import os.path
@@ -352,10 +353,11 @@ class Viewer:
         # Clear the screen and display the menu of keys
         # Main loop:
         while not self.reload and True:
-            # Move the cursor back to the highlighted block, then wait
-            # for a valid keypress
+            self.display()
             self.scr.move(self.y + self.header_offset,
                           self.x * self.column_width)
+            # Move the cursor back to the highlighted block, then wait
+            # for a valid keypress
             self.handle_keys()
 
     def handle_keys(self):
@@ -363,6 +365,9 @@ class Viewer:
 
         """
         c = self.scr.getch()  # Get a keystroke
+        if c == curses.KEY_RESIZE:
+            self.resize()
+            return
         if 0 < c < 256:
             c = chr(c)
         # Digits are commands without a modifier
@@ -383,7 +388,6 @@ class Viewer:
             # Ignore incorrect keys
             self.handle_modifier(c)
         else:
-            self.display()
             if not found_digit:
                 # Don't clear the modifier if we the last character was a digit
                 self.modifier = str()
@@ -404,6 +408,24 @@ class Viewer:
         except AttributeError:
             # Ignore illegal keys
             self.modifier = str()
+
+    def resize(self):
+        """Handle terminal resizing
+
+        """
+        # Check if screen was re-sized (True or False)
+        resize = curses.is_term_resized(self.max_y, self.max_x)
+        if resize is True:
+            self.max_y, self.max_x = self.scr.getmaxyx()
+            self.scr.clear()
+            curses.resizeterm(self.max_y, self.max_x)
+            num_columns = max(int(self.max_x / self.column_width), 1)
+            if num_columns < self.num_columns:
+                self.num_columns = num_columns
+                self.x = max(self.x - 1, 0)
+            if self.y > self.max_y - self.header_offset - 1:
+                self.y = max(self.max_y - self.header_offset - 1, 0)
+            self.scr.refresh()
 
     def display(self):
         """Refresh the current display"""
@@ -598,4 +620,7 @@ def view(data=None, fn=None, enc=None):
             d = data
         elif fn is not None:
             d = process_file(fn, enc)
-        curses.wrapper(main, d)
+        try:
+            curses.wrapper(main, d)
+        except _curses.error:
+            continue
