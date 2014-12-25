@@ -79,6 +79,8 @@ class Viewer:
 
         def right():
             yp = self.y + self.win_y
+            if len(self.data) <= yp:
+                return
             end = len(self.data[yp]) - 1
             if self.win_x + self.x >= end:
                 pass
@@ -464,7 +466,7 @@ class Viewer:
                 else:
                     s = str(self.data[yp][xp])
                 s = s.ljust(15)[0:15]
-                if x == self.x and y == self.y:
+                if x == self.x and y == self.y and self.y < len(self.data):
                     self.scr.attrset(curses.A_REVERSE)
                 if '\n' in s:
                     s = s.replace('\n', '\\n')
