@@ -101,9 +101,12 @@ class Viewer:
                 self.y = end - self.win_y
 
         def page_up():
-            self.win_y = self.win_y - (self.max_y - self.header_offset)
-            if self.win_y < 0:
+            if self.win_y == 0:
+                self.y = 0
+            elif self.win_y < self.max_y - self.header_offset:
                 self.win_y = 0
+            else:
+                self.win_y = self.win_y - self.max_y + self.header_offset
 
         def page_right():
             yp = self.y + self.win_y
