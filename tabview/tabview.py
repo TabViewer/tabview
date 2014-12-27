@@ -97,6 +97,8 @@ class Viewer:
                 if new_win_y + self.y > end:
                     self.y = end - new_win_y
                 self.win_y = new_win_y
+            else:
+                self.y = end - self.win_y
 
         def page_up():
             self.win_y = self.win_y - (self.max_y - self.header_offset)
