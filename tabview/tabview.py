@@ -257,9 +257,11 @@ class Viewer:
             if self.header_offset == 3:
                 self.header_offset = 2
                 self.data.insert(0, self.header)
+                self.y = self.y + 1
             else:
                 self.header_offset = 3
                 del self.data[self.data.index(self.header)]
+                self.y = self.y - 1
 
         def sort_by_column():
             xp = self.x + self.win_x
