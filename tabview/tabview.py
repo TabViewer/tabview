@@ -110,16 +110,24 @@ class Viewer:
 
         def page_right():
             yp = self.y + self.win_y
+            if len(self.data) <= yp:
+                return
             end = len(self.data[yp]) - 1
-            if self.win_x + self.num_columns > end:
-                pass
+            if self.win_x <= end - self.num_columns:
+                new_win_x = self.win_x + self.num_columns
+                if new_win_x + self.x > end:
+                    self.x = end - new_win_x
+                self.win_x = new_win_x
             else:
-                self.win_x = self.win_x + self.num_columns
+                self.x = end - self.win_x
 
         def page_left():
-            self.win_x = self.win_x - self.num_columns
-            if self.win_x < 0:
-                self.win_x = 0
+            if self.win_x == 0:
+                self.x = 0
+            elif self.win_x < self.num_columns:
+                self.win_y = 0
+            else:
+                self.win_x = self.win_x - self.num_columns
 
         def mark():
             self.save_y, self.save_x = self.y + self.win_y, self.x + self.win_x
