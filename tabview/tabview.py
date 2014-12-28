@@ -107,10 +107,13 @@ class Viewer:
             if len(self.data) <= yp:
                 return
             end = len(self.data[yp]) - 1
-            if self.win_x + self.num_columns > end:
-                pass
+            if self.win_x <= end - self.num_columns:
+                new_win_x = self.win_x + self.num_columns
+                if new_win_x + self.x > end:
+                    self.x = end - new_win_x
+                self.win_x = new_win_x
             else:
-                self.win_x = self.win_x + self.num_columns
+                self.x = end - self.win_x
 
         def page_left():
             self.win_x = self.win_x - self.num_columns
