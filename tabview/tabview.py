@@ -104,6 +104,8 @@ class Viewer:
 
         def page_right():
             yp = self.y + self.win_y
+            if len(self.data) <= yp:
+                return
             end = len(self.data[yp]) - 1
             if self.win_x + self.num_columns > end:
                 pass
