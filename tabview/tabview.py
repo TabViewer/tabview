@@ -32,7 +32,8 @@ class Viewer:
         self.data = [[str(j) for j in i] for i in data]
         self.header = self.data[0]
         del self.data[0]
-        self.header_offset = 3
+        self.header_offset_orig = 3
+        self.header_offset = self.header_offset_orig
         self.column_width = column_width
         self.coord_pat = re.compile('^(?P<x>[a-zA-Z]{1, 2})-(?P<y>\d+)$')
         self.x, self.y = 0, 0
@@ -268,14 +269,22 @@ class Viewer:
                 pass
 
         def toggle_header():
-            if self.header_offset == 3:
-                self.header_offset = 2
+            if self.header_offset == self.header_offset_orig:
+                # Turn off header row
+                self.header_offset = self.header_offset - 1
                 self.data.insert(0, self.header)
                 self.y = self.y + 1
             else:
-                self.header_offset = 3
+                # Turn on header row
+                self.header_offset = self.header_offset_orig
                 del self.data[self.data.index(self.header)]
-                self.y = self.y - 1
+                if self.y > 0:
+                    self.y = self.y - 1
+                elif self.win_y > 0:
+                    # Scroll down 1 to keep cursor on the same item
+                    up()
+                    down()
+                    self.y = self.y - 1
 
         def sort_by_column():
             xp = self.x + self.win_x
@@ -473,7 +482,7 @@ class Viewer:
         self.scr.hline(curses.ACS_HLINE, self.max_x)
 
         # Print the header if the correct offset is set
-        if self.header_offset == 3:
+        if self.header_offset == self.header_offset_orig:
             self.scr.move(2, 0)
             self.scr.clrtoeol()
             for x in range(0, int(self.max_x / self.column_width)):
