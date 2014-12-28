@@ -92,15 +92,21 @@ class Viewer:
 
         def page_down():
             end = len(self.data) - 1
-            if self.win_y + self.max_y - 2 > end:
-                pass
+            if self.win_y <= end - self.max_y + self.header_offset:
+                new_win_y = self.win_y + self.max_y - self.header_offset
+                if new_win_y + self.y > end:
+                    self.y = end - new_win_y
+                self.win_y = new_win_y
             else:
-                self.win_y = self.win_y + (self.max_y - 2)
+                self.y = end - self.win_y
 
         def page_up():
-            self.win_y = self.win_y - (self.max_y - 2)
-            if self.win_y < 0:
+            if self.win_y == 0:
+                self.y = 0
+            elif self.win_y < self.max_y - self.header_offset:
                 self.win_y = 0
+            else:
+                self.win_y = self.win_y - self.max_y + self.header_offset
 
         def page_right():
             yp = self.y + self.win_y
