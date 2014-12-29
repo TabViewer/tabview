@@ -43,7 +43,7 @@ class Viewer:
         self.x, self.y = 0, 0
         self.win_x, self.win_y = 0, 0
         self.max_y, self.max_x = self.scr.getmaxyx()
-        self.num_columns = int(self.max_x / self.column_width)
+        self.num_columns = max(int(self.max_x / self.column_width), 1)
         self.res = []
         self.res_idx = 0
         self.modifier = str()
@@ -453,15 +453,18 @@ class Viewer:
         resize = curses.is_term_resized(self.max_y, self.max_x)
         if resize is True:
             self.max_y, self.max_x = self.scr.getmaxyx()
-            self.scr.clear()
+            self.num_columns = max(int(self.max_x / self.column_width), 1)
+            if self.x >= self.num_columns:
+                # reposition x
+                ox = self.win_x + self.x
+                self.win_x = max(ox - self.num_columns + 1, 0)
+                self.x = self.num_columns - 1
+            if self.y >= self.max_y - self.header_offset:
+                # reposition y
+                oy = self.win_y + self.y
+                self.win_y = max(oy - (self.max_y - self.header_offset) + 1, 0)
+                self.y = self.max_y - self.header_offset - 1
             curses.resizeterm(self.max_y, self.max_x)
-            num_columns = max(int(self.max_x / self.column_width), 1)
-            if num_columns < self.num_columns:
-                self.num_columns = num_columns
-                self.x = max(self.x - 1, 0)
-            if self.y > self.max_y - self.header_offset - 1:
-                self.y = max(self.max_y - self.header_offset - 1, 0)
-            self.scr.refresh()
 
     def display(self):
         """Refresh the current display"""
