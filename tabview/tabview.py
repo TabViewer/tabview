@@ -24,9 +24,12 @@ class Viewer:
         scr: curses window object
         data: data (list of lists)
         column_width: fixed width for each column
+        column_gap: gap inbetween columns
+        trunc_char: character to delineate a truncated line
 
     """
-    def __init__(self, scr, data, column_width=20):
+    def __init__(self, scr, data, column_width=20, column_gap=2,
+                 trunc_char='…'):
         self.scr = scr
         self.reload = False
         self.data = [[str(j) for j in i] for i in data]
@@ -39,17 +42,29 @@ class Viewer:
             # Don't make one line file a header row
             self.header_offset = self.header_offset_orig - 1
         self.column_width = column_width
+        self.column_gap = column_gap
+        self.trunc_char = trunc_char
         self.coord_pat = re.compile('^(?P<x>[a-zA-Z]{1, 2})-(?P<y>\d+)$')
         self.x, self.y = 0, 0
         self.win_x, self.win_y = 0, 0
-        self.max_y, self.max_x = self.scr.getmaxyx()
-        self.num_columns = max(int(self.max_x / self.column_width), 1)
+        self.max_y, self.max_x = 0, 0
+        self.num_columns = 0
+        self.vis_columns = 0
         self.res = []
         self.res_idx = 0
         self.modifier = str()
         self.keys()
-        self.scr.clear()
+        self.resize()
         self.display()
+
+    def column_xw(self, x):
+        """Return the position and width of the requested column"""
+        xp = x * self.column_width + x * self.column_gap
+        if x < self.num_columns:
+            w = min(self.max_x, self.column_width)
+        else:
+            w = self.max_x - xp
+        return xp, w
 
     def keys(self):
         """Define methods for each allowed key press.
@@ -147,7 +162,8 @@ class Viewer:
 
         def goto_y(m):
             if m > 0 and m <= len(self.data):
-                if self.win_y < m <= self.win_y + (self.max_y - self.header_offset):
+                if self.win_y < m <= self.win_y + \
+                        (self.max_y - self.header_offset):
                     # same screen, change y appropriately.
                     self.y = m - 1 - self.win_y
                 elif m <= self.win_y:
@@ -382,10 +398,6 @@ class Viewer:
         # Main loop:
         while not self.reload and True:
             self.display()
-            self.scr.move(self.y + self.header_offset,
-                          self.x * self.column_width)
-            # Move the cursor back to the highlighted block, then wait
-            # for a valid keypress
             self.handle_keys()
 
     def handle_keys(self):
@@ -441,14 +453,20 @@ class Viewer:
             self.modifier = str()
 
     def resize(self):
-        """Handle terminal resizing
-
-        """
+        """Handle terminal resizing"""
         # Check if screen was re-sized (True or False)
-        resize = curses.is_term_resized(self.max_y, self.max_x)
+        resize = self.max_x == 0 or \
+            curses.is_term_resized(self.max_y, self.max_x)
         if resize is True:
             self.max_y, self.max_x = self.scr.getmaxyx()
-            self.num_columns = max(int(self.max_x / self.column_width), 1)
+            self.num_columns = (1 + max(0, self.max_x - self.column_width)
+                                // (self.column_width + self.column_gap))
+            if (self.num_columns * self.column_width +
+                    self.num_columns * self.column_gap) < self.max_x - 3:
+                self.vis_columns = self.num_columns + 1
+            else:
+                self.vis_columns = self.num_columns
+
             if self.x >= self.num_columns:
                 # reposition x
                 ox = self.win_x + self.x
@@ -463,72 +481,94 @@ class Viewer:
 
     def display(self):
         """Refresh the current display"""
+        yp = self.y + self.win_y
+        xp = self.x + self.win_x
         # Print the current cursor cell in the top left corner
         self.scr.move(0, 0)
         self.scr.clrtoeol()
-        self.scr.addstr(0, 0, "  {},{}  ".format(self.y + self.win_y + 1,
-                                                 self.x + self.win_x + 1),
+        s = "  {},{}  ".format(yp + 1, xp + 1)
+        self.scr.addstr(s, curses.A_REVERSE)
 
         # Adds the current cell content after the 'current cell' display
-        yp = self.y + self.win_y
-        xp = self.x + self.win_x
-        if len(self.data) <= yp or len(self.data[yp]) <= xp:
-            s = ""
-        else:
-            s = str(self.data[yp][xp])
-        if '\n' in s:
-            s = s.replace('\n', '\\n')
-        self.scr.move(0, 20)
-        self.scr.clrtoeol()
-        self.scr.addstr(s[0: self.max_x - 20], curses.A_NORMAL)
+        wc = self.max_x - len(s) - self.column_gap
+        s = self.cellstr(yp, xp, wc)
+        self.scr.addstr(" " * self.column_gap + s, curses.A_NORMAL)
 
         # Print a divider line
-        self.scr.move(1, 0)
-        self.scr.clrtoeol()
-        self.scr.hline(curses.ACS_HLINE, self.max_x)
+        self.scr.hline(1, 0, curses.ACS_HLINE, self.max_x)
 
         # Print the header if the correct offset is set
         if self.header_offset == self.header_offset_orig:
             self.scr.move(self.header_offset - 1, 0)
             self.scr.clrtoeol()
-            for x in range(0, int(self.max_x / self.column_width)):
-                self.scr.attrset(curses.A_NORMAL)
-                xp = x + self.win_x
-                if len(self.header) <= xp:
-                    s = ""
-                else:
-                    s = str(self.header[xp])
-                s = s.ljust(15)[0:15]
-                if '\n' in s:
-                    s = s.replace('\n', '\\n')
-                # Note: the string is offset right by 1 space in each
-                # column to ensure the whole string is reverse video.
-                self.scr.addstr(2, x * self.column_width, " {}".format(s),
-                                curses.A_BOLD)
+            for x in range(0, self.vis_columns):
+                xc, wc = self.column_xw(x)
+                s = self.hdrstr(x + self.win_x, wc)
+                self.scr.insstr(2, xc, s, curses.A_BOLD)
 
         # Print the table data
         for y in range(0, self.max_y - self.header_offset):
             self.scr.move(y + self.header_offset, 0)
             self.scr.clrtoeol()
-            for x in range(0, int(self.max_x / self.column_width)):
-                self.scr.attrset(curses.A_NORMAL)
-                yp = y + self.win_y
-                xp = x + self.win_x
-                if len(self.data) <= yp or len(self.data[yp]) <= xp:
-                    s = ""
+            for x in range(0, self.vis_columns):
+                if x == self.x and y == self.y:
+                    attr = curses.A_REVERSE
                 else:
-                    s = str(self.data[yp][xp])
-                s = s.ljust(15)[0:15]
-                if x == self.x and y == self.y and self.y < len(self.data):
-                    self.scr.attrset(curses.A_REVERSE)
-                if '\n' in s:
-                    s = s.replace('\n', '\\n')
-                # Note: the string is offset right by 1 space in each
-                # column to ensure the whole string is reverse video.
-                self.scr.addstr(y + self.header_offset, x * self.column_width,
-                                " {}".format(s))
-                self.scr.attrset(curses.A_NORMAL)
+                    attr = curses.A_NORMAL
+                xc, wc = self.column_xw(x)
+                s = self.cellstr(y + self.win_y, x + self.win_x, wc)
+                self.scr.insstr(y + self.header_offset, xc, s, attr)
+
         self.scr.refresh()
+
+    def strpad(self, s, width):
+        if '\n' in s:
+            s = s.replace('\n', '\\n')
+        if len(s) > width:
+            s = s[0:(width - len(self.trunc_char))] \
+                + self.trunc_char
+        else:
+            s = s.ljust(width)
+        return s
+
+    def hdrstr(self, x, width):
+        "Format the content of the requested header for display"
+        if len(self.header) <= x:
+            s = ""
+        else:
+            s = str(self.header[x])
+        return self.strpad(s, width)
+
+    def cellstr(self, y, x, width):
+        "Format the content of the requested cell for display"
+        if len(self.data) <= y or len(self.data[y]) <= x:
+            s = ""
+        else:
+            s = str(self.data[y][x])
+        return self.strpad(s, width)
+
+    def yx2str(self, y, x):
+        "Convert a coordinate pair like 1,26 to AA2"
+        if x < 26:
+            s = chr(65 + x)
+        else:
+            x = x - 26
+            s = chr(65 + (x // 26)) + chr(65 + (x % 26))
+        s = s + '-' + str(y + 1)
+        return s
+
+    def str2yx(self, s):
+        "Convert a string like A1 to a coordinate pair like 0,0"
+        match = self.coord_pat.match(s)
+        if not match:
+            return None
+        y, x = match.group('y', 'x')
+        x = x.upper()
+        if len(x) == 1:
+            x = ord(x) - 65
+        else:
+            x = (ord(x[0]) - 65) * 26 + ord(x[1]) - 65 + 26
+        return int(y) - 1, x
 
 
 def csv_sniff(fn, enc):
