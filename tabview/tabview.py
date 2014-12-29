@@ -30,10 +30,14 @@ class Viewer:
         self.scr = scr
         self.reload = False
         self.data = [[str(j) for j in i] for i in data]
-        self.header = self.data[0]
-        del self.data[0]
         self.header_offset_orig = 3
-        self.header_offset = self.header_offset_orig
+        self.header = self.data[0]
+        if len(self.data) > 1:
+            del self.data[0]
+            self.header_offset = self.header_offset_orig
+        else:
+            # Don't make one line file a header row
+            self.header_offset = self.header_offset_orig - 1
         self.column_width = column_width
         self.coord_pat = re.compile('^(?P<x>[a-zA-Z]{1, 2})-(?P<y>\d+)$')
         self.x, self.y = 0, 0
@@ -269,6 +273,8 @@ class Viewer:
                 pass
 
         def toggle_header():
+            if len(self.data) == 1:
+                return
             if self.header_offset == self.header_offset_orig:
                 # Turn off header row
                 self.header_offset = self.header_offset - 1
@@ -483,7 +489,7 @@ class Viewer:
 
         # Print the header if the correct offset is set
         if self.header_offset == self.header_offset_orig:
-            self.scr.move(2, 0)
+            self.scr.move(self.header_offset - 1, 0)
             self.scr.clrtoeol()
             for x in range(0, int(self.max_x / self.column_width)):
                 self.scr.attrset(curses.A_NORMAL)
