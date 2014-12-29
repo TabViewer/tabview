@@ -397,7 +397,10 @@ class Viewer:
         """Determine what method to call for each keypress.
 
         """
-        c = self.scr.getch()  # Get a keystroke
+        try:
+            c = self.scr.getch()  # Get a keystroke
+        except KeyboardInterrupt:
+            sys.exit()
         if c == curses.KEY_RESIZE:
             self.resize()
             return
