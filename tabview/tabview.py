@@ -468,7 +468,7 @@ class Viewer:
         # Print the current cursor cell in the top left corner
         self.scr.move(0, 0)
         self.scr.clrtoeol()
-        self.scr.addstr(0, 0, "  {}  ".format(
+        self.scr.insstr(0, 0, "  {}  ".format(
                         self.yx2str(self.y + self.win_y, self.x + self.win_x)),
                         curses.A_REVERSE)
 
@@ -478,7 +478,7 @@ class Viewer:
         s = self.cellstr(yp, xp, self.max_x - 20)
         self.scr.move(0, 20)
         self.scr.clrtoeol()
-        self.scr.addstr(s[0: self.max_x - 20], curses.A_NORMAL)
+        self.scr.insstr(s[0: self.max_x - 20], curses.A_NORMAL)
 
         # Print a divider line
         self.scr.move(1, 0)
@@ -495,7 +495,7 @@ class Viewer:
                 s = self.hdrstr(xp, self.column_width - 1)
                 # Note: the string is offset right by 1 space in each
                 # column to ensure the whole string is reverse video.
-                self.scr.addstr(2, x * self.column_width, " {}".format(s),
+                self.scr.insstr(2, x * self.column_width, " {}".format(s),
                                 curses.A_BOLD)
 
         # Print the table data
@@ -511,7 +511,7 @@ class Viewer:
                 s = self.cellstr(yp, xp, self.column_width - 1)
                 # Note: the string is offset right by 1 space in each
                 # column to ensure the whole string is reverse video.
-                self.scr.addstr(y + self.header_offset, x * self.column_width,
+                self.scr.insstr(y + self.header_offset, x * self.column_width,
                                 " {}".format(s))
                 self.scr.attrset(curses.A_NORMAL)
         self.scr.refresh()
