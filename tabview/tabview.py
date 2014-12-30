@@ -16,9 +16,6 @@ from operator import itemgetter
 from subprocess import Popen, PIPE
 from textwrap import wrap
 
-DEFAULT_WIDTH = 20
-DEFAULT_TRUNC = '>'
-
 
 class Viewer:
     """The actual CSV viewer class.
@@ -26,10 +23,13 @@ class Viewer:
     Args:
         scr: curses window object
         data: data (list of lists)
-        column_width: fixed width for each column
+        column_width: total fixed width for each column, *including padding*
+        column_padding: padding added to the right of each string
+        trunc_char: character to delineate a truncated line
 
     """
-    def __init__(self, scr, data, column_width=DEFAULT_WIDTH):
+    def __init__(self, scr, data, column_width=20, column_padding=2,
+                 trunc_char='…'):
         self.scr = scr
         self.reload = False
         self.data = [[str(j) for j in i] for i in data]
@@ -42,6 +42,8 @@ class Viewer:
             # Don't make one line file a header row
             self.header_offset = self.header_offset_orig - 1
         self.column_width = column_width
+        self.column_padding = column_padding
+        self.trunc_char = trunc_char
         self.coord_pat = re.compile('^(?P<x>[a-zA-Z]{1, 2})-(?P<y>\d+)$')
         self.x, self.y = 0, 0
         self.win_x, self.win_y = 0, 0
@@ -481,10 +483,10 @@ class Viewer:
         # Adds the current cell content after the 'current cell' display
         yp = self.y + self.win_y
         xp = self.x + self.win_x
-        s = self.cellstr(yp, xp, self.max_x - 20)
-        self.scr.move(0, 20)
+        s = self.cellstr(yp, xp, self.max_x - self.column_width)
+        self.scr.move(0, self.column_width)
         self.scr.clrtoeol()
-        self.scr.insstr(s[0: self.max_x - 20], curses.A_NORMAL)
+        self.scr.insstr(s[0: self.max_x - self.column_width], curses.A_NORMAL)
 
         # Print a divider line
         self.scr.move(1, 0)
@@ -498,7 +500,7 @@ class Viewer:
             for x in range(0, int(self.max_x / self.column_width)):
                 self.scr.attrset(curses.A_NORMAL)
                 xp = x + self.win_x
-                s = self.hdrstr(xp, self.column_width - 1)
+                s = self.hdrstr(xp, self.column_width)
                 # Note: the string is offset right by 1 space in each
                 # column to ensure the whole string is reverse video.
                 self.scr.insstr(2, x * self.column_width, " {}".format(s),
@@ -514,7 +516,7 @@ class Viewer:
                 xp = x + self.win_x
                 if x == self.x and y == self.y and self.y < len(self.data):
                     self.scr.attrset(curses.A_REVERSE)
-                s = self.cellstr(yp, xp, self.column_width - 1)
+                s = self.cellstr(yp, xp, self.column_width)
                 # Note: the string is offset right by 1 space in each
                 # column to ensure the whole string is reverse video.
                 self.scr.insstr(y + self.header_offset, x * self.column_width,
@@ -525,10 +527,11 @@ class Viewer:
     def strpad(self, s, width):
         if '\n' in s:
             s = s.replace('\n', '\\n')
-        if len(s) > width:
-            s = s[0:width - len(DEFAULT_TRUNC)] + DEFAULT_TRUNC
+        if len(s) > width - self.column_padding:
+            s = s[0:(width - self.column_padding - len(self.trunc_char))] \
+                + self.trunc_char
         else:
-            s = s.ljust(width)
+            s = s.ljust(width - self.column_padding)
         return s
 
     def hdrstr(self, x, width):
