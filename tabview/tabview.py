@@ -130,7 +130,7 @@ class Viewer:
             if self.win_x == 0:
                 self.x = 0
             elif self.win_x < self.num_columns:
-                self.win_y = 0
+                self.win_x = 0
             else:
                 self.win_x = self.win_x - self.num_columns
 
