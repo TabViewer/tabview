@@ -586,6 +586,7 @@ def csv_sniff(fn, enc):
 
 def main(stdscr, data):
     curses.use_default_colors()
+    curses.curs_set(False)
     Viewer(stdscr, data).run()
 
 
