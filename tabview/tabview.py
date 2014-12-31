@@ -273,14 +273,14 @@ class Viewer:
                 pass
 
         def toggle_header():
-            if len(self.data) == 1:
-                return
             if self.header_offset == self.header_offset_orig:
                 # Turn off header row
                 self.header_offset = self.header_offset - 1
                 self.data.insert(0, self.header)
                 self.y = self.y + 1
             else:
+                if len(self.data) == 1:
+                    return
                 # Turn on header row
                 self.header_offset = self.header_offset_orig
                 del self.data[self.data.index(self.header)]
