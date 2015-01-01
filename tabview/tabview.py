@@ -33,7 +33,7 @@ class Viewer:
         self.scr = scr
         self.reload = False
         self.data = [[str(j) for j in i] for i in data]
-        self.header_offset_orig = 3
+        self.header_offset_orig = 2
         self.header = self.data[0]
         if len(self.data) > 1:
             del self.data[0]
@@ -491,15 +491,12 @@ class Viewer:
         self.scr.move(0, 0)
         self.scr.clrtoeol()
         s = "  {}  ".format(self.yx2str(yp, xp))
-        self.scr.addstr(s, curses.A_REVERSE)
+        self.scr.addstr(s, curses.A_REVERSE | curses.A_UNDERLINE)
 
         # Adds the current cell content after the 'current cell' display
         wc = self.max_x - len(s) - self.column_gap
         s = self.cellstr(yp, xp, wc)
-        self.scr.addstr(" " * self.column_gap + s, curses.A_NORMAL)
-
-        # Print a divider line
-        self.scr.hline(1, 0, curses.ACS_HLINE, self.max_x)
+        self.scr.addstr(" " * self.column_gap + s, curses.A_NORMAL | curses.A_UNDERLINE)
 
         # Print the header if the correct offset is set
         if self.header_offset == self.header_offset_orig:
@@ -508,7 +505,7 @@ class Viewer:
             for x in range(0, self.vis_columns):
                 xc, wc = self.column_xw(x)
                 s = self.hdrstr(x + self.win_x, wc)
-                self.scr.insstr(2, xc, s, curses.A_BOLD)
+                self.scr.insstr(self.header_offset - 1, xc, s, curses.A_BOLD)
 
         # Print the table data
         for y in range(0, self.max_y - self.header_offset):
