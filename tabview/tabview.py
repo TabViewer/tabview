@@ -23,13 +23,15 @@ class Viewer:
     Args:
         scr: curses window object
         data: data (list of lists)
+        xy_format: show X,Y coordinates
         column_width: fixed width for each column
 
     """
-    def __init__(self, scr, data, column_width=20):
+    def __init__(self, scr, data, xy_format, column_width=20):
         self.scr = scr
         self.reload = False
         self.data = [[str(j) for j in i] for i in data]
+        self.xy_format = xy_format
         self.header_offset_orig = 3
         self.header = self.data[0]
         if len(self.data) > 1:
@@ -469,15 +471,18 @@ class Viewer:
     def display(self):
         """Refresh the current display"""
         # Print the current cursor cell in the top left corner
-        self.scr.move(0, 0)
-        self.scr.clrtoeol()
-        self.scr.addstr(0, 0, "  {}  ".format(
-                        self.yx2str(self.y + self.win_y, self.x + self.win_x)),
-                        curses.A_REVERSE)
-
-        # Adds the current cell content after the 'current cell' display
         yp = self.y + self.win_y
         xp = self.x + self.win_x
+        if self.xy_format:
+            curstr = "{},{}".format(xp + 1, yp + 1)
+        else:
+            curstr = self.yx2str(yp, xp)
+
+        self.scr.move(0, 0)
+        self.scr.clrtoeol()
+        self.scr.addstr(0, 0, "  {}  ".format(curstr), curses.A_REVERSE)
+
+        # Adds the current cell content after the 'current cell' display
         if len(self.data) <= yp or len(self.data[yp]) <= xp:
             s = ""
         else:
@@ -584,10 +589,10 @@ def csv_sniff(fn, enc):
         return dialect.delimiter
 
 
-def main(stdscr, data):
+def main(stdscr, data, xy_format):
     curses.use_default_colors()
     curses.curs_set(False)
-    Viewer(stdscr, data).run()
+    Viewer(stdscr, data, xy_format).run()
 
 
 def process_file(fn, enc=None):
@@ -642,7 +647,7 @@ def set_encoding(fn=None):
         return code
 
 
-def view(data=None, fn=None, enc=None):
+def view(data=None, fn=None, enc=None, xy_format=True):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -653,6 +658,7 @@ def view(data=None, fn=None, enc=None):
             If 'data' is passed, 'fn' and 'enc' will be ignored
         fn: filename
         enc: encoding for file
+        xy_format: use coordinates instead of spreadsheet-like addresses
 
     """
     while True:
@@ -661,6 +667,6 @@ def view(data=None, fn=None, enc=None):
         elif fn is not None:
             d = process_file(fn, enc)
         try:
-            curses.wrapper(main, d)
+            curses.wrapper(main, d, xy_format)
         except _curses.error:
             continue
