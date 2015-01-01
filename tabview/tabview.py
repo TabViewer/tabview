@@ -79,7 +79,7 @@ class Viewer:
         def down():
             end = len(self.data) - 1
             if self.win_y + self.y < end:
-                if self.y < self.max_y - 4:
+                if self.y < self.max_y - self.header_offset - 1:
                     self.y = self.y + 1
                 else:
                     self.win_y = self.win_y + 1
