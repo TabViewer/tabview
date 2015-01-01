@@ -72,8 +72,10 @@ Keybindings:
 **F1 or ?**                  Show this list of keybindings
 **Cursor keys or h,j,k,l**   Move the highlighted cell, scrolling if required.
 **Q or q**                   Quit
-**Home, 0 or ^**                Move to the start of this line
+**Home, 0 or ^**             Move to the start of this line
 **End or $**                 Move to the end of this line
+**[num]|**                   Goto column <num>, or first column
+                             if num not given
 **PgUp/PgDn or J/K**         Move a page up or down
 **H,L**                      Page left or right
 **g**                        Goto top of current column

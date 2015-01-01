@@ -139,62 +139,56 @@ class Viewer:
 
         def goto_mark():
             if hasattr(self, 'save_y'):
-                self.x = self.y = 0
-                self.win_y, self.win_x = self.save_y, self.save_x
+                goto_y(self.save_y + 1)
+                goto_x(self.save_x + 1)
 
         def home():
             self.win_y = self.y = 0
 
-        def goto():
-            end = len(self.data)
-            if self.modifier == str():
-                # Goto the bottom of the current column if no modifier
-                # is present
-                if self.win_y > end - self.max_y + self.header_offset:
-                    # If on the last page already, just move self.y
-                    self.y = end - self.win_y - 1
+        def goto_y(m):
+            if m > 0 and m <= len(self.data):
+                if self.win_y < m <= self.win_y + (self.max_y - self.header_offset):
+                    # same screen, change y appropriately.
+                    self.y = m - 1 - self.win_y
+                elif m <= self.win_y:
+                    # going back
+                    self.y = 0
+                    self.win_y = m - 1
                 else:
-                    self.win_y = end - self.max_y + self.header_offset
-                    self.y = self.max_y - self.header_offset - 1
-            else:
-                # Goto line number given if available
-                m = int(self.modifier)
-                if m > 0 and m <= end:
-                    if self.win_y > end - self.max_y + self.header_offset:
-                        if m <= self.win_y:
-                            # If going back up off the last page:
-                            self.y = 0
-                            self.win_y = m - 1
-                        else:
-                            # If on the last page already and staying
-                            # there, just move self.y
-                            self.y = m - 1 - self.win_y
-                    else:
-                        self.y = 0
-                        self.win_y = m - 1
-                self.modifier = str()
+                    # going forward
+                    self.win_y = m - (self.max_y - self.header_offset)
+                    self.y = (self.max_y - self.header_offset) - 1
+
+        def goto_row():
+            m = int(self.modifier) if len(self.modifier) else len(self.data)
+            goto_y(m)
+            self.modifier = str()
+
+        def goto_x(m):
+            if m > 0 and m <= len(self.data[self.y + self.win_y]):
+                if self.win_x < m <= self.win_x + self.num_columns:
+                    # same screen, change x value appropriately.
+                    self.x = m - 1 - self.win_x
+                elif m <= self.win_x:
+                    # going back
+                    self.x = 0
+                    self.win_x = m - 1
+                else:
+                    # going forward
+                    self.win_x = m - self.num_columns
+                    self.x = self.num_columns - 1
+
+        def goto_col():
+            m = int(self.modifier) if len(self.modifier) else 1
+            goto_x(m)
+            self.modifier = str()
 
         def line_home():
             self.win_x = self.x = 0
 
         def line_end():
-            yp = self.y + self.win_y
-            if len(self.data) <= yp:
-                end = 0
-            else:
-                end = len(self.data[yp]) - 1
-
-            # If the end column is on-screen, just change the
-            # .x value appropriately.
-            if self.win_x <= end < self.win_x + self.num_columns:
-                self.x = end - self.win_x
-            else:
-                if end < self.num_columns:
-                    self.win_x = 0
-                    self.x = end
-                else:
-                    self.x = self.num_columns - 1
-                    self.win_x = end - self.x
+            end = len(self.data[self.y + self.win_y])
+            goto_x(end)
 
         def show_cell():
             "Display current cell in a pop-up window"
@@ -355,7 +349,8 @@ class Viewer:
                      '^':   line_home,
                      '0':   line_home,
                      'g':   home,
-                     'G':   goto,
+                     'G':   goto_row,
+                     '|':   goto_col,
                      '\n':  show_cell,
                      '/':   search,
                      'n':   next_result,
