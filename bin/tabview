@@ -28,6 +28,10 @@ def arg_parse():
                                      argparse.RawDescriptionHelpFormatter,
                                      description="".join(readme()))
     parser.add_argument('filename')
+    parser.add_argument('--no-xy-format',
+                        help="Use spreadsheet-like cell addresses "
+                        "(A-1) instead of X,Y coordinates (1,1).",
+                        dest='xy_format', default=True, action='store_false')
     parser.add_argument('--encoding', '-e', help="Encoding, if required.  "
                         "If the file is UTF-8, Latin-1(iso8859-1) or a few "
                         "other common encodings, it should be detected "
@@ -37,4 +41,4 @@ def arg_parse():
 
 if __name__ == '__main__':
     args = arg_parse()
-    view(fn=args.filename, enc=args.encoding)
+    view(fn=args.filename, enc=args.encoding, xy_format=args.xy_format)
