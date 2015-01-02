@@ -11,6 +11,7 @@ import csv
 import _curses
 import curses
 import curses.ascii
+from curses import textpad
 import locale
 import os
 import re
@@ -316,18 +317,25 @@ class Viewer:
         if self.init_search is None:
             scr2 = curses.newwin(4, 40, 15, 15)
             scr2.box()
-            scr2.move(1, 1)
-            addstr(scr2, "Search: ")
-            curses.echo()
-            self.search_str = scr2.getstr().decode(sys.stdout.encoding).lower()
-            curses.noecho()
+            addstr(scr2, 1, 1, "Search:")
+            scr2.refresh()
+            scr3 = curses.newwin(2, 30, 16, 24)
+
+            def ret_end(c):
+                if c == curses.ascii.NL:
+                    return curses.ascii.BEL
+                return c
+
+            curses.curs_set(True)
+            textbox = textpad.Textbox(scr3, insert_mode=True)
+            self.search_str = textbox.edit(ret_end)[0:-2].lower()
+            curses.curs_set(False)
         if self.search_str or self.init_search:
             self.search_str = self.search_str or self.init_search
-            self.res = [(y, x) for y, line in enumerate(self.data) for
-                        x, item in enumerate(line)
+            self.res = [(y, x) for y, line in enumerate(self.data)
+                        for x, item in enumerate(line)
                         if self.search_str in item.lower()]
             self.res_idx = 0
-            self.x = self.y = 0
             self.init_search = None
         else:
             self.res = []
