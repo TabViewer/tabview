@@ -335,7 +335,18 @@ class Viewer:
             self.res = [(y, x) for y, line in enumerate(self.data)
                         for x, item in enumerate(line)
                         if self.search_str in item.lower()]
+            # find a location at/after the current cursor
             self.res_idx = 0
+            yp, xp = self.win_y + self.y, self.win_x + self.x
+            while True:
+                y, x = self.res[self.res_idx]
+                if y >= yp and x >= xp:
+                    break
+                if self.res_idx < len(self.res) - 1:
+                    self.res_idx += 1
+                else:
+                    self.res_idx = 0
+                    break
             self.init_search = None
         else:
             self.res = []
