@@ -16,6 +16,9 @@ from operator import itemgetter
 from subprocess import Popen, PIPE
 from textwrap import wrap
 
+DEFAULT_WIDTH = 20
+DEFAULT_TRUNC = '>'
+
 
 class Viewer:
     """The actual CSV viewer class.
@@ -26,7 +29,7 @@ class Viewer:
         column_width: fixed width for each column
 
     """
-    def __init__(self, scr, data, column_width=20):
+    def __init__(self, scr, data, column_width=DEFAULT_WIDTH):
         self.scr = scr
         self.reload = False
         self.data = [[str(j) for j in i] for i in data]
@@ -466,22 +469,17 @@ class Viewer:
         # Print the current cursor cell in the top left corner
         self.scr.move(0, 0)
         self.scr.clrtoeol()
-        self.scr.addstr(0, 0, "  {}  ".format(
+        self.scr.insstr(0, 0, "  {}  ".format(
                         self.yx2str(self.y + self.win_y, self.x + self.win_x)),
                         curses.A_REVERSE)
 
         # Adds the current cell content after the 'current cell' display
         yp = self.y + self.win_y
         xp = self.x + self.win_x
-        if len(self.data) <= yp or len(self.data[yp]) <= xp:
-            s = ""
-        else:
-            s = str(self.data[yp][xp])
-        if '\n' in s:
-            s = s.replace('\n', '\\n')
+        s = self.cellstr(yp, xp, self.max_x - 20)
         self.scr.move(0, 20)
         self.scr.clrtoeol()
-        self.scr.addstr(s[0: self.max_x - 20], curses.A_NORMAL)
+        self.scr.insstr(s[0: self.max_x - 20], curses.A_NORMAL)
 
         # Print a divider line
         self.scr.move(1, 0)
@@ -495,16 +493,10 @@ class Viewer:
             for x in range(0, int(self.max_x / self.column_width)):
                 self.scr.attrset(curses.A_NORMAL)
                 xp = x + self.win_x
-                if len(self.header) <= xp:
-                    s = ""
-                else:
-                    s = str(self.header[xp])
-                s = s.ljust(15)[0:15]
-                if '\n' in s:
-                    s = s.replace('\n', '\\n')
+                s = self.hdrstr(xp, self.column_width - 1)
                 # Note: the string is offset right by 1 space in each
                 # column to ensure the whole string is reverse video.
-                self.scr.addstr(2, x * self.column_width, " {}".format(s),
+                self.scr.insstr(2, x * self.column_width, " {}".format(s),
                                 curses.A_BOLD)
 
         # Print the table data
@@ -515,21 +507,40 @@ class Viewer:
                 self.scr.attrset(curses.A_NORMAL)
                 yp = y + self.win_y
                 xp = x + self.win_x
-                if len(self.data) <= yp or len(self.data[yp]) <= xp:
-                    s = ""
-                else:
-                    s = str(self.data[yp][xp])
-                s = s.ljust(15)[0:15]
                 if x == self.x and y == self.y and self.y < len(self.data):
                     self.scr.attrset(curses.A_REVERSE)
-                if '\n' in s:
-                    s = s.replace('\n', '\\n')
+                s = self.cellstr(yp, xp, self.column_width - 1)
                 # Note: the string is offset right by 1 space in each
                 # column to ensure the whole string is reverse video.
-                self.scr.addstr(y + self.header_offset, x * self.column_width,
+                self.scr.insstr(y + self.header_offset, x * self.column_width,
                                 " {}".format(s))
                 self.scr.attrset(curses.A_NORMAL)
         self.scr.refresh()
+
+    def strpad(self, s, width):
+        if '\n' in s:
+            s = s.replace('\n', '\\n')
+        if len(s) > width:
+            s = s[0:width - len(DEFAULT_TRUNC)] + DEFAULT_TRUNC
+        else:
+            s = s.ljust(width)
+        return s
+
+    def hdrstr(self, x, width):
+        "Format the content of the requested header for display"
+        if len(self.header) <= x:
+            s = ""
+        else:
+            s = str(self.header[x])
+        return self.strpad(s, width)
+
+    def cellstr(self, y, x, width):
+        "Format the content of the requested cell for display"
+        if len(self.data) <= y or len(self.data[y]) <= x:
+            s = ""
+        else:
+            s = str(self.data[y][x])
+        return self.strpad(s, width)
 
     def yx2str(self, y, x):
         "Convert a coordinate pair like 1,26 to AA2"
