@@ -302,6 +302,22 @@ class Viewer:
                     down()
                     self.y = self.y - 1
 
+        def column_gap_down():
+            self.column_gap = max(0, self.column_gap - 1)
+            self.recalculate_layout()
+
+        def column_gap_up():
+            self.column_gap += 1
+            self.recalculate_layout()
+
+        def column_width_down():
+            self.column_width = max(1, self.column_width - 1)
+            self.recalculate_layout()
+
+        def column_width_up():
+            self.column_width += 1
+            self.recalculate_layout()
+
         def sort_by_column():
             xp = self.x + self.win_x
             self.data = sorted(self.data, key=itemgetter(xp))
@@ -372,6 +388,10 @@ class Viewer:
                      'n':   next_result,
                      'p':   prev_result,
                      't':   toggle_header,
+                     '-':   column_gap_down,
+                     '+':   column_gap_up,
+                     '<':   column_width_down,
+                     '>':   column_width_up,
                      'a':   sort_by_column_natural,
                      'A':   sort_by_column_natural_reverse,
                      's':   sort_by_column,
@@ -458,26 +478,30 @@ class Viewer:
         resize = self.max_x == 0 or \
             curses.is_term_resized(self.max_y, self.max_x)
         if resize is True:
-            self.max_y, self.max_x = self.scr.getmaxyx()
-            self.num_columns = (1 + max(0, self.max_x - self.column_width)
-                                // (self.column_width + self.column_gap))
-            if (self.num_columns * self.column_width +
-                    self.num_columns * self.column_gap) < self.max_x - 3:
-                self.vis_columns = self.num_columns + 1
-            else:
-                self.vis_columns = self.num_columns
-
-            if self.x >= self.num_columns:
-                # reposition x
-                ox = self.win_x + self.x
-                self.win_x = max(ox - self.num_columns + 1, 0)
-                self.x = self.num_columns - 1
-            if self.y >= self.max_y - self.header_offset:
-                # reposition y
-                oy = self.win_y + self.y
-                self.win_y = max(oy - (self.max_y - self.header_offset) + 1, 0)
-                self.y = self.max_y - self.header_offset - 1
+            self.recalculate_layout()
             curses.resizeterm(self.max_y, self.max_x)
+
+    def recalculate_layout(self):
+        """Recalulate the screen layout and cursor position"""
+        self.max_y, self.max_x = self.scr.getmaxyx()
+        self.num_columns = (1 + max(0, self.max_x - self.column_width)
+                            // (self.column_width + self.column_gap))
+        if (self.num_columns * self.column_width +
+                self.num_columns * self.column_gap) < self.max_x - 3:
+            self.vis_columns = self.num_columns + 1
+        else:
+            self.vis_columns = self.num_columns
+
+        if self.x >= self.num_columns:
+            # reposition x
+            ox = self.win_x + self.x
+            self.win_x = max(ox - self.num_columns + 1, 0)
+            self.x = self.num_columns - 1
+        if self.y >= self.max_y - self.header_offset:
+            # reposition y
+            oy = self.win_y + self.y
+            self.win_y = max(oy - (self.max_y - self.header_offset) + 1, 0)
+            self.y = self.max_y - self.header_offset - 1
 
     def display(self):
         """Refresh the current display"""

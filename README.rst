@@ -88,6 +88,8 @@ Keybindings:
 **n**                        Next search result
 **p**                        Previous search result
 **t**                        Toggle fixed header row
+**<** **>**                  Decrease/Increase column width
+**-** **+**                  Decrease/Increase column gap
 **s**                        Sort the table by the current column (ascending)
 **S**                        Sort the table by the current column (descending)
 **a**                        'Natural Sort' the table (ascending)
