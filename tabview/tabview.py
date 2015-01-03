@@ -528,7 +528,7 @@ class Viewer:
             for x in range(0, self.vis_columns):
                 xc, wc = self.column_xw(x)
                 s = self.hdrstr(x + self.win_x, wc)
-                self.scr.insstr(2, xc, s, curses.A_BOLD)
+                self.scr.insstr(self.header_offset - 1, xc, s, curses.A_BOLD)
 
         # Print the table data
         for y in range(0, self.max_y - self.header_offset):
