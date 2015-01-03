@@ -466,8 +466,8 @@ class Viewer:
         # Print the current cursor cell in the top left corner
         self.scr.move(0, 0)
         self.scr.clrtoeol()
-        self.scr.addstr(0, 0, "  {}  ".format(
-                        self.yx2str(self.y + self.win_y, self.x + self.win_x)),
+        self.scr.addstr(0, 0, "  {},{}  ".format(self.y + self.win_y + 1,
+                                                 self.x + self.win_x + 1),
                         curses.A_REVERSE)
 
         # Adds the current cell content after the 'current cell' display
@@ -530,29 +530,6 @@ class Viewer:
                                 " {}".format(s))
                 self.scr.attrset(curses.A_NORMAL)
         self.scr.refresh()
-
-    def yx2str(self, y, x):
-        "Convert a coordinate pair like 1,26 to AA2"
-        if x < 26:
-            s = chr(65 + x)
-        else:
-            x = x - 26
-            s = chr(65 + (x // 26)) + chr(65 + (x % 26))
-        s = s + '-' + str(y + 1)
-        return s
-
-    def str2yx(self, s):
-        "Convert a string like A1 to a coordinate pair like 0,0"
-        match = self.coord_pat.match(s)
-        if not match:
-            return None
-        y, x = match.group('y', 'x')
-        x = x.upper()
-        if len(x) == 1:
-            x = ord(x) - 65
-        else:
-            x = (ord(x[0]) - 65) * 26 + ord(x[1]) - 65 + 26
-        return int(y) - 1, x
 
 
 def csv_sniff(fn, enc):
