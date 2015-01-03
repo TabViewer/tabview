@@ -514,9 +514,9 @@ class Viewer:
         self.scr.addstr(s, curses.A_REVERSE)
 
         # Adds the current cell content after the 'current cell' display
-        wc = self.max_x - len(s) - self.column_gap
+        wc = self.max_x - len(s) - 1
         s = self.cellstr(yp, xp, wc)
-        self.scr.addstr(" " * self.column_gap + s, curses.A_NORMAL)
+        self.scr.addstr(" " + s, curses.A_NORMAL)
 
         # Print a divider line
         self.scr.hline(1, 0, curses.ACS_HLINE, self.max_x)
