@@ -547,29 +547,6 @@ class Viewer:
             s = str(self.data[y][x])
         return self.strpad(s, width)
 
-    def yx2str(self, y, x):
-        "Convert a coordinate pair like 1,26 to AA2"
-        if x < 26:
-            s = chr(65 + x)
-        else:
-            x = x - 26
-            s = chr(65 + (x // 26)) + chr(65 + (x % 26))
-        s = s + '-' + str(y + 1)
-        return s
-
-    def str2yx(self, s):
-        "Convert a string like A1 to a coordinate pair like 0,0"
-        match = self.coord_pat.match(s)
-        if not match:
-            return None
-        y, x = match.group('y', 'x')
-        x = x.upper()
-        if len(x) == 1:
-            x = ord(x) - 65
-        else:
-            x = (ord(x[0]) - 65) * 26 + ord(x[1]) - 65 + 26
-        return int(y) - 1, x
-
 
 def csv_sniff(fn, enc):
     """Given a filename or a list of lists, sniff the dialect of the
