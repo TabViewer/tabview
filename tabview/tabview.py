@@ -468,7 +468,6 @@ class Viewer:
         self.scr.clrtoeol()
         self.scr.addstr(0, 0, "  {},{}  ".format(self.y + self.win_y + 1,
                                                  self.x + self.win_x + 1),
-                        curses.A_REVERSE)
 
         # Adds the current cell content after the 'current cell' display
         yp = self.y + self.win_y
