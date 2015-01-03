@@ -105,7 +105,7 @@ class Viewer:
             end = len(self.data[yp]) - 1
             if self.win_x + self.x >= end:
                 pass
-            elif self.x < int(self.max_x / self.column_width) - 1:
+            elif self.x < self.num_columns - 1:
                 self.x = self.x + 1
             else:
                 self.win_x = self.win_x + 1
