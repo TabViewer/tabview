@@ -653,6 +653,33 @@ def set_encoding(fn=None):
     else:
         return code
 
+def get_data(data, fn, enc):
+    """Returns data
+
+    Args:
+        data: list of lists, tuple of tuples, etc. Any tabular data.
+            If 'data' is passed, 'fn' and 'enc' will be ignored
+        fn: filename
+        enc: encoding for file
+    """
+    if data is not None:
+        try:
+            import pandas as pd
+        except ImportError:
+            _HAS_PANDAS = False
+        else:
+            _HAS_PANDAS = True
+
+        if _HAS_PANDAS:
+            if isinstance(data, pd.DataFrame) or isinstance(data, pd.Series):
+                return(data.reset_index().transpose().reset_index().transpose().values)
+            elif isinstance(data, pd.Panel):
+                return(data.to_frame().reset_index().transpose().reset_index().transpose().values)
+
+        return(data)
+
+    elif fn is not None:
+        return(process_file(fn, enc))
 
 def view(data=None, fn=None, enc=None):
     """The curses.wrapper passes stdscr as the first argument to main +
@@ -668,10 +695,7 @@ def view(data=None, fn=None, enc=None):
 
     """
     while True:
-        if data is not None:
-            d = data
-        elif fn is not None:
-            d = process_file(fn, enc)
+        d = get_data(data, fn, enc)
         try:
             curses.wrapper(main, d)
         except _curses.error:
