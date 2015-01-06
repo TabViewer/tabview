@@ -470,36 +470,22 @@ class Viewer:
             # Since .isdigit() doesn't exist if c > 256, we need to catch the
             # error for those keys.
             found_digit = False
-        has_modifier = not self.modifier == str()
-        try:
-            if found_digit and has_modifier:
-                # Add the digit to the modifier rather than executing a command
-                self.handle_modifier(c)
-            else:
-                self.keys[c]()
-        except KeyError:
-            # Ignore incorrect keys
+        if found_digit:
             self.handle_modifier(c)
+        elif c in self.keys:
+            self.keys[c]()
         else:
-            if not found_digit:
-                # Don't clear the modifier if we the last character was a digit
-                self.modifier = str()
+            self.modifier = str()
 
     def handle_modifier(self, mod):
         """Append digits as a key modifier, clear the modifier if not
         a digit.
 
         Args:
-            mod: potential modifier key
+            mod: potential modifier string
         """
-        self.scr.refresh()
-        try:
-            if mod.isdigit():
-                self.modifier = "{}{}".format(self.modifier, mod)
-            else:
-                self.modifier = str()
-        except AttributeError:
-            # Ignore illegal keys
+        self.modifier += mod
+        if not self.modifier.isdigit():
             self.modifier = str()
 
     def resize(self):
