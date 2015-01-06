@@ -9,7 +9,6 @@ from __future__ import print_function, division, unicode_literals
 
 import csv
 import curses
-import _curses
 import locale
 import os
 import os.path
