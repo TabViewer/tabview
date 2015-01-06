@@ -469,7 +469,7 @@ class Viewer:
             # Since .isdigit() doesn't exist if c > 256, we need to catch the
             # error for those keys.
             found_digit = False
-        if found_digit:
+        if found_digit and (len(self.modifier) > 0 or c not in self.keys):
             self.handle_modifier(c)
         elif c in self.keys:
             self.keys[c]()
