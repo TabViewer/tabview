@@ -46,6 +46,14 @@ else:
         return scr.insstr(*args)
 
 
+class ReloadException(Exception):
+    pass
+
+
+class QuitException(Exception):
+    pass
+
+
 class Viewer:
     """The actual CSV viewer class.
 
@@ -60,7 +68,6 @@ class Viewer:
     def __init__(self, scr, data, column_width=20, column_gap=2,
                  trunc_char='…'):
         self.scr = scr
-        self.reload = False
         self.data = [[str(j) for j in i] for i in data]
         self.header_offset_orig = 3
         self.header = self.data[0]
@@ -100,10 +107,10 @@ class Viewer:
 
         """
         def quit():
-            sys.exit()
+            raise QuitException
 
         def reload():
-            self.reload = True
+            raise ReloadException
 
         def down():
             end = len(self.data) - 1
@@ -445,7 +452,7 @@ class Viewer:
     def run(self):
         # Clear the screen and display the menu of keys
         # Main loop:
-        while not self.reload and True:
+        while True:
             self.display()
             self.handle_keys()
 
@@ -456,7 +463,7 @@ class Viewer:
         try:
             c = self.scr.getch()  # Get a keystroke
         except KeyboardInterrupt:
-            sys.exit()
+            raise QuitException
         if c == curses.KEY_RESIZE:
             self.resize()
             return
@@ -693,12 +700,17 @@ def view(data=None, fn=None, enc=None):
         locale.setlocale(locale.LC_ALL, '')
     else:
         lc_all = None
-    try:
-        if data is not None:
-            d = data
-        elif fn is not None:
-            d = process_file(fn, enc)
-        curses.wrapper(main, d)
-    finally:
-        if lc_all is not None:
-            locale.setlocale(locale.LC_ALL, lc_all)
+    while True:
+        try:
+            if data is not None:
+                d = data
+            elif fn is not None:
+                d = process_file(fn, enc)
+            curses.wrapper(main, d)
+        except QuitException:
+            return
+        except ReloadException:
+            continue
+        finally:
+            if lc_all is not None:
+                locale.setlocale(locale.LC_ALL, lc_all)
