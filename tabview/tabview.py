@@ -695,22 +695,23 @@ def view(data=None, fn=None, enc=None):
         enc: encoding for file
 
     """
-    while True:
-        if sys.version_info.major < 3:
-            lc_all = locale.getlocale(locale.LC_ALL)
-            locale.setlocale(locale.LC_ALL, '')
-        else:
-            lc_all = None
-        try:
-            if data is not None:
-                d = data
-            elif fn is not None:
-                d = process_file(fn, enc)
-            curses.wrapper(main, d)
-        except QuitException:
-            return
-        except ReloadException:
-            continue
-        finally:
-            if lc_all is not None:
-                locale.setlocale(locale.LC_ALL, lc_all)
+    if sys.version_info.major < 3:
+        lc_all = locale.getlocale(locale.LC_ALL)
+        locale.setlocale(locale.LC_ALL, '')
+    else:
+        lc_all = None
+    try:
+        while True:
+            try:
+                if data is not None:
+                    d = data
+                elif fn is not None:
+                    d = process_file(fn, enc)
+                curses.wrapper(main, d)
+            except QuitException:
+                return
+            except ReloadException:
+                continue
+    finally:
+        if lc_all is not None:
+            locale.setlocale(locale.LC_ALL, lc_all)
