@@ -311,11 +311,13 @@ class Viewer:
             self.recalculate_layout()
 
         def column_width_down():
-            self.column_width = max(1, self.column_width - 1)
+            step = max(1, int(self.column_width * 0.2))
+            self.column_width = max(1, self.column_width - step)
             self.recalculate_layout()
 
         def column_width_up():
-            self.column_width += 1
+            step = int(self.column_width * 0.2)
+            self.column_width += max(1, step)
             self.recalculate_layout()
 
         def sort_by_column():
