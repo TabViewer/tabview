@@ -700,17 +700,18 @@ def view(data=None, fn=None, enc=None):
         locale.setlocale(locale.LC_ALL, '')
     else:
         lc_all = None
-    while True:
-        try:
-            if data is not None:
-                d = data
-            elif fn is not None:
-                d = process_file(fn, enc)
-            curses.wrapper(main, d)
-        except QuitException:
-            return
-        except ReloadException:
-            continue
-        finally:
-            if lc_all is not None:
-                locale.setlocale(locale.LC_ALL, lc_all)
+    try:
+        while True:
+            try:
+                if data is not None:
+                    d = data
+                elif fn is not None:
+                    d = process_file(fn, enc)
+                curses.wrapper(main, d)
+            except QuitException:
+                return
+            except ReloadException:
+                continue
+    finally:
+        if lc_all is not None:
+            locale.setlocale(locale.LC_ALL, lc_all)
