@@ -460,10 +460,7 @@ class Viewer:
         """Determine what method to call for each keypress.
 
         """
-        try:
-            c = self.scr.getch()  # Get a keystroke
-        except KeyboardInterrupt:
-            raise QuitException
+        c = self.scr.getch()  # Get a keystroke
         if c == curses.KEY_RESIZE:
             self.resize()
             return
@@ -708,7 +705,7 @@ def view(data=None, fn=None, enc=None):
                 elif fn is not None:
                     d = process_file(fn, enc)
                 curses.wrapper(main, d)
-            except QuitException:
+            except (QuitException, KeyboardInterrupt):
                 return
             except ReloadException:
                 continue
