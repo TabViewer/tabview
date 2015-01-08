@@ -20,12 +20,12 @@ it are shown the contents of that cell.
 
 Features:
 ---------
-* Python 3.x
+* Python 2.7+ and 3.x
 * Spreadsheet-like view for easily visualizing tabular data
 * Vim-like navigation (h,j,k,l, g(top), G(bottom), 12G goto line 12, m - mark,
   ' - goto mark, etc.) 
 * Toggle persistent header row
-* Sort ascending or descending by any column
+* Sort ascending or descending by any column. Dynamically change column width and gap
 * Sort in 'natural order' to improve numeric sorting
 * Full-text search, n and p to cycle between search results
 * 'Enter' to view the full cell contents
@@ -39,7 +39,7 @@ Features:
 Requires: 
 ---------
 
-* Python 3+
+* Python 2.7+ or 3.x
 * Xsel or xclip (Optional - only required for 'yank' to clipboard)
 
 Installation:
