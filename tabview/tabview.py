@@ -64,7 +64,7 @@ class Viewer:
         trunc_char: character to delineate a truncated line
 
     """
-    def __init__(self, scr, data, column_width=20, column_gap=2,
+    def __init__(self, scr, data, column_width=20, column_delim='  ',
                  trunc_char='…'):
         self.scr = scr
         self.data = [[str(j) for j in i] for i in data]
@@ -77,7 +77,8 @@ class Viewer:
             # Don't make one line file a header row
             self.header_offset = self.header_offset_orig - 1
         self.column_width = column_width
-        self.column_gap = column_gap
+        self.column_delim = column_delim
+        self.column_gap = len(self.column_delim)
         self.trunc_char = trunc_char
         self.x, self.y = 0, 0
         self.win_x, self.win_y = 0, 0
@@ -336,14 +337,6 @@ class Viewer:
                     down()
                     self.y = self.y - 1
 
-        def column_gap_down():
-            self.column_gap = max(0, self.column_gap - 1)
-            self.recalculate_layout()
-
-        def column_gap_up():
-            self.column_gap += 1
-            self.recalculate_layout()
-
         def column_width_down():
             step = max(1, int(self.column_width * 0.2))
             self.column_width = max(1, self.column_width - step)
@@ -424,8 +417,6 @@ class Viewer:
                      'n':   next_result,
                      'p':   prev_result,
                      't':   toggle_header,
-                     '-':   column_gap_down,
-                     '+':   column_gap_up,
                      '<':   column_width_down,
                      '>':   column_width_up,
                      'a':   sort_by_column_natural,
@@ -505,6 +496,7 @@ class Viewer:
         self.max_y, self.max_x = self.scr.getmaxyx()
         self.num_columns = (1 + max(0, self.max_x - self.column_width)
                             // (self.column_width + self.column_gap))
+        self.num_columns = min(self.num_columns, len(self.data[0]))
         if (self.num_columns * self.column_width +
                 self.num_columns * self.column_gap) < self.max_x - 3:
             self.vis_columns = self.num_columns + 1
@@ -548,6 +540,7 @@ class Viewer:
                 xc, wc = self.column_xw(x)
                 s = self.hdrstr(x + self.win_x, wc)
                 insstr(self.scr, self.header_offset - 1, xc, s, curses.A_BOLD)
+                insstr(self.scr, self.header_offset - 1, xc, self.column_delim, curses.A_BOLD)
 
         # Print the table data
         for y in range(0, self.max_y - self.header_offset):
@@ -560,7 +553,8 @@ class Viewer:
                     attr = curses.A_NORMAL
                 xc, wc = self.column_xw(x)
                 s = self.cellstr(y + self.win_y, x + self.win_x, wc)
-                insstr(self.scr, y + self.header_offset, xc, s, attr)
+                self.scr.insstr(y + self.header_offset, xc, s, attr)
+                self.scr.insstr(y + self.header_offset, xc, self.column_delim)
 
         self.scr.refresh()
 
