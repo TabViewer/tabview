@@ -69,6 +69,11 @@ Usage:
         import tabview as t
         t.view(fn=<filename>)
 
+Tests:
+------
+
+* ``python tests/test_tabview.py``
+
 Keybindings:
 ---------------
 

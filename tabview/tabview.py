@@ -67,7 +67,10 @@ class Viewer:
     def __init__(self, scr, data, column_width=20, column_gap=2,
                  trunc_char='…'):
         self.scr = scr
-        self.data = [[str(j) for j in i] for i in data]
+        if sys.version_info.major < 3:
+            self.data = [[j for j in i] for i in data]
+        else:
+            self.data = [[str(j) for j in i] for i in data]
         self.header_offset_orig = 3
         self.header = self.data[0]
         if len(self.data) > 1:
@@ -80,7 +83,7 @@ class Viewer:
         self.column_gap = column_gap
 
         try:
-            trunc_char.encode(sys.stdout.encoding)
+            trunc_char.encode(sys.stdout.encoding or 'utf-8')
             self.trunc_char = trunc_char
         except (UnicodeDecodeError, UnicodeError):
             self.trunc_char = '>'
@@ -667,11 +670,11 @@ def detect_encoding(data):
         enc - system encoding
 
     """
-    enc_list = ['UTF-8', 'LATIN-1', 'iso8859-1', 'iso8859-2',
-                'UTF-16', 'CP720']
+    enc_list = ['utf-8', 'latin-1', 'iso8859-1', 'iso8859-2',
+                'utf-16', 'cp720']
     code = locale.getpreferredencoding(False)
-    if code not in enc_list:
-        enc_list.insert(0, code)
+    if code.lower() not in enc_list:
+        enc_list.insert(0, code.lower())
     for c in enc_list:
         try:
             for line in data:
@@ -682,10 +685,10 @@ def detect_encoding(data):
     print("Encoding not detected. Please pass encoding value manually")
 
 
-def main(stdscr, data):
+def main(stdscr, *args, **kwargs):
     curses.use_default_colors()
     curses.curs_set(False)
-    Viewer(stdscr, data).run()
+    Viewer(stdscr, *args, **kwargs).run()
 
 
 def view(data, enc=None):
@@ -715,7 +718,7 @@ def view(data, enc=None):
                 d = process_data(data, enc)
                 curses.wrapper(main, d)
             except (QuitException, KeyboardInterrupt):
-                return
+                return 0
             except ReloadException:
                 continue
     finally:
