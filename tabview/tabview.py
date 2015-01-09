@@ -80,7 +80,6 @@ class Viewer:
         self.column_width = column_width
         self.column_gap = column_gap
         self.trunc_char = trunc_char
-        self.coord_pat = re.compile('^(?P<x>[a-zA-Z]{1, 2})-(?P<y>\d+)$')
         self.x, self.y = 0, 0
         self.win_x, self.win_y = 0, 0
         self.max_y, self.max_x = 0, 0
