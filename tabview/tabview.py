@@ -18,6 +18,7 @@ from collections import Counter
 from operator import itemgetter
 from subprocess import Popen, PIPE
 from textwrap import wrap
+import unicodedata
 
 
 if sys.version_info.major < 3:
@@ -627,12 +628,31 @@ class Viewer:
     def strpad(self, s, width):
         if '\n' in s:
             s = s.replace('\n', '\\n')
-        if len(s) > width:
-            s = s[0:(width - len(self.trunc_char))] \
-                + self.trunc_char
-        else:
-            s = s.ljust(width)
-        return s
+
+        # take into account double-width characters
+        buf = str()
+        buf_width = 0
+        for c in s:
+            w = 2 if unicodedata.east_asian_width(c) == 'W' else 1
+            if buf_width + w > width:
+                break
+            buf_width += w
+            buf += c
+
+        if len(buf) < len(s):
+            # truncation occurred
+            while buf_width + len(self.trunc_char) > width:
+                c = buf[-1]
+                w = 2 if unicodedata.east_asian_width(c) == 'W' else 1
+                buf = buf[0:-1]
+                buf_width -= w
+            buf += ' ' * (width - buf_width - len(self.trunc_char))
+            buf += self.trunc_char
+        elif buf_width < width:
+            # padding required
+            buf += ' ' * (width - buf_width)
+
+        return buf
 
     def hdrstr(self, x, width):
         "Format the content of the requested header for display"
