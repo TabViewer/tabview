@@ -644,6 +644,18 @@ def process_file(fn, enc=None, dialect=None):
     return data
 
 
+def pad_data(d):
+    """Pad data rows to the length of the longest row.
+
+    """
+    max_len = set((len(i) for i in d))
+    if len(max_len) == 1:
+        return d
+    else:
+        max_len = max(max_len)
+        return [i + [""] * (max_len - len(i)) for i in d]
+
+
 def readme():
     path = os.path.dirname(os.path.realpath(__file__))
     fn = os.path.join(path, "README.rst")
@@ -706,7 +718,7 @@ def view(data=None, fn=None, enc=None):
                     d = data
                 elif fn is not None:
                     d = process_file(fn, enc)
-                curses.wrapper(main, d)
+                curses.wrapper(main, pad_data(d))
             except (QuitException, KeyboardInterrupt):
                 return
             except ReloadException:
