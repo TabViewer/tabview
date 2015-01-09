@@ -18,6 +18,7 @@ from collections import Counter
 from operator import itemgetter
 from subprocess import Popen, PIPE
 from textwrap import wrap
+import unicodedata
 
 
 if sys.version_info.major < 3:
@@ -126,10 +127,7 @@ class Viewer:
         """Return the position and width of the requested column"""
         xp = sum(self.column_width[self.win_x:self.win_x + x]) \
             + x * self.column_gap
-        if x < self.vis_columns:
-            w = min(self.max_x, self.column_width[self.win_x + x])
-        else:
-            w = self.max_x - xp
+        w = max(0, min(self.max_x - xp, self.column_width[self.win_x + x]))
         return xp, w
 
     def quit(self):
@@ -662,33 +660,59 @@ class Viewer:
             for x in range(0, self.vis_columns):
                 xc, wc = self.column_xw(x)
                 s = self.hdrstr(x + self.win_x, wc)
-                insstr(self.scr, self.header_offset - 1, xc, s, curses.A_BOLD)
+                addstr(self.scr, self.header_offset - 1, xc, s, curses.A_BOLD)
 
         # Print the table data
         for y in range(0, self.max_y - self.header_offset):
-            self.scr.move(y + self.header_offset, 0)
+            yc = y + self.header_offset
+            self.scr.move(yc, 0)
             self.scr.clrtoeol()
             for x in range(0, self.vis_columns):
-
                 if x == self.x and y == self.y:
                     attr = curses.A_REVERSE
                 else:
                     attr = curses.A_NORMAL
                 xc, wc = self.column_xw(x)
                 s = self.cellstr(y + self.win_y, x + self.win_x, wc)
-                insstr(self.scr, y + self.header_offset, xc, s, attr)
+                if yc == self.max_y - 1 and x == self.vis_columns - 1:
+                    # Prevents a curses error when filling in the bottom right
+                    # character
+                    insstr(self.scr, yc, xc, s, attr)
+                else:
+                    addstr(self.scr, yc, xc, s, attr)
 
         self.scr.refresh()
 
     def strpad(self, s, width):
+        if width < 1:
+            return str()
         if '\n' in s:
             s = s.replace('\n', '\\n')
-        if len(s) > width:
-            s = s[0:(width - len(self.trunc_char))] \
-                + self.trunc_char
-        else:
-            s = s.ljust(width)
-        return s
+
+        # take into account double-width characters
+        buf = str()
+        buf_width = 0
+        for c in s:
+            w = 2 if unicodedata.east_asian_width(c) == 'W' else 1
+            if buf_width + w > width:
+                break
+            buf_width += w
+            buf += c
+
+        if len(buf) < len(s):
+            # truncation occurred
+            while buf_width + len(self.trunc_char) > width:
+                c = buf[-1]
+                w = 2 if unicodedata.east_asian_width(c) == 'W' else 1
+                buf = buf[0:-1]
+                buf_width -= w
+            buf += ' ' * (width - buf_width - len(self.trunc_char))
+            buf += self.trunc_char
+        elif buf_width < width:
+            # padding required
+            buf += ' ' * (width - buf_width)
+
+        return buf
 
     def hdrstr(self, x, width):
         "Format the content of the requested header for display"
