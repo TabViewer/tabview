@@ -615,12 +615,6 @@ def csv_sniff(fn, enc):
     return dialect
 
 
-def main(stdscr, data):
-    curses.use_default_colors()
-    curses.curs_set(False)
-    Viewer(stdscr, data).run()
-
-
 def process_file(fn, enc=None, dialect=None):
     """Given a filename, return the file as a list of lists.
 
@@ -691,6 +685,12 @@ def detect_encoding(fn=None):
         print("Encoding not detected. Please pass encoding value manually")
     else:
         return code
+
+
+def main(stdscr, data):
+    curses.use_default_colors()
+    curses.curs_set(False)
+    Viewer(stdscr, data).run()
 
 
 def view(data=None, fn=None, enc=None):
