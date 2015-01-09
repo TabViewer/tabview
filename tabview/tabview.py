@@ -677,7 +677,8 @@ def detect_encoding(fn=None):
         for c in enc_list:
             try:
                 with open(fn, 'rb') as f:
-                    f.readline().decode(c)
+                    for line in f.readlines():
+                        line.decode(c)
             except (UnicodeDecodeError, UnicodeError):
                 continue
             return c
