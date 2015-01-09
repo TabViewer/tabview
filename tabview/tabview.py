@@ -11,7 +11,6 @@ import csv
 import curses
 import locale
 import os
-import os.path
 import re
 import sys
 from operator import itemgetter
