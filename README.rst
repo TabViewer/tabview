@@ -56,13 +56,13 @@ Usage:
 * From command line:  ``tabview <filename>``
 * From python command line to view an object::
 
-        import tabview.tabview as t
+        import tabview as t
         a = [["a","b","c"], ["d","e","f"]]
         t.view(a)
 
 * From python command line to view a file::
 
-        import tabview.tabview as t
+        import tabview as t
         t.view(fn=<filename>)
 
 Keybindings:
