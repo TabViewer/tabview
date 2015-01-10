@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """ tabview.py -- View a tab-delimited file in a spreadsheet-like display.
 
   Scott Hansen <firecat four one five three at gmail dot com>
