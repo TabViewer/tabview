@@ -673,18 +673,20 @@ def detect_encoding(fn=None):
     code = locale.getpreferredencoding(False)
     if code not in enc_list:
         enc_list.insert(0, code)
-    if fn is not None:
-        for c in enc_list:
-            try:
-                with open(fn, 'rb') as f:
-                    for line in f.readlines():
-                        line.decode(c)
-            except (UnicodeDecodeError, UnicodeError):
-                continue
-            return c
-        print("Encoding not detected. Please pass encoding value manually")
-    else:
+    data = []
+    if fn is None:
         return code
+    with open(fn, 'rb') as f:
+        for line in f.readlines():
+            data.append(line)
+    for c in enc_list:
+        try:
+            for line in data:
+                line.decode(c)
+        except (UnicodeDecodeError, UnicodeError):
+            continue
+        return c
+    print("Encoding not detected. Please pass encoding value manually")
 
 
 def main(stdscr, data):
