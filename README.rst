@@ -54,14 +54,18 @@ Usage:
 ------
 
 * From command line:  ``tabview <filename>``
-* From python command line to view an object::
+* From python command line to view an object
 
+    .. code:: python
+    
         import tabview as t
         a = [["a","b","c"], ["d","e","f"]]
         t.view(a)
 
-* From python command line to view a file::
+* From python command line to view a file
 
+    .. code:: python
+    
         import tabview as t
         t.view(fn=<filename>)
 
