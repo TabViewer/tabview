@@ -31,21 +31,11 @@ if sys.version_info.major < 3:
         args[x] = args[x].encode(sys.stdout.encoding)
         return scr.addstr(*args)
 
-    def insstr(*args):
-        scr, args = args[0], list(args[1:])
-        x = 2 if len(args) > 2 else 0
-        args[x] = args[x].encode(sys.stdout.encoding)
-        return scr.insstr(*args)
-
 else:
     # Python 3 wrappers
     def addstr(*args):
         scr, args = args[0], args[1:]
         return scr.addstr(*args)
-
-    def insstr(*args):
-        scr, args = args[0], args[1:]
-        return scr.insstr(*args)
 
 
 class ReloadException(Exception):
@@ -607,21 +597,23 @@ class Viewer:
             for x in range(0, self.vis_columns):
                 xc, wc = self.column_xw(x)
                 s = self.hdrstr(x + self.win_x, wc)
-                insstr(self.scr, self.header_offset - 1, xc, s, curses.A_BOLD)
+                addstr(self.scr, self.header_offset - 1, xc, s, curses.A_BOLD)
 
         # Print the table data
         for y in range(0, self.max_y - self.header_offset):
-            self.scr.move(y + self.header_offset, 0)
+            yc = y + self.header_offset
+            self.scr.move(yc, 0)
             self.scr.clrtoeol()
             for x in range(0, self.vis_columns):
-
                 if x == self.x and y == self.y:
                     attr = curses.A_REVERSE
                 else:
                     attr = curses.A_NORMAL
                 xc, wc = self.column_xw(x)
+                if yc == self.max_y - 1 and x == self.vis_columns - 1:
+                    wc -= 1
                 s = self.cellstr(y + self.win_y, x + self.win_x, wc)
-                insstr(self.scr, y + self.header_offset, xc, s, attr)
+                addstr(self.scr, yc, xc, s, attr)
 
         self.scr.refresh()
 
