@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 """ tabview -- View a tab-delimited file in a spreadsheet-like display.
   Scott Hansen <firecat four one five three at gmail dot com>
@@ -15,6 +16,7 @@
           t.view(fn=<filename>[, enc=<encoding>])
 
 """
+from __future__ import print_function, unicode_literals
 import argparse
 from tabview.tabview import readme, view
 

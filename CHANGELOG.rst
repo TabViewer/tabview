@@ -1,6 +1,10 @@
-*Version 1.0.1  2014-08-16*
+*Version 1.2.0  2015-01-08*
 
- - Added '0' key for beginning of line. Updated modifier key handling.
+ - Dual Python 2.7+ and 3+ support. Improved Unicode handling
+ - 'Natural' sort capability for better numeric sorting
+ - Added dynamic column width and gap adjustment and jump to column command
+ - Handle terminal resizing
+ - Numerous crash fixes
 
 *Version 1.1.0  2014-10-29*
 
@@ -10,3 +14,7 @@
  - Added yank-to-clipboard. Fixes #13
  - Read entire file before deciding the encoding. Add some other encoding types to try before failing
  - Fixed #16 crash along with display of cells with newlines
+
+*Version 1.0.1  2014-08-16*
+
+ - Added '0' key for beginning of line. Updated modifier key handling.

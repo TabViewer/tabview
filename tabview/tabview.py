@@ -5,17 +5,52 @@
   Based on code contributed by A.M. Kuchling <amk at amk dot ca>
 
 """
+from __future__ import print_function, division, unicode_literals
+
 import csv
 import curses
-import _curses
 import locale
 import os
-import os.path
 import re
 import sys
 from operator import itemgetter
 from subprocess import Popen, PIPE
 from textwrap import wrap
+
+
+if sys.version_info.major < 3:
+    # Python 2.7 shim
+    str = unicode
+
+    def addstr(*args):
+        scr, args = args[0], list(args[1:])
+        x = 2 if len(args) > 2 else 0
+        args[x] = args[x].encode(sys.stdout.encoding)
+        return scr.addstr(*args)
+
+    def insstr(*args):
+        scr, args = args[0], list(args[1:])
+        x = 2 if len(args) > 2 else 0
+        args[x] = args[x].encode(sys.stdout.encoding)
+        return scr.insstr(*args)
+
+else:
+    # Python 3 wrappers
+    def addstr(*args):
+        scr, args = args[0], args[1:]
+        return scr.addstr(*args)
+
+    def insstr(*args):
+        scr, args = args[0], args[1:]
+        return scr.insstr(*args)
+
+
+class ReloadException(Exception):
+    pass
+
+
+class QuitException(Exception):
+    pass
 
 
 class Viewer:
@@ -32,7 +67,6 @@ class Viewer:
     def __init__(self, scr, data, column_width=20, column_gap=2,
                  trunc_char='…'):
         self.scr = scr
-        self.reload = False
         self.data = [[str(j) for j in i] for i in data]
         self.header_offset_orig = 3
         self.header = self.data[0]
@@ -45,7 +79,6 @@ class Viewer:
         self.column_width = column_width
         self.column_gap = column_gap
         self.trunc_char = trunc_char
-        self.coord_pat = re.compile('^(?P<x>[a-zA-Z]{1, 2})-(?P<y>\d+)$')
         self.x, self.y = 0, 0
         self.win_x, self.win_y = 0, 0
         self.max_y, self.max_x = 0, 0
@@ -72,10 +105,10 @@ class Viewer:
 
         """
         def quit():
-            sys.exit()
+            raise QuitException
 
         def reload():
-            self.reload = True
+            raise ReloadException
 
         def down():
             end = len(self.data) - 1
@@ -226,7 +259,7 @@ class Viewer:
             lines = len(s) + 2
             scr2 = curses.newwin(lines, 80, 5, 5)
             scr2.move(0, 0)
-            scr2.addstr(1, 1, "\n".join(s))
+            addstr(scr2, 1, 1, "\n".join(s))
             scr2.box()
             while not scr2.getch():
                 pass
@@ -237,7 +270,7 @@ class Viewer:
             scr2 = curses.newwin(4, 40, 15, 15)
             scr2.box()
             scr2.move(1, 1)
-            scr2.addstr("Search: ")
+            addstr(scr2, "Search: ")
             curses.echo()
             search = scr2.getstr().decode(sys.stdout.encoding).lower()
             curses.noecho()
@@ -278,7 +311,7 @@ class Viewer:
             lines = len(help_txt) + 2
             scr2 = curses.newwin(lines, 82, 5, 5)
             scr2.move(0, 0)
-            scr2.addstr(1, 1, " ".join(help_txt))
+            addstr(scr2, 1, 1, " ".join(help_txt))
             scr2.box()
             while not scr2.getch():
                 pass
@@ -312,11 +345,13 @@ class Viewer:
             self.recalculate_layout()
 
         def column_width_down():
-            self.column_width = max(1, self.column_width - 1)
+            step = max(1, int(self.column_width * 0.2))
+            self.column_width = max(1, self.column_width - step)
             self.recalculate_layout()
 
         def column_width_up():
-            self.column_width += 1
+            step = int(self.column_width * 0.2)
+            self.column_width += max(1, step)
             self.recalculate_layout()
 
         def sort_by_column():
@@ -417,7 +452,7 @@ class Viewer:
     def run(self):
         # Clear the screen and display the menu of keys
         # Main loop:
-        while not self.reload and True:
+        while True:
             self.display()
             self.handle_keys()
 
@@ -425,10 +460,7 @@ class Viewer:
         """Determine what method to call for each keypress.
 
         """
-        try:
-            c = self.scr.getch()  # Get a keystroke
-        except KeyboardInterrupt:
-            sys.exit()
+        c = self.scr.getch()  # Get a keystroke
         if c == curses.KEY_RESIZE:
             self.resize()
             return
@@ -441,36 +473,22 @@ class Viewer:
             # Since .isdigit() doesn't exist if c > 256, we need to catch the
             # error for those keys.
             found_digit = False
-        has_modifier = not self.modifier == str()
-        try:
-            if found_digit and has_modifier:
-                # Add the digit to the modifier rather than executing a command
-                self.handle_modifier(c)
-            else:
-                self.keys[c]()
-        except KeyError:
-            # Ignore incorrect keys
+        if found_digit and (len(self.modifier) > 0 or c not in self.keys):
             self.handle_modifier(c)
+        elif c in self.keys:
+            self.keys[c]()
         else:
-            if not found_digit:
-                # Don't clear the modifier if we the last character was a digit
-                self.modifier = str()
+            self.modifier = str()
 
     def handle_modifier(self, mod):
         """Append digits as a key modifier, clear the modifier if not
         a digit.
 
         Args:
-            mod: potential modifier key
+            mod: potential modifier string
         """
-        self.scr.refresh()
-        try:
-            if mod.isdigit():
-                self.modifier = "{}{}".format(self.modifier, mod)
-            else:
-                self.modifier = str()
-        except AttributeError:
-            # Ignore illegal keys
+        self.modifier += mod
+        if not self.modifier.isdigit():
             self.modifier = str()
 
     def resize(self):
@@ -512,12 +530,12 @@ class Viewer:
         self.scr.move(0, 0)
         self.scr.clrtoeol()
         s = "  {},{}  ".format(yp + 1, xp + 1)
-        self.scr.addstr(s, curses.A_REVERSE)
+        addstr(self.scr, s, curses.A_REVERSE)
 
         # Adds the current cell content after the 'current cell' display
-        wc = self.max_x - len(s) - 1
+        wc = self.max_x - len(s) - 2
         s = self.cellstr(yp, xp, wc)
-        self.scr.addstr(" " + s, curses.A_NORMAL)
+        addstr(self.scr, "  " + s, curses.A_NORMAL)
 
         # Print a divider line
         self.scr.hline(1, 0, curses.ACS_HLINE, self.max_x)
@@ -529,7 +547,7 @@ class Viewer:
             for x in range(0, self.vis_columns):
                 xc, wc = self.column_xw(x)
                 s = self.hdrstr(x + self.win_x, wc)
-                self.scr.insstr(self.header_offset - 1, xc, s, curses.A_BOLD)
+                insstr(self.scr, self.header_offset - 1, xc, s, curses.A_BOLD)
 
         # Print the table data
         for y in range(0, self.max_y - self.header_offset):
@@ -542,7 +560,7 @@ class Viewer:
                     attr = curses.A_NORMAL
                 xc, wc = self.column_xw(x)
                 s = self.cellstr(y + self.win_y, x + self.win_x, wc)
-                self.scr.insstr(y + self.header_offset, xc, s, attr)
+                insstr(self.scr, y + self.header_offset, xc, s, attr)
 
         self.scr.refresh()
 
@@ -561,7 +579,7 @@ class Viewer:
         if len(self.header) <= x:
             s = ""
         else:
-            s = str(self.header[x])
+            s = self.header[x]
         return self.strpad(s, width)
 
     def cellstr(self, y, x, width):
@@ -569,52 +587,65 @@ class Viewer:
         if len(self.data) <= y or len(self.data[y]) <= x:
             s = ""
         else:
-            s = str(self.data[y][x])
+            s = self.data[y][x]
         return self.strpad(s, width)
 
 
 def csv_sniff(fn, enc):
-    """Given a filename or a list of lists, sniff the dialect of the
-    file and return the delimiter. This should keep any errors from
-    popping up with tab or comma delimited files.
+    """Given a filename or a list of lists, sniff the dialect of the file and
+    return it. This should keep any errors from popping up with tab or comma
+    delimited files.
 
     Args:
         fn - complete file path/name or list like
             ["col1,col2,col3","data1,data2,data3","data1...]
         enc - python encoding value ('utf_8','latin-1','cp870', etc)
     Returns:
-        delimiter - ',' or '\t' or other delimiter
+        csv.dialect
 
     """
-    try:
-        # If fn is a filename
-        with open(fn, 'r', encoding=enc) as f:
-            dialect = csv.Sniffer().sniff(f.readline())
-            return dialect.delimiter
-    except TypeError:
-        # If fn is a list, check the first item in the list
-        dialect = csv.Sniffer().sniff(fn[0])
-        return dialect.delimiter
+    if sys.version_info.major < 3:
+        with open(fn, 'rb') as f:
+            dialect = csv.Sniffer().sniff(f.read(1024 * 8))
+    else:
+        with open(fn, 'r', encoding=enc, newline='') as f:
+            dialect = csv.Sniffer().sniff(f.read(1024 * 8))
+    return dialect
 
 
-def main(stdscr, data):
-    curses.use_default_colors()
-    curses.curs_set(False)
-    Viewer(stdscr, data).run()
-
-
-def process_file(fn, enc=None):
+def process_file(fn, enc=None, dialect=None):
     """Given a filename, return the file as a list of lists.
 
     """
     if enc is None:
-        enc = set_encoding(fn)
+        enc = detect_encoding(fn)
+    if dialect is None:
+        dialect = csv_sniff(fn, enc)
     data = []
-    with open(fn, 'r', encoding=enc) as f:
-        csv_obj = csv.reader(f, delimiter=csv_sniff(fn, enc))
-        for row in csv_obj:
-            data.append(row)
+    if sys.version_info.major < 3:
+        with open(fn, 'rb') as f:
+            csv_obj = csv.reader(f, dialect=dialect)
+            for row in csv_obj:
+                row = map(lambda x: str(x, enc), row)
+                data.append(row)
+    else:
+        with open(fn, 'r', encoding=enc, newline='') as f:
+            csv_obj = csv.reader(f, dialect=dialect)
+            for row in csv_obj:
+                data.append(row)
     return data
+
+
+def pad_data(d):
+    """Pad data rows to the length of the longest row.
+
+    """
+    max_len = set((len(i) for i in d))
+    if len(max_len) == 1:
+        return d
+    else:
+        max_len = max(max_len)
+        return [i + [""] * (max_len - len(i)) for i in d]
 
 
 def readme():
@@ -624,7 +655,7 @@ def readme():
         return f.readlines()
 
 
-def set_encoding(fn=None):
+def detect_encoding(fn=None):
     """Return the default system encoding. If a filename is passed, try
     to decode the file with the default system encoding or from a short
     list of encoding types to test.
@@ -638,21 +669,26 @@ def set_encoding(fn=None):
     """
     enc_list = ['UTF-8', 'LATIN-1', 'iso8859-1', 'iso8859-2',
                 'UTF-16', 'CP720']
-    locale.setlocale(locale.LC_ALL, '')
-    code = locale.getpreferredencoding()
+    code = locale.getpreferredencoding(False)
     if code not in enc_list:
         enc_list.insert(0, code)
     if fn is not None:
         for c in enc_list:
             try:
-                with open(fn, 'r', encoding=c) as f:
-                    f.read()
+                with open(fn, 'rb') as f:
+                    f.readline().decode(c)
             except (UnicodeDecodeError, UnicodeError):
                 continue
             return c
         print("Encoding not detected. Please pass encoding value manually")
     else:
         return code
+
+
+def main(stdscr, data):
+    curses.use_default_colors()
+    curses.curs_set(False)
+    Viewer(stdscr, data).run()
 
 
 def view(data=None, fn=None, enc=None):
@@ -668,12 +704,23 @@ def view(data=None, fn=None, enc=None):
         enc: encoding for file
 
     """
-    while True:
-        if data is not None:
-            d = data
-        elif fn is not None:
-            d = process_file(fn, enc)
-        try:
-            curses.wrapper(main, d)
-        except _curses.error:
-            continue
+    if sys.version_info.major < 3:
+        lc_all = locale.getlocale(locale.LC_ALL)
+        locale.setlocale(locale.LC_ALL, '')
+    else:
+        lc_all = None
+    try:
+        while True:
+            try:
+                if data is not None:
+                    d = data
+                elif fn is not None:
+                    d = process_file(fn, enc)
+                curses.wrapper(main, pad_data(d))
+            except (QuitException, KeyboardInterrupt):
+                return
+            except ReloadException:
+                continue
+    finally:
+        if lc_all is not None:
+            locale.setlocale(locale.LC_ALL, lc_all)
