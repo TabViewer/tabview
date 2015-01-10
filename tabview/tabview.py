@@ -78,7 +78,13 @@ class Viewer:
             self.header_offset = self.header_offset_orig - 1
         self.column_width = column_width
         self.column_gap = column_gap
-        self.trunc_char = trunc_char
+
+        try:
+            trunc_char.encode(sys.stdout.encoding)
+            self.trunc_char = trunc_char
+        except (UnicodeDecodeError, UnicodeError):
+            self.trunc_char = '>'
+
         self.x, self.y = 0, 0
         self.win_x, self.win_y = 0, 0
         self.max_y, self.max_x = 0, 0
