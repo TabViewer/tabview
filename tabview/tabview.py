@@ -606,10 +606,10 @@ def csv_sniff(fn, enc):
     """
     if sys.version_info.major < 3:
         with open(fn, 'rb') as f:
-            dialect = csv.Sniffer().sniff(f.read(1024 * 8))
+            dialect = csv.Sniffer().sniff(f.read(1024 * 32))
     else:
         with open(fn, 'r', encoding=enc, newline='') as f:
-            dialect = csv.Sniffer().sniff(f.read(1024 * 8))
+            dialect = csv.Sniffer().sniff(f.read(1024 * 32))
     return dialect
 
 
