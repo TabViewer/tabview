@@ -700,7 +700,7 @@ def main(stdscr, data):
     Viewer(stdscr, data).run()
 
 
-def view(data=None, fn=None, enc=None):
+def view(data=None, fn=None, enc=None, loop=True):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -719,7 +719,7 @@ def view(data=None, fn=None, enc=None):
     else:
         lc_all = None
     try:
-        while True:
+        while loop:
             try:
                 if data is not None:
                     d = data
