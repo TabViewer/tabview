@@ -685,13 +685,13 @@ def detect_encoding(fn=None):
         return code
 
 
-def main(stdscr, data):
+def main(stdscr, data, **kwargs):
     curses.use_default_colors()
     curses.curs_set(False)
-    Viewer(stdscr, data).run()
+    Viewer(stdscr, data, **kwargs).run()
 
 
-def view(data=None, fn=None, enc=None):
+def view(data=None, fn=None, enc=None, **kwargs):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -716,7 +716,7 @@ def view(data=None, fn=None, enc=None):
                     d = data
                 elif fn is not None:
                     d = process_file(fn, enc)
-                curses.wrapper(main, pad_data(d))
+                curses.wrapper(main, pad_data(d), **kwargs)
             except (QuitException, KeyboardInterrupt):
                 return
             except ReloadException:
