@@ -39,4 +39,4 @@ def arg_parse():
 
 if __name__ == '__main__':
     args = arg_parse()
-    view(fn=args.filename, enc=args.encoding)
+    view(args.filename, enc=args.encoding)

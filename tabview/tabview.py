@@ -597,53 +597,48 @@ class Viewer:
         return self.strpad(s, width)
 
 
-def csv_sniff(fn, enc):
-    """Given a filename or a list of lists, sniff the dialect of the file and
-    return it. This should keep any errors from popping up with tab or comma
-    delimited files.
+def csv_sniff(data, enc):
+    """Given a list, sniff the dialect of the data and return it.
 
     Args:
-        fn - complete file path/name or list like
-            ["col1,col2,col3","data1,data2,data3","data1...]
+        data - list like ["col1,col2,col3"]
         enc - python encoding value ('utf_8','latin-1','cp870', etc)
     Returns:
         csv.dialect
 
     """
-    if sys.version_info.major < 3:
-        with open(fn, 'rb') as f:
-            dialect = csv.Sniffer().sniff(f.read(1024 ** 2))
-    else:
-        with open(fn, 'r', encoding=enc, newline='') as f:
-            dialect = csv.Sniffer().sniff(f.read(1024 ** 2))
-    return dialect
+    data = data.decode(enc)
+    dialect = csv.Sniffer().sniff(data)
+    return dialect.delimiter
 
 
-def process_file(fn, enc=None, dialect=None):
-    """Given a filename, return the file as a list of lists.
+def process_data(data, enc=None, delim=None):
+    """Given a list of lists, check for the encoding and delimiter and return a
+    list of CSV rows (normalized to a single length)
 
     """
     if enc is None:
-        enc = detect_encoding(fn)
-    if dialect is None:
-        dialect = csv_sniff(fn, enc)
-    data = []
+        enc = detect_encoding(data)
+    if delim is None:
+        delim = csv_sniff(data[0], enc)
+    csv_data = []
     if sys.version_info.major < 3:
-        with open(fn, 'rb') as f:
-            csv_obj = csv.reader(f, dialect=dialect)
-            for row in csv_obj:
-                row = map(lambda x: str(x, enc), row)
-                data.append(row)
+        csv_obj = csv.reader(data, delimiter=delim.encode(enc))
+        for row in csv_obj:
+            row = [str(x, enc) for x in row]
+            csv_data.append(row)
     else:
-        with open(fn, 'r', encoding=enc, newline='') as f:
-            csv_obj = csv.reader(f, dialect=dialect)
-            for row in csv_obj:
-                data.append(row)
-    return data
+        data = [i.decode(enc) for i in data]
+        csv_obj = csv.reader(data, delimiter=delim)
+        for row in csv_obj:
+            csv_data.append(row)
+    return pad_data(csv_data)
 
 
 def pad_data(d):
     """Pad data rows to the length of the longest row.
+
+        Args: d - list of lists
 
     """
     max_len = set((len(i) for i in d))
@@ -661,14 +656,13 @@ def readme():
         return f.readlines()
 
 
-def detect_encoding(fn=None):
-    """Return the default system encoding. If a filename is passed, try
-    to decode the file with the default system encoding or from a short
+def detect_encoding(data):
+    """Return the default system encoding. If data is passed, try
+    to decode the data with the default system encoding or from a short
     list of encoding types to test.
 
     Args:
-        fn(optional) - complete path to file
-
+        data - list of lists
     Returns:
         enc - system encoding
 
@@ -678,12 +672,6 @@ def detect_encoding(fn=None):
     code = locale.getpreferredencoding(False)
     if code not in enc_list:
         enc_list.insert(0, code)
-    data = []
-    if fn is None:
-        return code
-    with open(fn, 'rb') as f:
-        for line in f.readlines():
-            data.append(line)
     for c in enc_list:
         try:
             for line in data:
@@ -700,17 +688,15 @@ def main(stdscr, data):
     Viewer(stdscr, data).run()
 
 
-def view(data=None, fn=None, enc=None):
+def view(data, enc=None):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
     exceptions.
 
     Args:
-        data: list of lists, tuple of tuples, etc. Any tabular data.
-            If 'data' is passed, 'fn' and 'enc' will be ignored
-        fn: filename
-        enc: encoding for file
+        data: a filename OR list of lists, tuple of tuples, etc.
+        enc: encoding for file/data
 
     """
     if sys.version_info.major < 3:
@@ -719,13 +705,15 @@ def view(data=None, fn=None, enc=None):
     else:
         lc_all = None
     try:
+        with open(data, 'rb') as f:
+            data = f.readlines()
+    except TypeError:
+        pass
+    try:
         while True:
             try:
-                if data is not None:
-                    d = data
-                elif fn is not None:
-                    d = process_file(fn, enc)
-                curses.wrapper(main, pad_data(d))
+                d = process_data(data, enc)
+                curses.wrapper(main, d)
             except (QuitException, KeyboardInterrupt):
                 return
             except ReloadException:
