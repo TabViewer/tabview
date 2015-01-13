@@ -684,6 +684,11 @@ def detect_encoding(data):
 
 def main(stdscr, data):
     curses.use_default_colors()
+    if hasattr(curses, 'curs_set'):
+        try:
+            curses.curs_set(0) # make the cursor invisible
+        except:
+            pass
     curses.curs_set(False)
     Viewer(stdscr, data).run()
 
