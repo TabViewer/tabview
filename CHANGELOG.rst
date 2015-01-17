@@ -1,3 +1,8 @@
+*Version 1.3.0 2015-01-17*
+ - Added basic unit and integration tests
+ - Travis integration
+ - Other speed improvements and bug fixes
+
 *Version 1.2.0  2015-01-08*
 
  - Dual Python 2.7+ and 3+ support. Improved Unicode handling
