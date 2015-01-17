@@ -13,7 +13,7 @@ Other Contributors:
 
     + Matus Gura <matus.gura@gmail.com>
     + Nathan Typanski <ntypanski@gmail.com>
-    + scls19fr <scls@pc9.home>
+    + Sébastien Celles <s.celles@gmail.com>
     + Yuri D'Elia <yuri.delia@eurac.edu>
 
 The highlighted position is shown in the top-left corner of the screen; next to
