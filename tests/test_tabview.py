@@ -102,7 +102,7 @@ class TestTabviewIntegration(unittest.TestCase):
         v = t.Viewer(stdscr, *args, **kwargs)
         v.display()
         for key in v.keys:
-            if key not in ('q', 'Q', 'r', '?', '/', '\n', 'a', 'A', 's', 'S'
+            if key not in ('q', 'Q', 'r', '?', '/', '\n', 'a', 'A', 's', 'S',
                            'y', curses.KEY_F1, curses.KEY_ENTER):
                 v.keys[key]()
 
