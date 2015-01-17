@@ -655,8 +655,9 @@ def pad_data(d):
 def readme():
     path = os.path.dirname(os.path.realpath(__file__))
     fn = os.path.join(path, "README.rst")
-    with open(fn, 'r') as f:
-        return f.readlines()
+    with open(fn, 'rb') as f:
+        h = f.readlines()
+        return [i.decode('utf-8') for i in h]
 
 
 def detect_encoding(data):
