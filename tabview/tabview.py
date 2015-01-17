@@ -688,7 +688,10 @@ def detect_encoding(data):
 
 def main(stdscr, *args, **kwargs):
     curses.use_default_colors()
-    curses.curs_set(False)
+    try:
+        curses.curs_set(False)
+    except AttributeError:
+        pass
     Viewer(stdscr, *args, **kwargs).run()
 
 
