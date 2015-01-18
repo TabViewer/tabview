@@ -35,17 +35,27 @@ def arg_parse():
                         "other common encodings, it should be detected "
                         "automatically. If not, you can pass "
                         "'CP720', or 'iso8859-2', for example.")
-    parser.add_argument('--start_pos', '-yx',
+    parser.add_argument('--start_pos',
                         help="Initial cursor display position. "
                         "Single number for just y (row) position, or two "
-                        "comma-separated numbers (-yx=2,3) for both.")
-    return parser.parse_args()
+                        "comma-separated numbers (--start_pos 2,3) for both. "
+                        "Alternatively, you can pass the numbers in the more "
+                        "classic +y:[x] format without the --start_pos label. "
+                        "Like 'tabview <fn> +5:10'")
+    return parser.parse_known_args()
 
 if __name__ == '__main__':
-    args = arg_parse()
+    args, extra = arg_parse()
+    pos_plus = [i for i in extra if i.startswith('+')]
     if args.start_pos is not None:
         start_pos = args.start_pos.split(',')[:2]
         start_pos = [int(i) for i in start_pos]
+    elif pos_plus:
+        sp = pos_plus[0].strip('+').split(':')
+        try:
+            start_pos = (int(sp[0]), int(sp[1]))
+        except IndexError:
+            start_pos = (int(sp[0]), 0)
     else:
         start_pos = (0, 0)
     view(args.filename, enc=args.encoding, start_pos=start_pos)
