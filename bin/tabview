@@ -35,8 +35,17 @@ def arg_parse():
                         "other common encodings, it should be detected "
                         "automatically. If not, you can pass "
                         "'CP720', or 'iso8859-2', for example.")
+    parser.add_argument('--start_pos', '-yx',
+                        help="Initial cursor display position. "
+                        "Single number for just y (row) position, or two "
+                        "comma-separated numbers (-yx=2,3) for both.")
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = arg_parse()
-    view(args.filename, enc=args.encoding)
+    if args.start_pos is not None:
+        start_pos = args.start_pos.split(',')[:2]
+        start_pos = [int(i) for i in start_pos]
+    else:
+        start_pos = (0, 0)
+    view(args.filename, enc=args.encoding, start_pos=start_pos)

@@ -59,13 +59,15 @@ class Viewer:
     Args:
         scr: curses window object
         data: data (list of lists)
+        start_pos: initial file position. Either a single integer for just y
+            (row) position, or tuple/list (y,x)
         column_width: fixed width for each column
         column_gap: gap inbetween columns
         trunc_char: character to delineate a truncated line
 
     """
-    def __init__(self, scr, data, column_width=20, column_gap=2,
-                 trunc_char='…'):
+    def __init__(self, scr, data, start_pos, column_width=20, column_gap=2,
+                 trunc_char='…',):
         self.scr = scr
         if sys.version_info.major < 3:
             self.data = [[j for j in i] for i in data]
@@ -96,9 +98,18 @@ class Viewer:
         self.res = []
         self.res_idx = 0
         self.modifier = str()
-        self.keys()
+        self.define_keys()
         self.resize()
         self.display()
+        # Handle goto initial position (either (y,x), [y] or y)
+        try:
+            self.goto_y(start_pos[0])
+        except TypeError:
+            self.goto_y(start_pos)
+        try:
+            self.goto_x(start_pos[1])
+        except (IndexError, TypeError):
+            pass
 
     def column_xw(self, x):
         """Return the position and width of the requested column"""
@@ -109,353 +120,354 @@ class Viewer:
             w = self.max_x - xp
         return xp, w
 
-    def keys(self):
-        """Define methods for each allowed key press.
+    def quit(self):
+        raise QuitException
 
-        """
-        def quit():
-            raise QuitException
+    def reload(self):
+        raise ReloadException
 
-        def reload():
-            raise ReloadException
-
-        def down():
-            end = len(self.data) - 1
-            if self.win_y + self.y < end:
-                if self.y < self.max_y - self.header_offset - 1:
-                    self.y = self.y + 1
-                else:
-                    self.win_y = self.win_y + 1
-
-        def up():
-            if self.y == 0:
-                if self.win_y > 0:
-                    self.win_y = self.win_y - 1
-            else:
-                self.y = self.y - 1
-
-        def left():
-            if self.x == 0:
-                if self.win_x > 0:
-                    self.win_x = self.win_x - 1
-            else:
-                self.x = self.x - 1
-
-        def right():
-            yp = self.y + self.win_y
-            if len(self.data) <= yp:
-                return
-            end = len(self.data[yp]) - 1
-            if self.win_x + self.x >= end:
-                pass
-            elif self.x < self.num_columns - 1:
-                self.x = self.x + 1
-            else:
-                self.win_x = self.win_x + 1
-
-        def page_down():
-            end = len(self.data) - 1
-            if self.win_y <= end - self.max_y + self.header_offset:
-                new_win_y = self.win_y + self.max_y - self.header_offset
-                if new_win_y + self.y > end:
-                    self.y = end - new_win_y
-                self.win_y = new_win_y
-            else:
-                self.y = end - self.win_y
-
-        def page_up():
-            if self.win_y == 0:
-                self.y = 0
-            elif self.win_y < self.max_y - self.header_offset:
-                self.win_y = 0
-            else:
-                self.win_y = self.win_y - self.max_y + self.header_offset
-
-        def page_right():
-            yp = self.y + self.win_y
-            if len(self.data) <= yp:
-                return
-            end = len(self.data[yp]) - 1
-            if self.win_x <= end - self.num_columns:
-                new_win_x = self.win_x + self.num_columns
-                if new_win_x + self.x > end:
-                    self.x = end - new_win_x
-                self.win_x = new_win_x
-            else:
-                self.x = end - self.win_x
-
-        def page_left():
-            if self.win_x == 0:
-                self.x = 0
-            elif self.win_x < self.num_columns:
-                self.win_x = 0
-            else:
-                self.win_x = self.win_x - self.num_columns
-
-        def mark():
-            self.save_y, self.save_x = self.y + self.win_y, self.x + self.win_x
-
-        def goto_mark():
-            if hasattr(self, 'save_y'):
-                goto_y(self.save_y + 1)
-                goto_x(self.save_x + 1)
-
-        def home():
-            self.win_y = self.y = 0
-
-        def goto_y(m):
-            if m > 0 and m <= len(self.data):
-                if self.win_y < m <= self.win_y + \
-                        (self.max_y - self.header_offset):
-                    # same screen, change y appropriately.
-                    self.y = m - 1 - self.win_y
-                elif m <= self.win_y:
-                    # going back
-                    self.y = 0
-                    self.win_y = m - 1
-                else:
-                    # going forward
-                    self.win_y = m - (self.max_y - self.header_offset)
-                    self.y = (self.max_y - self.header_offset) - 1
-
-        def goto_row():
-            m = int(self.modifier) if len(self.modifier) else len(self.data)
-            goto_y(m)
-            self.modifier = str()
-
-        def goto_x(m):
-            if m > 0 and m <= len(self.data[self.y + self.win_y]):
-                if self.win_x < m <= self.win_x + self.num_columns:
-                    # same screen, change x value appropriately.
-                    self.x = m - 1 - self.win_x
-                elif m <= self.win_x:
-                    # going back
-                    self.x = 0
-                    self.win_x = m - 1
-                else:
-                    # going forward
-                    self.win_x = m - self.num_columns
-                    self.x = self.num_columns - 1
-
-        def goto_col():
-            m = int(self.modifier) if len(self.modifier) else 1
-            goto_x(m)
-            self.modifier = str()
-
-        def line_home():
-            self.win_x = self.x = 0
-
-        def line_end():
-            end = len(self.data[self.y + self.win_y])
-            goto_x(end)
-
-        def show_cell():
-            "Display current cell in a pop-up window"
-            yp = self.y + self.win_y
-            xp = self.x + self.win_x
-            try:
-                # Don't display popup if the cursor if somehow off the
-                # end of the normal row, for example if the list has an
-                # uneven number of columns
-                s = self.data[yp][xp].splitlines()
-                s = [wrap(i, 78, subsequent_indent="  ") for i in s]
-                s = [i for j in s for i in j]
-            except IndexError:
-                return
-            if not s:
-                # Only display pop-up if cells have contents
-                return
-            lines = len(s) + 2
-            scr2 = curses.newwin(lines, 80, 5, 5)
-            scr2.move(0, 0)
-            addstr(scr2, 1, 1, "\n".join(s))
-            scr2.box()
-            while not scr2.getch():
-                pass
-
-        def search():
-            """Search (case independent) from the top for string and goto
-            that spot"""
-            scr2 = curses.newwin(4, 40, 15, 15)
-            scr2.box()
-            scr2.move(1, 1)
-            addstr(scr2, "Search: ")
-            curses.echo()
-            search = scr2.getstr().decode(sys.stdout.encoding).lower()
-            curses.noecho()
-            if search:
-                self.res = [(y, x) for y, line in enumerate(self.data) for
-                            x, item in enumerate(line)
-                            if search in item.lower()]
-                self.res_idx = 0
-                self.x = self.y = 0
-            else:
-                self.res = []
-            if self.res:
-                self.win_y, self.win_x = self.res[self.res_idx]
-
-        def next_result():
-            if self.res:
-                if self.res_idx < len(self.res) - 1:
-                    self.res_idx += 1
-                else:
-                    self.res_idx = 0
-                self.x = self.y = 0
-                self.win_y, self.win_x = self.res[self.res_idx]
-
-        def prev_result():
-            if self.res:
-                if self.res_idx > 0:
-                    self.res_idx -= 1
-                else:
-                    self.res_idx = len(self.res) - 1
-                self.x = self.y = 0
-                self.win_y, self.win_x = self.res[self.res_idx]
-
-        def help():
-            help_txt = readme()
-            idx = help_txt.index('Keybindings:\n')
-            help_txt = [i.replace('**', '') for i in help_txt[idx:]
-                        if '=' not in i]
-            lines = len(help_txt) + 2
-            scr2 = curses.newwin(lines, 82, 5, 5)
-            scr2.move(0, 0)
-            addstr(scr2, 1, 1, " ".join(help_txt))
-            scr2.box()
-            while not scr2.getch():
-                pass
-
-        def toggle_header():
-            if self.header_offset == self.header_offset_orig:
-                # Turn off header row
-                self.header_offset = self.header_offset - 1
-                self.data.insert(0, self.header)
+    def down(self):
+        end = len(self.data) - 1
+        if self.win_y + self.y < end:
+            if self.y < self.max_y - self.header_offset - 1:
                 self.y = self.y + 1
             else:
-                if len(self.data) == 1:
-                    return
-                # Turn on header row
-                self.header_offset = self.header_offset_orig
-                del self.data[self.data.index(self.header)]
-                if self.y > 0:
-                    self.y = self.y - 1
-                elif self.win_y > 0:
-                    # Scroll down 1 to keep cursor on the same item
-                    up()
-                    down()
-                    self.y = self.y - 1
+                self.win_y = self.win_y + 1
 
-        def column_gap_down():
-            self.column_gap = max(0, self.column_gap - 1)
-            self.recalculate_layout()
+    def up(self):
+        if self.y == 0:
+            if self.win_y > 0:
+                self.win_y = self.win_y - 1
+        else:
+            self.y = self.y - 1
 
-        def column_gap_up():
-            self.column_gap += 1
-            self.recalculate_layout()
+    def left(self):
+        if self.x == 0:
+            if self.win_x > 0:
+                self.win_x = self.win_x - 1
+        else:
+            self.x = self.x - 1
 
-        def column_width_down():
-            step = max(1, int(self.column_width * 0.2))
-            self.column_width = max(1, self.column_width - step)
-            self.recalculate_layout()
+    def right(self):
+        yp = self.y + self.win_y
+        if len(self.data) <= yp:
+            return
+        end = len(self.data[yp]) - 1
+        if self.win_x + self.x >= end:
+            pass
+        elif self.x < self.num_columns - 1:
+            self.x = self.x + 1
+        else:
+            self.win_x = self.win_x + 1
 
-        def column_width_up():
-            step = int(self.column_width * 0.2)
-            self.column_width += max(1, step)
-            self.recalculate_layout()
+    def page_down(self):
+        end = len(self.data) - 1
+        if self.win_y <= end - self.max_y + self.header_offset:
+            new_win_y = self.win_y + self.max_y - self.header_offset
+            if new_win_y + self.y > end:
+                self.y = end - new_win_y
+            self.win_y = new_win_y
+        else:
+            self.y = end - self.win_y
 
-        def sort_by_column():
-            xp = self.x + self.win_x
-            self.data = sorted(self.data, key=itemgetter(xp))
+    def page_up(self):
+        if self.win_y == 0:
+            self.y = 0
+        elif self.win_y < self.max_y - self.header_offset:
+            self.win_y = 0
+        else:
+            self.win_y = self.win_y - self.max_y + self.header_offset
 
-        def sort_by_column_reverse():
-            xp = self.x + self.win_x
-            self.data = sorted(self.data, key=itemgetter(xp), reverse=True)
+    def page_right(self):
+        yp = self.y + self.win_y
+        if len(self.data) <= yp:
+            return
+        end = len(self.data[yp]) - 1
+        if self.win_x <= end - self.num_columns:
+            new_win_x = self.win_x + self.num_columns
+            if new_win_x + self.x > end:
+                self.x = end - new_win_x
+            self.win_x = new_win_x
+        else:
+            self.x = end - self.win_x
 
-        def sort_by_column_natural():
-            xp = self.x + self.win_x
-            self.data = sorted_nicely(self.data, itemgetter(xp))
+    def page_left(self):
+        if self.win_x == 0:
+            self.x = 0
+        elif self.win_x < self.num_columns:
+            self.win_x = 0
+        else:
+            self.win_x = self.win_x - self.num_columns
 
-        def sort_by_column_natural_reverse():
-            xp = self.x + self.win_x
-            self.data = sorted_nicely(self.data, itemgetter(xp), rev=True)
+    def mark(self):
+        self.save_y, self.save_x = self.y + self.win_y, self.x + self.win_x
 
-        def sorted_nicely(ls, key, rev=False):
-            """ Sort the given iterable in the way that humans expect.
+    def goto_mark(self):
+        if hasattr(self, 'save_y'):
+            self.goto_y(self.save_y + 1)
+            self.goto_x(self.save_x + 1)
 
-            From StackOverflow: http://goo.gl/nGBUrQ
+    def home(self):
+        self.win_y = self.y = 0
 
-            """
-            def convert(text):
-                return int(text) if text.isdigit() else text
+    def goto_y(self, m):
+        if m >= len(self.data):
+            m = len(self.data)
+        if m > 0:
+            if self.win_y < m <= self.win_y + \
+                    (self.max_y - self.header_offset):
+                # same screen, change y appropriately.
+                self.y = m - 1 - self.win_y
+            elif m <= self.win_y:
+                # going back
+                self.y = 0
+                self.win_y = m - 1
+            else:
+                # going forward
+                self.win_y = m - (self.max_y - self.header_offset)
+                self.y = (self.max_y - self.header_offset) - 1
 
-            def alphanum_key(item):
-                return [convert(c) for c in re.split('([0-9]+)', key(item))]
+    def goto_row(self):
+        m = int(self.modifier) if len(self.modifier) else len(self.data)
+        self.goto_y(m)
+        self.modifier = str()
 
-            return sorted(ls, key=alphanum_key, reverse=rev)
+    def goto_x(self, m):
+        if m >= len(self.data[self.y + self.win_y]):
+            m = len(self.data[self.y + self.win_y])
+        if m > 0:
+            if self.win_x < m <= self.win_x + self.num_columns:
+                # same screen, change x value appropriately.
+                self.x = m - 1 - self.win_x
+            elif m <= self.win_x:
+                # going back
+                self.x = 0
+                self.win_x = m - 1
+            else:
+                # going forward
+                self.win_x = m - self.num_columns
+                self.x = self.num_columns - 1
 
-        def yank_cell():
-            yp = self.y + self.win_y
-            xp = self.x + self.win_x
-            s = self.data[yp][xp]
-            # Bail out if not running in X
-            try:
-                os.environ['DISPLAY']
-            except KeyError:
+    def goto_col(self):
+        m = int(self.modifier) if len(self.modifier) else 1
+        self.goto_x(m)
+        self.modifier = str()
+
+    def line_home(self):
+        self.win_x = self.x = 0
+
+    def line_end(self):
+        end = len(self.data[self.y + self.win_y])
+        self.goto_x(end)
+
+    def show_cell(self):
+        "Display current cell in a pop-up window"
+        yp = self.y + self.win_y
+        xp = self.x + self.win_x
+        try:
+            # Don't display popup if the cursor if somehow off the
+            # end of the normal row, for example if the list has an
+            # uneven number of columns
+            s = self.data[yp][xp].splitlines()
+            s = [wrap(i, 78, subsequent_indent="  ") for i in s]
+            s = [i for j in s for i in j]
+        except IndexError:
+            return
+        if not s:
+            # Only display pop-up if cells have contents
+            return
+        lines = len(s) + 2
+        scr2 = curses.newwin(lines, 80, 5, 5)
+        scr2.move(0, 0)
+        addstr(scr2, 1, 1, "\n".join(s))
+        scr2.box()
+        while not scr2.getch():
+            pass
+
+    def search(self):
+        """Search (case independent) from the top for string and goto
+        that spot"""
+        scr2 = curses.newwin(4, 40, 15, 15)
+        scr2.box()
+        scr2.move(1, 1)
+        addstr(scr2, "Search: ")
+        curses.echo()
+        search = scr2.getstr().decode(sys.stdout.encoding).lower()
+        curses.noecho()
+        if search:
+            self.res = [(y, x) for y, line in enumerate(self.data) for
+                        x, item in enumerate(line)
+                        if search in item.lower()]
+            self.res_idx = 0
+            self.x = self.y = 0
+        else:
+            self.res = []
+        if self.res:
+            self.win_y, self.win_x = self.res[self.res_idx]
+
+    def next_result(self):
+        if self.res:
+            if self.res_idx < len(self.res) - 1:
+                self.res_idx += 1
+            else:
+                self.res_idx = 0
+            self.x = self.y = 0
+            self.win_y, self.win_x = self.res[self.res_idx]
+
+    def prev_result(self):
+        if self.res:
+            if self.res_idx > 0:
+                self.res_idx -= 1
+            else:
+                self.res_idx = len(self.res) - 1
+            self.x = self.y = 0
+            self.win_y, self.win_x = self.res[self.res_idx]
+
+    def help(self):
+        help_txt = readme()
+        idx = help_txt.index('Keybindings:\n')
+        help_txt = [i.replace('**', '') for i in help_txt[idx:]
+                    if '=' not in i]
+        lines = len(help_txt) + 2
+        scr2 = curses.newwin(lines, 82, 5, 5)
+        scr2.move(0, 0)
+        addstr(scr2, 1, 1, " ".join(help_txt))
+        scr2.box()
+        while not scr2.getch():
+            pass
+
+    def toggle_header(self):
+        if self.header_offset == self.header_offset_orig:
+            # Turn off header row
+            self.header_offset = self.header_offset - 1
+            self.data.insert(0, self.header)
+            self.y = self.y + 1
+        else:
+            if len(self.data) == 1:
                 return
-            for cmd in (['xclip', '-selection', 'clipboard'],
-                        ['xsel', '-i']):
-                try:
-                    Popen(cmd, stdin=PIPE,
-                          universal_newlines=True).communicate(input=s)
-                except FileNotFoundError:
-                    pass
+            # Turn on header row
+            self.header_offset = self.header_offset_orig
+            del self.data[self.data.index(self.header)]
+            if self.y > 0:
+                self.y = self.y - 1
+            elif self.win_y > 0:
+                # Scroll down 1 to keep cursor on the same item
+                self.up()
+                self.down()
+                self.y = self.y - 1
 
-        self.keys = {'j':   down,
-                     'k':   up,
-                     'h':   left,
-                     'l':   right,
-                     'J':   page_down,
-                     'K':   page_up,
-                     'm':   mark,
-                     "'":   goto_mark,
-                     'L':   page_right,
-                     'H':   page_left,
-                     'q':   quit,
-                     'Q':   quit,
-                     '$':   line_end,
-                     '^':   line_home,
-                     '0':   line_home,
-                     'g':   home,
-                     'G':   goto_row,
-                     '|':   goto_col,
-                     '\n':  show_cell,
-                     '/':   search,
-                     'n':   next_result,
-                     'p':   prev_result,
-                     't':   toggle_header,
-                     '-':   column_gap_down,
-                     '+':   column_gap_up,
-                     '<':   column_width_down,
-                     '>':   column_width_up,
-                     'a':   sort_by_column_natural,
-                     'A':   sort_by_column_natural_reverse,
-                     's':   sort_by_column,
-                     'S':   sort_by_column_reverse,
-                     'y':   yank_cell,
-                     'r':   reload,
-                     '?':   help,
-                     curses.KEY_F1:     help,
-                     curses.KEY_UP:     up,
-                     curses.KEY_DOWN:   down,
-                     curses.KEY_LEFT:   left,
-                     curses.KEY_RIGHT:  right,
-                     curses.KEY_HOME:   line_home,
-                     curses.KEY_END:    line_end,
-                     curses.KEY_PPAGE:  page_up,
-                     curses.KEY_NPAGE:  page_down,
-                     curses.KEY_IC:     mark,
-                     curses.KEY_DC:     goto_mark,
-                     curses.KEY_ENTER:  show_cell,
+    def column_gap_down(self):
+        self.column_gap = max(0, self.column_gap - 1)
+        self.recalculate_layout()
+
+    def column_gap_up(self):
+        self.column_gap += 1
+        self.recalculate_layout()
+
+    def column_width_down(self):
+        step = max(1, int(self.column_width * 0.2))
+        self.column_width = max(1, self.column_width - step)
+        self.recalculate_layout()
+
+    def column_width_up(self):
+        step = int(self.column_width * 0.2)
+        self.column_width += max(1, step)
+        self.recalculate_layout()
+
+    def sort_by_column(self):
+        xp = self.x + self.win_x
+        self.data = sorted(self.data, key=itemgetter(xp))
+
+    def sort_by_column_reverse(self):
+        xp = self.x + self.win_x
+        self.data = sorted(self.data, key=itemgetter(xp), reverse=True)
+
+    def sort_by_column_natural(self):
+        xp = self.x + self.win_x
+        self.data = self.sorted_nicely(self.data, itemgetter(xp))
+
+    def sort_by_column_natural_reverse(self):
+        xp = self.x + self.win_x
+        self.data = self.sorted_nicely(self.data, itemgetter(xp), rev=True)
+
+    def sorted_nicely(ls, key, rev=False):
+        """ Sort the given iterable in the way that humans expect.
+
+        From StackOverflow: http://goo.gl/nGBUrQ
+
+        """
+        def convert(text):
+            return int(text) if text.isdigit() else text
+
+        def alphanum_key(item):
+            return [convert(c) for c in re.split('([0-9]+)', key(item))]
+
+        return sorted(ls, key=alphanum_key, reverse=rev)
+
+    def yank_cell(self):
+        yp = self.y + self.win_y
+        xp = self.x + self.win_x
+        s = self.data[yp][xp]
+        # Bail out if not running in X
+        try:
+            os.environ['DISPLAY']
+        except KeyError:
+            return
+        for cmd in (['xclip', '-selection', 'clipboard'],
+                    ['xsel', '-i']):
+            try:
+                Popen(cmd, stdin=PIPE,
+                      universal_newlines=True).communicate(input=s)
+            except FileNotFoundError:
+                pass
+
+    def define_keys(self):
+        self.keys = {'j':   self.down,
+                     'k':   self.up,
+                     'h':   self.left,
+                     'l':   self.right,
+                     'J':   self.page_down,
+                     'K':   self.page_up,
+                     'm':   self.mark,
+                     "'":   self.goto_mark,
+                     'L':   self.page_right,
+                     'H':   self.page_left,
+                     'q':   self.quit,
+                     'Q':   self.quit,
+                     '$':   self.line_end,
+                     '^':   self.line_home,
+                     '0':   self.line_home,
+                     'g':   self.home,
+                     'G':   self.goto_row,
+                     '|':   self.goto_col,
+                     '\n':  self.show_cell,
+                     '/':   self.search,
+                     'n':   self.next_result,
+                     'p':   self.prev_result,
+                     't':   self.toggle_header,
+                     '-':   self.column_gap_down,
+                     '+':   self.column_gap_up,
+                     '<':   self.column_width_down,
+                     '>':   self.column_width_up,
+                     'a':   self.sort_by_column_natural,
+                     'A':   self.sort_by_column_natural_reverse,
+                     's':   self.sort_by_column,
+                     'S':   self.sort_by_column_reverse,
+                     'y':   self.yank_cell,
+                     'r':   self.reload,
+                     '?':   self.help,
+                     curses.KEY_F1:     self.help,
+                     curses.KEY_UP:     self.up,
+                     curses.KEY_DOWN:   self.down,
+                     curses.KEY_LEFT:   self.left,
+                     curses.KEY_RIGHT:  self.right,
+                     curses.KEY_HOME:   self.line_home,
+                     curses.KEY_END:    self.line_end,
+                     curses.KEY_PPAGE:  self.page_up,
+                     curses.KEY_NPAGE:  self.page_down,
+                     curses.KEY_IC:     self.mark,
+                     curses.KEY_DC:     self.goto_mark,
+                     curses.KEY_ENTER:  self.show_cell,
                      }
 
     def run(self):
@@ -695,7 +707,7 @@ def main(stdscr, *args, **kwargs):
     Viewer(stdscr, *args, **kwargs).run()
 
 
-def view(data, enc=None):
+def view(data, enc=None, start_pos=(0, 0)):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -704,6 +716,8 @@ def view(data, enc=None):
     Args:
         data: a filename OR list of lists, tuple of tuples, etc.
         enc: encoding for file/data
+        start_pos: initial file position. Either a single integer for just y
+            (row) position, or tuple/list (y,x)
 
     """
     if sys.version_info.major < 3:
@@ -720,7 +734,7 @@ def view(data, enc=None):
         while True:
             try:
                 d = process_data(data, enc)
-                curses.wrapper(main, d)
+                curses.wrapper(main, d, start_pos=start_pos)
             except (QuitException, KeyboardInterrupt):
                 return 0
             except ReloadException:

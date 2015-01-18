@@ -111,10 +111,10 @@ class TestTabviewIntegration(unittest.TestCase):
             return f.readlines()
 
     def test_tabview_unicode(self):
-        curses.wrapper(self.main, self.data(data_1[0]))
+        curses.wrapper(self.main, self.data(data_1[0]), start_pos=(5, 5))
 
     def test_tabview_latin1(self):
-        curses.wrapper(self.main, self.data(data_2[0]))
+        curses.wrapper(self.main, self.data(data_2[0]), start_pos=5)
 
 if __name__ == '__main__':
     unittest.main()
