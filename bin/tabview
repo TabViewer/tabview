@@ -35,8 +35,10 @@ def arg_parse():
                         "other common encodings, it should be detected "
                         "automatically. If not, you can pass "
                         "'CP720', or 'iso8859-2', for example.")
+    parser.add_argument('--width', '-w', type=int, \
+                        help="Specify fixed colomn width")
     return parser.parse_args()
 
 if __name__ == '__main__':
     args = arg_parse()
-    view(args.filename, enc=args.encoding)
+    view(args.filename, enc=args.encoding, width=args.width)
