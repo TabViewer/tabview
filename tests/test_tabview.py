@@ -103,18 +103,23 @@ class TestTabviewIntegration(unittest.TestCase):
         v.display()
         for key in v.keys:
             if key not in ('q', 'Q', 'r', '?', '/', '\n', 'a', 'A', 's', 'S',
-                           'y', curses.KEY_F1, curses.KEY_ENTER):
+                           'y', 'c', curses.KEY_F1, curses.KEY_ENTER):
                 v.keys[key]()
+            elif key in ('q', 'Q', 'r', 'c'):
+                self.assertRaises((t.ReloadException, t.QuitException),
+                                  v.keys[key])
 
     def data(self, fn):
         with open(fn, 'rb') as f:
             return f.readlines()
 
     def test_tabview_unicode(self):
-        curses.wrapper(self.main, self.data(data_1[0]), start_pos=(5, 5))
+        curses.wrapper(self.main, t.process_data(self.data(data_1[0])),
+                       start_pos=(5, 5), column_width='mode')
 
     def test_tabview_latin1(self):
-        curses.wrapper(self.main, self.data(data_2[0]), start_pos=5)
+        curses.wrapper(self.main, self.data(data_2[0]), start_pos=5,
+                       column_width='max')
 
 if __name__ == '__main__':
     unittest.main()

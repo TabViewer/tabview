@@ -8,11 +8,13 @@
 from __future__ import print_function, division, unicode_literals
 
 import csv
+import _curses
 import curses
 import locale
 import os
 import re
 import sys
+from collections import Counter
 from operator import itemgetter
 from subprocess import Popen, PIPE
 from textwrap import wrap
@@ -46,7 +48,8 @@ else:
 
 
 class ReloadException(Exception):
-    pass
+    def __init__(self, width):
+        self.column_width = width
 
 
 class QuitException(Exception):
@@ -58,19 +61,21 @@ class Viewer:
 
     Args:
         scr: curses window object
-        data: data (list of lists)
+        data: data (list of lists). Should be normalized to equal row lengths
         start_pos: initial file position. Either a single integer for just y
             (row) position, or tuple/list (y,x)
-        column_width: fixed width for each column
-        column_gap: gap inbetween columns
+        column_width: 'max' (max width for the column),
+                      'mode' (uses arithmetic mode to compute width), or
+                      int x (x characters wide). Default is 'mode'
+        column_gap: gap between columns
         trunc_char: character to delineate a truncated line
 
     """
-    def __init__(self, scr, data, start_pos, column_width=20, column_gap=2,
-                 trunc_char='…',):
+    def __init__(self, scr, data, start_pos, column_width='mode', column_gap=2,
+                 trunc_char='…'):
         self.scr = scr
         if sys.version_info.major < 3:
-            self.data = [[j for j in i] for i in data]
+            self.data = data
         else:
             self.data = [[str(j) for j in i] for i in data]
         self.header_offset_orig = 3
@@ -81,7 +86,9 @@ class Viewer:
         else:
             # Don't make one line file a header row
             self.header_offset = self.header_offset_orig - 1
-        self.column_width = column_width
+        self.num_data_columns = len(self.data[0])
+        self.column_width_mode = column_width
+        self._get_column_widths(column_width)
         self.column_gap = column_gap
 
         try:
@@ -93,7 +100,6 @@ class Viewer:
         self.x, self.y = 0, 0
         self.win_x, self.win_y = 0, 0
         self.max_y, self.max_x = 0, 0
-        self.num_columns = 0
         self.vis_columns = 0
         self.res = []
         self.res_idx = 0
@@ -113,9 +119,10 @@ class Viewer:
 
     def column_xw(self, x):
         """Return the position and width of the requested column"""
-        xp = x * self.column_width + x * self.column_gap
-        if x < self.num_columns:
-            w = min(self.max_x, self.column_width)
+        xp = sum(self.column_width[self.win_x:self.win_x + x]) \
+            + x * self.column_gap
+        if x < self.vis_columns:
+            w = min(self.max_x, self.column_width[self.win_x + x])
         else:
             w = self.max_x - xp
         return xp, w
@@ -124,7 +131,7 @@ class Viewer:
         raise QuitException
 
     def reload(self):
-        raise ReloadException
+        raise ReloadException(self.column_width_mode)
 
     def down(self):
         end = len(self.data) - 1
@@ -145,6 +152,7 @@ class Viewer:
         if self.x == 0:
             if self.win_x > 0:
                 self.win_x = self.win_x - 1
+                self.recalculate_layout()
         else:
             self.x = self.x - 1
 
@@ -152,13 +160,17 @@ class Viewer:
         yp = self.y + self.win_y
         if len(self.data) <= yp:
             return
-        end = len(self.data[yp]) - 1
-        if self.win_x + self.x >= end:
-            pass
-        elif self.x < self.num_columns - 1:
+        if self.x < self.vis_columns - 1:
             self.x = self.x + 1
         else:
-            self.win_x = self.win_x + 1
+            # Go right, unless we're on the last column of data
+            # Keep going right until the entire last column is visible
+            end = self.num_data_columns - 1
+            width = sum(self.column_width[-(self.vis_columns):]) + \
+                self.x * self.column_gap
+            if self.win_x + self.x < end or width > self.max_x:
+                self.win_x = self.win_x + 1
+                self.recalculate_layout()
 
     def page_down(self):
         end = len(self.data) - 1
@@ -182,22 +194,25 @@ class Viewer:
         yp = self.y + self.win_y
         if len(self.data) <= yp:
             return
-        end = len(self.data[yp]) - 1
-        if self.win_x <= end - self.num_columns:
-            new_win_x = self.win_x + self.num_columns
+        end = self.num_data_columns - 1
+        if self.win_x <= end - self.vis_columns:
+            new_win_x = self.win_x + self.vis_columns
             if new_win_x + self.x > end:
                 self.x = end - new_win_x
             self.win_x = new_win_x
+            self.recalculate_layout()
         else:
             self.x = end - self.win_x
 
     def page_left(self):
         if self.win_x == 0:
             self.x = 0
-        elif self.win_x < self.num_columns:
+        elif self.win_x < self.vis_columns:
             self.win_x = 0
+            self.recalculate_layout()
         else:
-            self.win_x = self.win_x - self.num_columns
+            self.win_x = self.win_x - self.vis_columns
+            self.recalculate_layout()
 
     def mark(self):
         self.save_y, self.save_x = self.y + self.win_y, self.x + self.win_x
@@ -236,17 +251,19 @@ class Viewer:
         if m >= len(self.data[self.y + self.win_y]):
             m = len(self.data[self.y + self.win_y])
         if m > 0:
-            if self.win_x < m <= self.win_x + self.num_columns:
+            if self.win_x < m <= self.win_x + self.vis_columns:
                 # same screen, change x value appropriately.
                 self.x = m - 1 - self.win_x
             elif m <= self.win_x:
                 # going back
                 self.x = 0
                 self.win_x = m - 1
+                self.recalculate_layout()
             else:
                 # going forward
-                self.win_x = m - self.num_columns
-                self.x = self.num_columns - 1
+                self.win_x = m - self.vis_columns
+                self.recalculate_layout()
+                self.x = self.vis_columns - 1
 
     def goto_col(self):
         m = int(self.modifier) if len(self.modifier) else 1
@@ -255,6 +272,7 @@ class Viewer:
 
     def line_home(self):
         self.win_x = self.x = 0
+        self.recalculate_layout()
 
     def line_end(self):
         end = len(self.data[self.y + self.win_y])
@@ -304,6 +322,7 @@ class Viewer:
             self.res = []
         if self.res:
             self.win_y, self.win_x = self.res[self.res_idx]
+            self.recalculate_layout()
 
     def next_result(self):
         if self.res:
@@ -313,6 +332,7 @@ class Viewer:
                 self.res_idx = 0
             self.x = self.y = 0
             self.win_y, self.win_x = self.res[self.res_idx]
+            self.recalculate_layout()
 
     def prev_result(self):
         if self.res:
@@ -322,6 +342,7 @@ class Viewer:
                 self.res_idx = len(self.res) - 1
             self.x = self.y = 0
             self.win_y, self.win_x = self.res[self.res_idx]
+            self.recalculate_layout()
 
     def help(self):
         help_txt = readme()
@@ -365,13 +386,15 @@ class Viewer:
         self.recalculate_layout()
 
     def column_width_down(self):
-        step = max(1, int(self.column_width * 0.2))
-        self.column_width = max(1, self.column_width - step)
+        self.column_width = [max(1, self.column_width[i] -
+                                 max(1, int(self.column_width[i] * 0.2)))
+                             for i in range(0, self.num_data_columns)]
         self.recalculate_layout()
 
     def column_width_up(self):
-        step = int(self.column_width * 0.2)
-        self.column_width += max(1, step)
+        self.column_width = [max(1, self.column_width[i] +
+                                 max(1, int(self.column_width[i] * 0.2)))
+                             for i in range(0, self.num_data_columns)]
         self.recalculate_layout()
 
     def sort_by_column(self):
@@ -403,6 +426,20 @@ class Viewer:
             return [convert(c) for c in re.split('([0-9]+)', key(item))]
 
         return sorted(ls, key=alphanum_key, reverse=rev)
+
+    def toggle_column_width(self):
+        """Reload file and toggle column width mode between 'mode' and 'max'
+        or set fixed column width mode if self.modifier is set.
+
+        """
+        try:
+            self.column_width_mode = min(int(self.modifier), self.max_x)
+        except ValueError:
+            if self.column_width_mode == 'mode':
+                self.column_width_mode = 'max'
+            else:
+                self.column_width_mode = 'mode'
+        raise ReloadException(self.column_width_mode)
 
     def yank_cell(self):
         yp = self.y + self.win_y
@@ -455,6 +492,7 @@ class Viewer:
                      'S':   self.sort_by_column_reverse,
                      'y':   self.yank_cell,
                      'r':   self.reload,
+                     'c':   self.toggle_column_width,
                      '?':   self.help,
                      curses.KEY_F1:     self.help,
                      curses.KEY_UP:     self.up,
@@ -524,23 +562,23 @@ class Viewer:
     def recalculate_layout(self):
         """Recalulate the screen layout and cursor position"""
         self.max_y, self.max_x = self.scr.getmaxyx()
-        self.num_columns = (1 + max(0, self.max_x - self.column_width)
-                            // (self.column_width + self.column_gap))
-        if (self.num_columns * self.column_width +
-                self.num_columns * self.column_gap) < self.max_x - 3:
-            self.vis_columns = self.num_columns + 1
-        else:
-            self.vis_columns = self.num_columns
+        width = nb_cols = 0
+        while self.win_x + nb_cols < self.num_data_columns \
+                and width + self.column_width[self.win_x + nb_cols] \
+                + self.column_gap < self.max_x:
+            width += (self.column_width[self.win_x + nb_cols]
+                      + self.column_gap)
+            nb_cols += 1
 
-        if self.x >= self.num_columns:
+        if self.win_x + nb_cols < self.num_data_columns:
+            nb_cols += 1
+        self.vis_columns = nb_cols
+
+        if self.x >= self.vis_columns:
             # reposition x
-            ox = self.win_x + self.x
-            self.win_x = max(ox - self.num_columns + 1, 0)
-            self.x = self.num_columns - 1
+            self.x = self.vis_columns - 1
         if self.y >= self.max_y - self.header_offset:
             # reposition y
-            oy = self.win_y + self.y
-            self.win_y = max(oy - (self.max_y - self.header_offset) + 1, 0)
             self.y = self.max_y - self.header_offset - 1
 
     def display(self):
@@ -575,6 +613,7 @@ class Viewer:
             self.scr.move(y + self.header_offset, 0)
             self.scr.clrtoeol()
             for x in range(0, self.vis_columns):
+
                 if x == self.x and y == self.y:
                     attr = curses.A_REVERSE
                 else:
@@ -610,6 +649,75 @@ class Viewer:
         else:
             s = self.data[y][x]
         return self.strpad(s, width)
+
+    def _get_column_widths(self, width):
+        """Compute column width array
+
+        Args: width - 'max', 'mode', or an integer value
+        Returns: [len of col 1, len of col 2, ....]
+
+        """
+        if width == 'max':
+            self.column_width = self._get_column_widths_max(self.data)
+        elif width == 'mode':
+            self.column_width = self._get_column_widths_mode(self.data)
+        else:
+            try:
+                width = int(width)
+            except (TypeError, ValueError):
+                width = 25
+            self.column_width = [width for i in
+                                 range(0, self.num_data_columns)]
+
+    def _mode_len(self, x):
+        """Compute arithmetic mode (most common value) of the length of each item
+        in an iterator.
+
+            Args: x - iterator (list, tuple, etc)
+            Returns: mode - int. Minimum column width of 3
+
+        """
+        if len(x) > 500:  # 500 is just arbitrary choice for "long"
+            # Check every 10th row for long columns
+            lens = [len(i) for i in x[::10]]
+        else:
+            lens = [len(i) for i in x]
+        m = Counter(lens).most_common()
+        # If there are a lot of empty columns, use the 2nd most common length
+        # besides 0
+        try:
+            mode = m[0][0] or m[1][0]
+        except IndexError:
+            mode = 0
+        max_len = max(lens)
+        if (max(3, (abs(mode - max_len))/max_len)) > 0.1:
+            return max(3, mode)
+        else:
+            return max(3, max_len)
+
+    def _get_column_widths_mode(self, d):
+        """Given a list of lists, return a list of the variable column width
+        for each column using the arithmetic mode.
+
+        Args: d - list of lists with x columns
+        Returns: list of ints [len_1, len_2...len_x]
+
+        Ignore first row (assume header row)
+
+        """
+        d = zip(*d[1:])
+        return [self._mode_len(i) for i in d]
+
+    def _get_column_widths_max(self, d):
+        """Given a list of lists, return a list of the variable column width
+        for each column using the max length. Minimum column width of 3.
+
+        Args: d - list of lists with x columns
+        Returns: list of ints [len_1, len_2...len_x]
+
+        """
+        d = zip(*d)
+        return [max(3, min(250, max(set(len(j) for j in i)))) for i in d]
 
 
 def csv_sniff(data, enc):
@@ -702,12 +810,12 @@ def main(stdscr, *args, **kwargs):
     curses.use_default_colors()
     try:
         curses.curs_set(False)
-    except AttributeError:
+    except (AttributeError, _curses.error):
         pass
     Viewer(stdscr, *args, **kwargs).run()
 
 
-def view(data, enc=None, start_pos=(0, 0)):
+def view(data, enc=None, start_pos=(0, 0), column_width='mode'):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -718,6 +826,9 @@ def view(data, enc=None, start_pos=(0, 0)):
         enc: encoding for file/data
         start_pos: initial file position. Either a single integer for just y
             (row) position, or tuple/list (y,x)
+        column_width: 'max' (max width for the column),
+                      'mode' (uses arithmetic mode to compute width), or
+                      int x (x characters wide). Default is 'mode'
 
     """
     if sys.version_info.major < 3:
@@ -734,11 +845,11 @@ def view(data, enc=None, start_pos=(0, 0)):
         while True:
             try:
                 d = process_data(data, enc)
-                curses.wrapper(main, d, start_pos=start_pos)
+                curses.wrapper(main, d, start_pos, column_width)
             except (QuitException, KeyboardInterrupt):
                 return 0
-            except ReloadException:
-                continue
+            except ReloadException as e:
+                column_width = e.column_width
     finally:
         if lc_all is not None:
             locale.setlocale(locale.LC_ALL, lc_all)
