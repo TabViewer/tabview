@@ -54,7 +54,15 @@ Installation:
 Usage:
 ------
 
-* From command line:  ``tabview <filename>``
+* From command line:
+
+  .. code:: python
+
+    tabview <filename>
+    tabview <filename> --start_pos 6,5
+    tabview <filename> +6:5  (equivalent to previous usage)
+    tabview <filename> --encoding iso8859-1 +6:
+
 * From python command line to view an object
 
     .. code:: python
@@ -68,7 +76,7 @@ Usage:
     .. code:: python
     
         import tabview as t
-        t.view(fn=<filename>)
+        t.view(<filename>, start_pos=(60,40))
 
 Tests:
 ------

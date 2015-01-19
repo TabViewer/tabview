@@ -1,3 +1,5 @@
+ - Pass a y,x start position on command line or to view()
+
 *Version 1.3.0 2015-01-17*
  - Added basic unit and integration tests
  - Travis integration
