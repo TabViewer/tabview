@@ -418,7 +418,7 @@ class Viewer:
             try:
                 Popen(cmd, stdin=PIPE,
                       universal_newlines=True).communicate(input=s)
-            except FileNotFoundError:
+            except IOError:
                 pass
 
     def define_keys(self):
