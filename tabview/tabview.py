@@ -390,7 +390,7 @@ class Viewer:
         xp = self.x + self.win_x
         self.data = self.sorted_nicely(self.data, itemgetter(xp), rev=True)
 
-    def sorted_nicely(ls, key, rev=False):
+    def sorted_nicely(self, ls, key, rev=False):
         """ Sort the given iterable in the way that humans expect.
 
         From StackOverflow: http://goo.gl/nGBUrQ
