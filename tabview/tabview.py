@@ -689,7 +689,7 @@ class Viewer:
             mode = m[0][0] or m[1][0]
         except IndexError:
             mode = 0
-        max_len = max(lens)
+        max_len = max(lens) or 1
         if (max(3, (abs(mode - max_len))/max_len)) > 0.1:
             return max(3, mode)
         else:
