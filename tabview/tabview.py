@@ -593,18 +593,45 @@ class Viewer:
             # reposition y
             self.y = self.max_y - self.header_offset - 1
 
+    def location_string(self, yp, xp):
+        """Create (y,x) col_label string. Max 30% of screen width. (y,x) is
+        padded to the max possible length it could be. Label string gets
+        trunc_char appended if it's longer than the allowed width.
+
+        """
+        yx_str = " ({},{}) "
+        label_str = "{},{}"
+        max_y = str(len(self.data))
+        max_x = str(len(self.data[0]))
+        max_yx = yx_str.format(max_y, max_x)
+        max_label = label_str.format('-', max(self.header, key=len))
+        if self.header_offset != self.header_offset_orig:
+            # Hide column labels if header row disabled
+            label = ""
+            max_width = min(int(self.max_x * .3), len(max_yx))
+        else:
+            label = label_str.format('-', self.header[xp])
+            max_width = min(int(self.max_x * .3), len(max_yx + max_label))
+        yx = yx_str.format(yp + 1, xp + 1)
+        pad = " " * (max_width - len(yx) - len(label))
+        all = "{}{}{}".format(yx, label, pad)
+        if len(all) > max_width:
+            all = all[:max_width - 1] + self.trunc_char
+        return all
+
     def display(self):
         """Refresh the current display"""
         yp = self.y + self.win_y
         xp = self.x + self.win_x
+
         # Print the current cursor cell in the top left corner
         self.scr.move(0, 0)
         self.scr.clrtoeol()
-        s = "  {},{}  ".format(yp + 1, xp + 1)
-        addstr(self.scr, s, curses.A_REVERSE)
+        info = self.location_string(yp, xp)
+        addstr(self.scr, info, curses.A_REVERSE)
 
         # Adds the current cell content after the 'current cell' display
-        wc = self.max_x - len(s) - 2
+        wc = self.max_x - len(info) - 2
         s = self.cellstr(yp, xp, wc)
         addstr(self.scr, "  " + s, curses.A_NORMAL)
 
