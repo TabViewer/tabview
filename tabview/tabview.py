@@ -88,8 +88,8 @@ class Viewer:
             self.header_offset = self.header_offset_orig - 1
         self.num_data_columns = len(self.data[0])
         self.column_width_mode = column_width
-        self._get_column_widths(column_width)
         self.column_gap = column_gap
+        self._get_column_widths(column_width)
 
         try:
             trunc_char.encode(sys.stdout.encoding or 'utf-8')
@@ -674,14 +674,10 @@ class Viewer:
         in an iterator.
 
             Args: x - iterator (list, tuple, etc)
-            Returns: mode - int. Minimum column width of 3
+            Returns: mode - int.
 
         """
-        if len(x) > 500:  # 500 is just arbitrary choice for "long"
-            # Check every 10th row for long columns
-            lens = [len(i) for i in x[::10]]
-        else:
-            lens = [len(i) for i in x]
+        lens = [len(i) for i in x]
         m = Counter(lens).most_common()
         # If there are a lot of empty columns, use the 2nd most common length
         # besides 0
@@ -690,10 +686,11 @@ class Viewer:
         except IndexError:
             mode = 0
         max_len = max(lens) or 1
-        if (max(3, (abs(mode - max_len))/max_len)) > 0.1:
-            return max(3, mode)
+        diff = abs(mode - max_len)
+        if diff > (self.column_gap * 2) and diff / max_len > 0.1:
+            return max(max(1, self.column_gap), mode)
         else:
-            return max(3, max_len)
+            return max(max(1, self.column_gap), max_len)
 
     def _get_column_widths_mode(self, d):
         """Given a list of lists, return a list of the variable column width
@@ -710,14 +707,14 @@ class Viewer:
 
     def _get_column_widths_max(self, d):
         """Given a list of lists, return a list of the variable column width
-        for each column using the max length. Minimum column width of 3.
+        for each column using the max length.
 
         Args: d - list of lists with x columns
         Returns: list of ints [len_1, len_2...len_x]
 
         """
         d = zip(*d)
-        return [max(3, min(250, max(set(len(j) for j in i)))) for i in d]
+        return [max(1, min(250, max(set(len(j) for j in i)))) for i in d]
 
 
 def csv_sniff(data, enc):
