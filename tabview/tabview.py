@@ -385,16 +385,26 @@ class Viewer:
         self.column_gap += 1
         self.recalculate_layout()
 
-    def column_width_down(self):
+    def column_width_all_down(self):
         self.column_width = [max(1, self.column_width[i] -
                                  max(1, int(self.column_width[i] * 0.2)))
                              for i in range(0, self.num_data_columns)]
         self.recalculate_layout()
 
-    def column_width_up(self):
+    def column_width_all_up(self):
         self.column_width = [max(1, self.column_width[i] +
                                  max(1, int(self.column_width[i] * 0.2)))
                              for i in range(0, self.num_data_columns)]
+        self.recalculate_layout()
+
+    def column_width_down(self):
+        xp = self.x + self.win_x
+        self.column_width[xp] -= max(1, int(self.column_width[xp] * 0.2))
+        self.recalculate_layout()
+
+    def column_width_up(self):
+        xp = self.x + self.win_x
+        self.column_width[xp] += max(1, int(self.column_width[xp] * 0.2))
         self.recalculate_layout()
 
     def sort_by_column(self):
@@ -484,8 +494,10 @@ class Viewer:
                      't':   self.toggle_header,
                      '-':   self.column_gap_down,
                      '+':   self.column_gap_up,
-                     '<':   self.column_width_down,
-                     '>':   self.column_width_up,
+                     '<':   self.column_width_all_down,
+                     '>':   self.column_width_all_up,
+                     ',':   self.column_width_down,
+                     '.':   self.column_width_up,
                      'a':   self.sort_by_column_natural,
                      'A':   self.sort_by_column_natural_reverse,
                      's':   self.sort_by_column,
