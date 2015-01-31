@@ -112,10 +112,7 @@ class Viewer:
         """Return the position and width of the requested column"""
         xp = sum(self.column_width[self.win_x:self.win_x + x]) \
             + x * self.column_gap
-        if x < self.vis_columns:
-            w = min(self.max_x, self.column_width[self.win_x + x])
-        else:
-            w = self.max_x - xp
+        w = max(0, min(self.max_x - xp, self.column_width[self.win_x + x]))
         return xp, w
 
     def quit(self):
