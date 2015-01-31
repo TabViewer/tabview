@@ -615,6 +615,8 @@ class Viewer:
         self.scr.refresh()
 
     def strpad(self, s, width):
+        if width < 1:
+            return str()
         if '\n' in s:
             s = s.replace('\n', '\\n')
 
