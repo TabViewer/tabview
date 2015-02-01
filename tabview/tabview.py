@@ -61,7 +61,7 @@ class TextBox:
     def __init__(self, scr, data='', title=None):
         self._running = False
         self.scr = scr
-        self.data = data
+        self.data = self.orig_data = data
         self.title = title
         self.tdata = []    # transformed data
         self.hid_rows = 0  # number of hidden rows from the beginning
@@ -71,8 +71,10 @@ class TextBox:
         self.setup_handlers()
 
     def setup_handlers(self):
-        self.handlers = {'\n': self.close,
+        self.handlers = {curses.ascii.NL:  self.close,
+                         curses.ascii.CR:  self.close,
                          curses.KEY_ENTER: self.close,
+                         curses.ascii.ESC: self.discard_and_close,
                          curses.KEY_UP:    self.move_up,
                          curses.KEY_DOWN:  self.move_down,
                          curses.KEY_LEFT:  self.move_left,
@@ -100,11 +102,9 @@ class TextBox:
             c = self.scr.getch()
             self.handle_key(c)
 
-    def handle_key(self, key):
-        if 0 < key < 256:
-            key = chr(key)
+    def handle_key(self, inp):
         try:
-            self.handlers[key]()
+            self.handlers[inp]()
         except KeyError:
             pass
 
@@ -127,6 +127,10 @@ class TextBox:
             self.hid_rows = len(self.tdata) - self.nlines
             self.cur_y = self.nlines - 1
             self.cur_x = len(self.tdata[-1])
+
+    def discard_and_close(self):
+        self.data = self.orig_data
+        self.close()
 
     def close(self):
         self._running = False
@@ -940,6 +944,12 @@ def view(data, enc=None, start_pos=(0, 0), column_width='mode'):
                       int x (x characters wide). Default is 'mode'
 
     """
+    # reduce the delay after pressing ESC
+    try:
+        os.environ['ESCDELAY']
+    except KeyError:
+        os.environ['ESCDELAY'] = '25'
+
     if sys.version_info.major < 3:
         lc_all = locale.getlocale(locale.LC_ALL)
         locale.setlocale(locale.LC_ALL, '')
