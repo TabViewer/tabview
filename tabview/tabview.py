@@ -72,16 +72,20 @@ class TextBox:
         self.setup_handlers()
 
     def setup_handlers(self):
-        self.handlers = {curses.ascii.NL:  self.close,
-                         curses.ascii.CR:  self.close,
-                         curses.KEY_ENTER: self.close,
-                         curses.ascii.ESC: self.discard_and_close,
-                         curses.KEY_UP:    self.move_up,
-                         curses.KEY_DOWN:  self.move_down,
-                         curses.KEY_LEFT:  self.move_left,
-                         curses.KEY_RIGHT: self.move_right,
-                         curses.KEY_HOME:  self.move_start,
-                         curses.KEY_END:   self.move_end,
+        self.handlers = {curses.ascii.NL:      self.close,
+                         curses.ascii.CR:      self.close,
+                         curses.KEY_ENTER:     self.close,
+                         curses.ascii.ESC:     self.discard_and_close,
+                         curses.KEY_UP:        self.move_up,
+                         curses.KEY_DOWN:      self.move_down,
+                         curses.KEY_LEFT:      self.move_left,
+                         curses.KEY_RIGHT:     self.move_right,
+                         curses.KEY_HOME:      self.move_start,
+                         curses.KEY_END:       self.move_end,
+                         curses.KEY_BACKSPACE: self.delete_left,
+                         curses.ascii.BS:      self.delete_left,
+                         curses.ascii.DEL:     self.delete_left,
+                         curses.KEY_DC:        self.delete_right,
                          }
 
     def _calculate_layout(self):
@@ -177,6 +181,19 @@ class TextBox:
         elif self.hid_rows > 0:
             self.hid_rows -= 1
             self.cur_x = self.line_end
+
+    def delete_left(self):
+        if self.hid_rows == 0 and self.cur_x ==0:
+            return
+        letter_pos = (self.cur_x - 1) + (self.cur_y + self.hid_rows) * (self.term_cols - 2)
+        self.data = self.data[:letter_pos] + self.data[letter_pos+1:]
+        self._calculate_layout()
+        self.move_left()
+
+    def delete_right(self):
+        letter_pos = self.cur_x + (self.cur_y + self.hid_rows) * (self.term_cols - 2)
+        self.data = self.data[:letter_pos] + self.data[letter_pos+1:]
+        self._calculate_layout()
 
     def display(self):
         curses.curs_set(True)
