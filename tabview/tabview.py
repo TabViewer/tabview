@@ -77,6 +77,8 @@ class TextBox:
                          curses.KEY_DOWN:  self.move_down,
                          curses.KEY_LEFT:  self.move_left,
                          curses.KEY_RIGHT: self.move_right,
+                         curses.KEY_HOME:  self.move_start,
+                         curses.KEY_END:   self.move_end,
                          }
 
     def _calculate_layout(self):
@@ -92,7 +94,7 @@ class TextBox:
     def run(self):
         self._running = True
         self._calculate_layout()
-        self.move_end()  # move the cursor at the end
+        self.move_end()
         while self._running:
             self.display()
             c = self.scr.getch()
@@ -115,8 +117,13 @@ class TextBox:
             line_len -= 1
         return line_len
 
+    def move_start(self):
+        self.cur_y = self.cur_x = self.hid_rows = 0
+
     def move_end(self):
-        if len(self.tdata) != 0:
+        if len(self.tdata) == 0:
+            self.move_start()
+        else:
             self.hid_rows = len(self.tdata) - self.nlines
             self.cur_y = self.nlines - 1
             self.cur_x = len(self.tdata[-1])
