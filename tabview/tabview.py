@@ -58,11 +58,12 @@ class QuitException(Exception):
 
 
 class TextBox:
-    def __init__(self, scr, data='', title=None):
+    def __init__(self, scr, data='', title=None, editable=False):
         self._running = False
         self.scr = scr
         self.data = self.orig_data = data
         self.title = title
+        self.editable = editable
         self.tdata = []    # transformed data
         self.hid_rows = 0  # number of hidden rows from the beginning
         self.cur_y = 0     # cursor Y coordinate
@@ -107,6 +108,14 @@ class TextBox:
             self.handlers[inp]()
         except KeyError:
             pass
+        if self.editable and curses.ascii.isprint(inp):
+            self.add_char(chr(inp))
+
+    def add_char(self, char):
+        letter_pos = self.cur_x + (self.cur_y + self.hid_rows) * (self.term_cols - 2)
+        self.data = self.data[:letter_pos] + char + self.data[letter_pos:]
+        self._calculate_layout()
+        self.move_right()
 
     @property
     def line_end(self):
