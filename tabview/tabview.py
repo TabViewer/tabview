@@ -711,10 +711,8 @@ class Viewer:
         Args: d - list of lists with x columns
         Returns: list of ints [len_1, len_2...len_x]
 
-        Ignore first row (assume header row)
-
         """
-        d = zip(*d[1:])
+        d = zip(*d)
         return [self._mode_len(i) for i in d]
 
     def _get_column_widths_max(self, d):
