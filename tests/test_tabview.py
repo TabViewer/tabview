@@ -28,6 +28,8 @@ res2 = ["ALP", "B34130005", "Ladies' 7 oz. ComfortSoft® Cotton "
 data_1 = ('sample/unicode-example-utf8.txt', 'utf-8', res1)
 data_2 = ('sample/test_latin-1.csv', 'latin-1', res2)
 
+list_1 = [['a', 'b', 'c'], ['d', 'e', 'f'], [1, 2, 3]]
+
 
 class TestTabviewUnits(unittest.TestCase):
     """Unit tests for tabview
@@ -118,8 +120,13 @@ class TestTabviewIntegration(unittest.TestCase):
                        start_pos=(5, 5), column_width='mode')
 
     def test_tabview_latin1(self):
-        curses.wrapper(self.main, self.data(data_2[0]), start_pos=5,
-                       column_width='max')
+        curses.wrapper(self.main, t.process_data(self.data(data_2[0])),
+                       start_pos=5, column_width='max')
+
+    def test_tabview_list(self):
+        curses.wrapper(self.main, t.process_data(list_1),
+                       start_pos=0, column_width=5)
+
 
 if __name__ == '__main__':
     unittest.main()

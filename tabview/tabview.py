@@ -736,7 +736,7 @@ def csv_sniff(data, enc):
         data - list like ["col1,col2,col3"]
         enc - python encoding value ('utf_8','latin-1','cp870', etc)
     Returns:
-        csv.dialect
+        csv.dialect.delimiter
 
     """
     data = data.decode(enc)
@@ -749,6 +749,11 @@ def process_data(data, enc=None, delim=None):
     list of CSV rows (normalized to a single length)
 
     """
+    if data_list_or_file(data) == 'list':
+        # If data is from an object (list of lists) instead of a file
+        if sys.version_info.major < 3:
+            data = py2_list_to_unicode(data)
+        return pad_data(data)
     if enc is None:
         enc = detect_encoding(data)
     if delim is None:
@@ -765,6 +770,41 @@ def process_data(data, enc=None, delim=None):
         for row in csv_obj:
             csv_data.append(row)
     return pad_data(csv_data)
+
+
+def py2_list_to_unicode(data):
+    """Convert strings/int to unicode for python 2
+
+    """
+    enc = detect_encoding()
+    csv_data = []
+    for row in data:
+        r = []
+        for x in row:
+            try:
+                r.append(str(x, enc))
+            except TypeError:
+                # The 'enc' parameter fails with int values
+                r.append(str(x))
+        csv_data.append(r)
+    return csv_data
+
+
+def data_list_or_file(data):
+    """Determine if 'data' is a list of lists or list of strings/bytes
+
+    Python 3 - reading a file returns a list of byte strings
+    Python 2 - reading a file returns a list of strings
+    Both - list of lists is just a list
+
+    Returns: 'file' if data was from a file, 'list' if from a python list/tuple
+
+    """
+    try:
+        f = isinstance(data[0], basestring)
+    except NameError:
+        f = isinstance(data[0], bytes)
+    return 'file' if f is True else 'list'
 
 
 def pad_data(d):
@@ -789,7 +829,7 @@ def readme():
         return [i.decode('utf-8') for i in h]
 
 
-def detect_encoding(data):
+def detect_encoding(data=None):
     """Return the default system encoding. If data is passed, try
     to decode the data with the default system encoding or from a short
     list of encoding types to test.
@@ -803,6 +843,8 @@ def detect_encoding(data):
     enc_list = ['utf-8', 'latin-1', 'iso8859-1', 'iso8859-2',
                 'utf-16', 'cp720']
     code = locale.getpreferredencoding(False)
+    if data is None:
+        return code
     if code.lower() not in enc_list:
         enc_list.insert(0, code.lower())
     for c in enc_list:
