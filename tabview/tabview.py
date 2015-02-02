@@ -165,10 +165,10 @@ class TextBox:
             self.cur_x = 0
 
     def move_down(self):
-        if self.cur_y < self.nlines - 1:
-            self.cur_y += 1
-        elif self.cur_y + self.hid_rows + 1 == len(self.tdata) - 1:
+        if self.cur_y + self.hid_rows + 1 == len(self.tdata) - 1:
             self.move_end()
+        elif self.cur_y < self.nlines - 1:
+            self.cur_y += 1
         elif self.cur_y + self.hid_rows < len(self.tdata) - 1:
             self.hid_rows += 1
 
