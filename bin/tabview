@@ -42,7 +42,7 @@ def arg_parse():
                         "Alternatively, you can pass the numbers in the more "
                         "classic +y:[x] format without the --start_pos label. "
                         "Like 'tabview <fn> +5:10'")
-    parser.add_argument('--width', '-w', default='mode',
+    parser.add_argument('--width', '-w', default=20,
                         help="Specify column width. 'max' or 'mode' (default) "
                         "for variable widths, or an integer value for "
                         "fixed column width.")

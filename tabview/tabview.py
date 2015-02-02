@@ -48,8 +48,7 @@ else:
 
 
 class ReloadException(Exception):
-    def __init__(self, width):
-        self.column_width = width
+    pass
 
 
 class QuitException(Exception):
@@ -71,7 +70,7 @@ class Viewer:
         trunc_char: character to delineate a truncated line
 
     """
-    def __init__(self, scr, data, start_pos, column_width='mode', column_gap=2,
+    def __init__(self, scr, data, start_pos, column_width=20, column_gap=2,
                  trunc_char='…'):
         self.scr = scr
         if sys.version_info.major < 3:
@@ -438,18 +437,20 @@ class Viewer:
         return sorted(ls, key=alphanum_key, reverse=rev)
 
     def toggle_column_width(self):
-        """Reload file and toggle column width mode between 'mode' and 'max'
-        or set fixed column width mode if self.modifier is set.
+        """Toggle column width mode between 'mode' and 'max' or set fixed
+        column width mode if self.modifier is set.
 
         """
         try:
             self.column_width_mode = min(int(self.modifier), self.max_x)
+            self.modifier = str()
         except ValueError:
             if self.column_width_mode == 'mode':
                 self.column_width_mode = 'max'
             else:
                 self.column_width_mode = 'mode'
-        raise ReloadException(self.column_width_mode)
+        self._get_column_widths(self.column_width_mode)
+        self.recalculate_layout()
 
     def yank_cell(self):
         yp = self.y + self.win_y
@@ -891,7 +892,7 @@ def main(stdscr, *args, **kwargs):
     Viewer(stdscr, *args, **kwargs).run()
 
 
-def view(data, enc=None, start_pos=(0, 0), column_width='mode'):
+def view(data, enc=None, start_pos=(0, 0), column_width=20):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -924,8 +925,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width='mode'):
                 curses.wrapper(main, d, start_pos, column_width)
             except (QuitException, KeyboardInterrupt):
                 return 0
-            except ReloadException as e:
-                column_width = e.column_width
+            except ReloadException:
+                continue
     finally:
         if lc_all is not None:
             locale.setlocale(locale.LC_ALL, lc_all)
