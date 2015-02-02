@@ -106,6 +106,7 @@ class TextBox:
             self.display()
             c = self.scr.getch()
             self.handle_key(c)
+        curses.curs_set(False)
 
     def handle_key(self, inp):
         try:
