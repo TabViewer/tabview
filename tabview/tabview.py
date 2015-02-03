@@ -48,7 +48,13 @@ else:
 
 
 class ReloadException(Exception):
-    pass
+    def __init__(self, start_pos, column_width, column_gap, column_widths,
+                 search_str):
+        self.start_pos = start_pos
+        self.column_width_mode = column_width
+        self.column_gap = column_gap
+        self.column_widths = column_widths
+        self.search_str = search_str
 
 
 class QuitException(Exception):
@@ -59,24 +65,19 @@ class Viewer:
     """The actual CSV viewer class.
 
     Args:
-        scr: curses window object
-        data: data (list of lists). Should be normalized to equal row lengths
-        start_pos: initial file position. Either a single integer for just y
-            (row) position, or tuple/list (y,x)
-        column_width: 'max' (max width for the column),
-                      'mode' (uses arithmetic mode to compute width), or
-                      int x (x characters wide). Default is 'mode'
-        column_gap: gap between columns
-        trunc_char: character to delineate a truncated line
+        args: other positional arguments. See view() for descriptions.
+            stdscr, data
+        kwargs: dict of other keyword arguments.
+            start_pos, column_width, column_gap, trunc_char, column_widths,
+            search_str
 
     """
-    def __init__(self, scr, data, start_pos, column_width=20, column_gap=2,
-                 trunc_char='…'):
-        self.scr = scr
+    def __init__(self, *args, **kwargs):
+        self.scr = args[0]
         if sys.version_info.major < 3:
-            self.data = data
+            self.data = args[1]
         else:
-            self.data = [[str(j) for j in i] for i in data]
+            self.data = [[str(j) for j in i] for i in args[1]]
         self.header_offset_orig = 3
         self.header = self.data[0]
         if len(self.data) > 1:
@@ -86,13 +87,17 @@ class Viewer:
             # Don't make one line file a header row
             self.header_offset = self.header_offset_orig - 1
         self.num_data_columns = len(self.data[0])
-        self.column_width_mode = column_width
-        self.column_gap = column_gap
-        self._get_column_widths(column_width)
+        self.column_width_mode = kwargs['column_width']
+        self.column_gap = kwargs['column_gap']
+        if kwargs['column_widths'] is None or \
+                len(self.data[0]) != len(kwargs['column_widths']):
+            self._get_column_widths(kwargs['column_width'])
+        else:
+            self.column_width = kwargs['column_widths']
 
         try:
-            trunc_char.encode(sys.stdout.encoding or 'utf-8')
-            self.trunc_char = trunc_char
+            kwargs['trunc_char'].encode(sys.stdout.encoding or 'utf-8')
+            self.trunc_char = kwargs['trunc_char']
         except (UnicodeDecodeError, UnicodeError):
             self.trunc_char = '>'
 
@@ -100,6 +105,7 @@ class Viewer:
         self.win_x, self.win_y = 0, 0
         self.max_y, self.max_x = 0, 0
         self.vis_columns = 0
+        self.init_search = self.search_str = kwargs['search_str']
         self.res = []
         self.res_idx = 0
         self.modifier = str()
@@ -108,11 +114,11 @@ class Viewer:
         self.display()
         # Handle goto initial position (either (y,x), [y] or y)
         try:
-            self.goto_y(start_pos[0])
+            self.goto_y(kwargs['start_pos'][0])
         except TypeError:
-            self.goto_y(start_pos)
+            self.goto_y(kwargs['start_pos'])
         try:
-            self.goto_x(start_pos[1])
+            self.goto_x(kwargs['start_pos'][1])
         except (IndexError, TypeError):
             pass
 
@@ -130,7 +136,10 @@ class Viewer:
         raise QuitException
 
     def reload(self):
-        raise ReloadException(self.column_width_mode)
+        start_pos = (self.y + self.win_y + 1, self.x + self.win_x + 1)
+        raise ReloadException(start_pos, self.column_width_mode,
+                              self.column_gap, self.column_width,
+                              self.search_str)
 
     def down(self):
         end = len(self.data) - 1
@@ -304,19 +313,22 @@ class Viewer:
     def search(self):
         """Search (case independent) from the top for string and goto
         that spot"""
-        scr2 = curses.newwin(4, 40, 15, 15)
-        scr2.box()
-        scr2.move(1, 1)
-        addstr(scr2, "Search: ")
-        curses.echo()
-        search = scr2.getstr().decode(sys.stdout.encoding).lower()
-        curses.noecho()
-        if search:
+        if self.init_search is None:
+            scr2 = curses.newwin(4, 40, 15, 15)
+            scr2.box()
+            scr2.move(1, 1)
+            addstr(scr2, "Search: ")
+            curses.echo()
+            self.search_str = scr2.getstr().decode(sys.stdout.encoding).lower()
+            curses.noecho()
+        if self.search_str or self.init_search:
+            self.search_str = self.search_str or self.init_search
             self.res = [(y, x) for y, line in enumerate(self.data) for
                         x, item in enumerate(line)
-                        if search in item.lower()]
+                        if self.search_str in item.lower()]
             self.res_idx = 0
             self.x = self.y = 0
+            self.init_search = None
         else:
             self.res = []
         if self.res:
@@ -324,6 +336,8 @@ class Viewer:
             self.recalculate_layout()
 
     def next_result(self):
+        if self.init_search:
+            self.search()
         if self.res:
             if self.res_idx < len(self.res) - 1:
                 self.res_idx += 1
@@ -334,6 +348,8 @@ class Viewer:
             self.recalculate_layout()
 
     def prev_result(self):
+        if self.init_search:
+            self.search()
         if self.res:
             if self.res_idx > 0:
                 self.res_idx -= 1
@@ -892,20 +908,26 @@ def main(stdscr, *args, **kwargs):
     Viewer(stdscr, *args, **kwargs).run()
 
 
-def view(data, enc=None, start_pos=(0, 0), column_width=20):
+def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
+         trunc_char='…', column_widths=None, search_str=None):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
     exceptions.
 
     Args:
-        data: a filename OR list of lists, tuple of tuples, etc.
+        data: data (list of lists, tuple of tuples). Should be normalized to
+            equal row lengths
         enc: encoding for file/data
         start_pos: initial file position. Either a single integer for just y
             (row) position, or tuple/list (y,x)
         column_width: 'max' (max width for the column),
                       'mode' (uses arithmetic mode to compute width), or
                       int x (x characters wide). Default is 'mode'
+        column_gap: gap between columns
+        column_widths: list of widths for each column [len1, len2, lenxxx...]
+        trunc_char: character to indicate continuation of too-long columns
+        search_str: string to search for
 
     """
     if sys.version_info.major < 3:
@@ -914,18 +936,29 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20):
     else:
         lc_all = None
     try:
-        with open(data, 'rb') as f:
-            data = f.readlines()
-    except TypeError:
-        pass
-    try:
         while True:
             try:
-                d = process_data(data, enc)
-                curses.wrapper(main, d, start_pos, column_width)
+                try:
+                    with open(data, 'rb') as f:
+                        d = f.readlines()
+                except TypeError:
+                    d = data
+                d = process_data(d, enc)
+                curses.wrapper(main, d,
+                               start_pos=start_pos,
+                               column_width=column_width,
+                               column_gap=column_gap,
+                               trunc_char=trunc_char,
+                               column_widths=column_widths,
+                               search_str=search_str)
             except (QuitException, KeyboardInterrupt):
                 return 0
-            except ReloadException:
+            except ReloadException as e:
+                start_pos = e.start_pos
+                column_width = e.column_width_mode
+                column_gap = e.column_gap
+                column_widths = e.column_widths
+                search_str = e.search_str
                 continue
     finally:
         if lc_all is not None:

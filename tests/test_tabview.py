@@ -105,9 +105,9 @@ class TestTabviewIntegration(unittest.TestCase):
         v.display()
         for key in v.keys:
             if key not in ('q', 'Q', 'r', '?', '/', '\n', 'a', 'A', 's', 'S',
-                           'y', 'c', curses.KEY_F1, curses.KEY_ENTER):
+                           'y', curses.KEY_F1, curses.KEY_ENTER):
                 v.keys[key]()
-            elif key in ('q', 'Q', 'r', 'c'):
+            elif key in ('q', 'Q', 'r'):
                 self.assertRaises((t.ReloadException, t.QuitException),
                                   v.keys[key])
 
@@ -117,15 +117,19 @@ class TestTabviewIntegration(unittest.TestCase):
 
     def test_tabview_unicode(self):
         curses.wrapper(self.main, t.process_data(self.data(data_1[0])),
-                       start_pos=(5, 5), column_width='mode')
+                       start_pos=(5, 5), column_width='mode', column_gap=2,
+                       column_widths=None, trunc_char='…', search_str=None)
 
     def test_tabview_latin1(self):
         curses.wrapper(self.main, t.process_data(self.data(data_2[0])),
-                       start_pos=5, column_width='max')
+                       start_pos=5, column_width='max', column_gap=0,
+                       column_widths=None, trunc_char='…', search_str='36')
 
     def test_tabview_list(self):
         curses.wrapper(self.main, t.process_data(list_1),
-                       start_pos=0, column_width=5)
+                       start_pos=0, column_width=5, column_gap=10,
+                       column_widths=[4, 5, 1], trunc_char='>',
+                       search_str=None)
 
 
 if __name__ == '__main__':
