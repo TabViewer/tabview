@@ -597,10 +597,16 @@ class Viewer:
         """Refresh the current display"""
         yp = self.y + self.win_y
         xp = self.x + self.win_x
+
         # Print the current cursor cell in the top left corner
         self.scr.move(0, 0)
         self.scr.clrtoeol()
-        s = "  {},{}  ".format(yp + 1, xp + 1)
+        ys = str(yp + 1)
+        if self.header_offset != self.header_offset_orig:
+            xs = str(xp + 1)
+        else:
+            xs = "{} {}".format(xp + 1, self.header[xp])
+        s = "  {},{}  ".format(ys, xs)
         addstr(self.scr, s, curses.A_REVERSE)
 
         # Adds the current cell content after the 'current cell' display
