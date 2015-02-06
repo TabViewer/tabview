@@ -900,7 +900,10 @@ def detect_encoding(data=None):
 
 
 def main(stdscr, *args, **kwargs):
-    curses.use_default_colors()
+    try:
+        curses.use_default_colors()
+    except (AttributeError, _curses.error):
+        pass
     try:
         curses.curs_set(False)
     except (AttributeError, _curses.error):
