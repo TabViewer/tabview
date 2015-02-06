@@ -758,6 +758,15 @@ class Viewer:
             self.column_width = [width for i in
                                  range(0, self.num_data_columns)]
 
+
+    def _cell_len(self, s):
+        """Return the number of character cells a string will take"""
+        len = 0
+        for c in s:
+            w = 2 if unicodedata.east_asian_width(c) == 'W' else 1
+            len += w
+        return len
+
     def _mode_len(self, x):
         """Compute arithmetic mode (most common value) of the length of each item
         in an iterator.
@@ -766,7 +775,7 @@ class Viewer:
             Returns: mode - int.
 
         """
-        lens = [len(i) for i in x]
+        lens = [self._cell_len(i) for i in x]
         m = Counter(lens).most_common()
         # If there are a lot of empty columns, use the 2nd most common length
         # besides 0
@@ -801,7 +810,7 @@ class Viewer:
 
         """
         d = zip(*d)
-        return [max(1, min(250, max(set(len(j) for j in i)))) for i in d]
+        return [max(1, min(250, max(set(self._cell_len(j) for j in i)))) for i in d]
 
 
 def csv_sniff(data, enc):
