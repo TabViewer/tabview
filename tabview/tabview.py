@@ -10,6 +10,7 @@ from __future__ import print_function, division, unicode_literals
 import csv
 import _curses
 import curses
+import curses.ascii
 import locale
 import os
 import re
@@ -535,6 +536,8 @@ class Viewer:
                      curses.KEY_IC:     self.mark,
                      curses.KEY_DC:     self.goto_mark,
                      curses.KEY_ENTER:  self.show_cell,
+                     curses.ascii.ctrl(b'a'):  self.line_home,
+                     curses.ascii.ctrl(b'e'):  self.line_end,
                      }
 
     def run(self):
