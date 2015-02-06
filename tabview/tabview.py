@@ -10,6 +10,7 @@ from __future__ import print_function, division, unicode_literals
 import csv
 import _curses
 import curses
+import curses.ascii
 import locale
 import os
 import re
@@ -25,6 +26,9 @@ if sys.version_info.major < 3:
     # Python 2.7 shim
     str = unicode
 
+    def CTRL(key):
+        return curses.ascii.ctrl(bytes(key))
+
     def addstr(*args):
         scr, args = args[0], list(args[1:])
         x = 2 if len(args) > 2 else 0
@@ -39,6 +43,9 @@ if sys.version_info.major < 3:
 
 else:
     # Python 3 wrappers
+    def CTRL(key):
+        return curses.ascii.ctrl(key)
+
     def addstr(*args):
         scr, args = args[0], args[1:]
         return scr.addstr(*args)
@@ -533,6 +540,8 @@ class Viewer:
                      curses.KEY_IC:     self.mark,
                      curses.KEY_DC:     self.goto_mark,
                      curses.KEY_ENTER:  self.show_cell,
+                     CTRL('a'):  self.line_home,
+                     CTRL('e'):  self.line_end,
                      }
 
     def run(self):
