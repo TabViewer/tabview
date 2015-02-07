@@ -112,6 +112,7 @@ class Viewer:
         self.x, self.y = 0, 0
         self.win_x, self.win_y = 0, 0
         self.max_y, self.max_x = 0, 0
+        self.num_columns = 0
         self.vis_columns = 0
         self.init_search = self.search_str = kwargs['search_str']
         self.res = []
@@ -146,49 +147,37 @@ class Viewer:
                               self.column_gap, self.column_width,
                               self.search_str)
 
+    def consume_modifier(self, default=1):
+        m = int(self.modifier) if len(self.modifier) else default
+        self.modifier = str()
+        return m
+
     def down(self):
-        end = len(self.data) - 1
-        if self.win_y + self.y < end:
-            if self.y < self.max_y - self.header_offset - 1:
-                self.y = self.y + 1
-            else:
-                self.win_y = self.win_y + 1
+        m = self.consume_modifier()
+        yp = self.y + self.win_y
+        self.goto_y(yp + 1 + m)
 
     def up(self):
-        if self.y == 0:
-            if self.win_y > 0:
-                self.win_y = self.win_y - 1
-        else:
-            self.y = self.y - 1
+        m = self.consume_modifier()
+        yp = self.y + self.win_y
+        self.goto_y(yp + 1 - m)
 
     def left(self):
-        if self.x == 0:
-            if self.win_x > 0:
-                self.win_x = self.win_x - 1
-                self.recalculate_layout()
-        else:
-            self.x = self.x - 1
+        m = self.consume_modifier()
+        xp = self.x + self.win_x
+        self.goto_x(xp + 1 - m)
 
     def right(self):
-        yp = self.y + self.win_y
-        if len(self.data) <= yp:
-            return
-        if self.x < self.vis_columns - 1:
-            self.x = self.x + 1
-        else:
-            # Go right, unless we're on the last column of data
-            # Keep going right until the entire last column is visible
-            end = self.num_data_columns - 1
-            width = sum(self.column_width[-(self.vis_columns):]) + \
-                self.x * self.column_gap
-            if self.win_x + self.x < end or width > self.max_x:
-                self.win_x = self.win_x + 1
-                self.recalculate_layout()
+        m = self.consume_modifier()
+        xp = self.x + self.win_x
+        self.goto_x(xp + 1 + m)
 
     def page_down(self):
+        m = self.consume_modifier()
+        row_shift = (self.max_y - self.header_offset) * m
         end = len(self.data) - 1
-        if self.win_y <= end - self.max_y + self.header_offset:
-            new_win_y = self.win_y + self.max_y - self.header_offset
+        if self.win_y <= end - row_shift:
+            new_win_y = self.win_y + row_shift
             if new_win_y + self.y > end:
                 self.y = end - new_win_y
             self.win_y = new_win_y
@@ -196,47 +185,51 @@ class Viewer:
             self.y = end - self.win_y
 
     def page_up(self):
+        m = self.consume_modifier()
+        row_shift = (self.max_y - self.header_offset) * m
         if self.win_y == 0:
             self.y = 0
-        elif self.win_y < self.max_y - self.header_offset:
+        elif self.win_y < row_shift:
             self.win_y = 0
         else:
-            self.win_y = self.win_y - self.max_y + self.header_offset
+            self.win_y = self.win_y - row_shift
 
     def page_right(self):
-        yp = self.y + self.win_y
-        if len(self.data) <= yp:
-            return
-        end = self.num_data_columns - 1
-        if self.win_x <= end - self.vis_columns:
-            new_win_x = self.win_x + self.vis_columns
-            if new_win_x + self.x > end:
-                self.x = end - new_win_x
-            self.win_x = new_win_x
-            self.recalculate_layout()
-        else:
-            self.x = end - self.win_x
+        for _ in range(self.consume_modifier()):
+            end = self.num_data_columns - 1
+            if self.win_x <= end - self.num_columns:
+                cols = self.num_columns_fwd(self.win_x + self.x)
+                new_win_x = self.win_x + cols
+                if new_win_x + self.x > end:
+                    self.x = end - new_win_x
+                self.win_x = new_win_x
+                self.recalculate_layout()
+            else:
+                self.x = end - self.win_x
+                break
 
     def page_left(self):
-        if self.win_x == 0:
-            self.x = 0
-        elif self.win_x < self.vis_columns:
-            self.win_x = 0
-            self.recalculate_layout()
-        else:
-            self.win_x = self.win_x - self.vis_columns
-            self.recalculate_layout()
+        for _ in range(self.consume_modifier()):
+            if self.win_x == 0:
+                self.x = 0
+                break
+            cols = self.num_columns_rev(self.win_x + self.x)
+            if self.win_x < cols:
+                self.win_x = 0
+                self.recalculate_layout()
+            else:
+                self.win_x = self.win_x - cols
+                self.recalculate_layout()
 
     def mark(self):
         self.save_y, self.save_x = self.y + self.win_y, self.x + self.win_x
 
     def goto_mark(self):
         if hasattr(self, 'save_y'):
-            self.goto_y(self.save_y + 1)
-            self.goto_x(self.save_x + 1)
+            self.goto_yx(self.save_y + 1, self.save_x + 1)
 
     def home(self):
-        self.win_y = self.y = 0
+        self.goto_y(1)
 
     def goto_y(self, m):
         if m >= len(self.data):
@@ -256,15 +249,14 @@ class Viewer:
                 self.y = (self.max_y - self.header_offset) - 1
 
     def goto_row(self):
-        m = int(self.modifier) if len(self.modifier) else len(self.data)
+        m = self.consume_modifier(len(self.data))
         self.goto_y(m)
-        self.modifier = str()
 
     def goto_x(self, m):
-        if m >= len(self.data[self.y + self.win_y]):
-            m = len(self.data[self.y + self.win_y])
+        if m > self.num_data_columns:
+            m = self.num_data_columns
         if m > 0:
-            if self.win_x < m <= self.win_x + self.vis_columns:
+            if self.win_x < m <= self.win_x + self.num_columns:
                 # same screen, change x value appropriately.
                 self.x = m - 1 - self.win_x
             elif m <= self.win_x:
@@ -274,18 +266,21 @@ class Viewer:
                 self.recalculate_layout()
             else:
                 # going forward
-                self.win_x = m - self.vis_columns
+                cols = self.num_columns_rev(m - 1)
+                self.win_x = m - cols
+                self.x = cols - 1
                 self.recalculate_layout()
-                self.x = self.vis_columns - 1
 
     def goto_col(self):
-        m = int(self.modifier) if len(self.modifier) else 1
+        m = self.consume_modifier()
         self.goto_x(m)
-        self.modifier = str()
+
+    def goto_yx(self, y, x):
+        self.goto_y(y)
+        self.goto_x(x)
 
     def line_home(self):
-        self.win_x = self.x = 0
-        self.recalculate_layout()
+        self.goto_x(1)
 
     def line_end(self):
         end = len(self.data[self.y + self.win_y])
@@ -337,8 +332,8 @@ class Viewer:
         else:
             self.res = []
         if self.res:
-            self.win_y, self.win_x = self.res[self.res_idx]
-            self.recalculate_layout()
+            ys, xs = self.res[self.res_idx]
+            self.goto_yx(ys + 1, xs + 1)
 
     def next_result(self):
         if self.init_search:
@@ -348,9 +343,8 @@ class Viewer:
                 self.res_idx += 1
             else:
                 self.res_idx = 0
-            self.x = self.y = 0
-            self.win_y, self.win_x = self.res[self.res_idx]
-            self.recalculate_layout()
+            ys, xs = self.res[self.res_idx]
+            self.goto_yx(ys + 1, xs + 1)
 
     def prev_result(self):
         if self.init_search:
@@ -360,9 +354,8 @@ class Viewer:
                 self.res_idx -= 1
             else:
                 self.res_idx = len(self.res) - 1
-            self.x = self.y = 0
-            self.win_y, self.win_x = self.res[self.res_idx]
-            self.recalculate_layout()
+            ys, xs = self.res[self.res_idx]
+            self.goto_yx(ys + 1, xs + 1)
 
     def help(self):
         help_txt = readme()
@@ -595,27 +588,42 @@ class Viewer:
             self.recalculate_layout()
             curses.resizeterm(self.max_y, self.max_x)
 
+    def num_columns_fwd(self, x):
+        """Count number of fully visible columns starting at x,
+        going forward.
+
+        """
+        width = cols = 0
+        while (x + cols) < self.num_data_columns \
+                and width + self.column_width[x + cols] <= self.max_x:
+            width += self.column_width[x + cols] + self.column_gap
+            cols += 1
+        return max(1, cols)
+
+    def num_columns_rev(self, x):
+        """Count number of fully visible columns starting at x,
+        going reverse.
+
+        """
+        width = cols = 0
+        while x - cols >= 0 \
+                and width + self.column_width[x - cols] <= self.max_x:
+            width += self.column_width[x - cols] + self.column_gap
+            cols += 1
+        return max(1, cols)
+
     def recalculate_layout(self):
         """Recalulate the screen layout and cursor position"""
         self.max_y, self.max_x = self.scr.getmaxyx()
-        width = nb_cols = 0
-        while self.win_x + nb_cols < self.num_data_columns \
-                and width + self.column_width[self.win_x + nb_cols] \
-                + self.column_gap < self.max_x:
-            width += (self.column_width[self.win_x + nb_cols]
-                      + self.column_gap)
-            nb_cols += 1
-
-        if self.win_x + nb_cols < self.num_data_columns:
-            nb_cols += 1
-        self.vis_columns = nb_cols
-
-        if self.x >= self.vis_columns:
-            # reposition x
-            self.x = self.vis_columns - 1
+        self.vis_columns = self.num_columns = self.num_columns_fwd(self.win_x)
+        if self.win_x + self.num_columns < self.num_data_columns:
+            xc, wc = self.column_xw(self.num_columns)
+            if wc > len(self.trunc_char):
+                self.vis_columns += 1
+        if self.x >= self.num_columns:
+            self.goto_x(self.win_x + self.x + 1)
         if self.y >= self.max_y - self.header_offset:
-            # reposition y
-            self.y = self.max_y - self.header_offset - 1
+            self.goto_y(self.win_y + self.y + 1)
 
     def location_string(self, yp, xp):
         """Create (y,x) col_label string. Max 30% of screen width. (y,x) is
@@ -758,7 +766,6 @@ class Viewer:
             self.column_width = [width for i in
                                  range(0, self.num_data_columns)]
 
-
     def _cell_len(self, s):
         """Return the number of character cells a string will take"""
         len = 0
@@ -810,7 +817,8 @@ class Viewer:
 
         """
         d = zip(*d)
-        return [max(1, min(250, max(set(self._cell_len(j) for j in i)))) for i in d]
+        return [max(1, min(250, max(set(self._cell_len(j) for j in i))))
+                for i in d]
 
 
 def csv_sniff(data, enc):
