@@ -96,7 +96,9 @@ class Viewer:
             self.header_offset = self.header_offset_orig - 1
         self.num_data_columns = len(self.data[0])
 
-        self.double_width = kwargs['double_width']
+        self.double_width = kwargs.get('double_width')
+        if self.double_width is None:
+            self.double_width = (len(self.data) * self.num_data_columns) < 256 ** 2
         if self.double_width:
             self._cell_len = self._cell_len_dw
         else:
@@ -1024,8 +1026,6 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 except TypeError:
                     d = data
                 d = process_data(d, enc)
-                if double_width == None:
-                    double_width = len(d) < 1 or (len(d) * len(d[0])) < 256 ** 2
                 curses.wrapper(main, d,
                                start_pos=start_pos,
                                column_width=column_width,
