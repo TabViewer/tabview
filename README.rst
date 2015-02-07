@@ -140,4 +140,5 @@ Keybindings:
                              (requires xsel or xclip)
 **[num]c**                   Toggle variable column width mode (mode/max),
                              or set width to [num]
+**[num]C**                   Maximize current column, or set width to [num]
 ==========================   =================================================
