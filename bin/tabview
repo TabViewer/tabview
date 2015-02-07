@@ -46,6 +46,9 @@ def arg_parse():
                         help="Specify column width. 'max' or 'mode' (default) "
                         "for variable widths, or an integer value for "
                         "fixed column width.")
+    parser.add_argument('--double_width', action='store_true',
+                        help="Force full handling of double-width characters "
+                        "for large files (with a performance penalty)")
     return parser.parse_known_args()
 
 
@@ -82,4 +85,4 @@ if __name__ == '__main__':
     pos_plus = [i for i in extra if i.startswith('+')]
     start_pos = start_position(args.start_pos, pos_plus)
     view(args.filename, enc=args.encoding, start_pos=start_pos,
-         column_width=args.width)
+         column_width=args.width, double_width=args.double_width)
