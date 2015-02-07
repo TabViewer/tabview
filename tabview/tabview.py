@@ -466,6 +466,19 @@ class Viewer:
         self._get_column_widths(self.column_width_mode)
         self.recalculate_layout()
 
+    def set_current_column_width(self):
+        xs = self.win_x + self.x
+        if len(self.modifier):
+            width = int(self.modifier)
+            self.modifier = str()
+        else:
+            width = 0
+            for y in range(0, len(self.data)):
+                width = max(width, self._cell_len(self.data[y][xs]))
+            width = min(250, width)
+        self.column_width[xs] = width
+        self.recalculate_layout()
+
     def yank_cell(self):
         yp = self.y + self.win_y
         xp = self.x + self.win_x
@@ -520,6 +533,7 @@ class Viewer:
                      'y':   self.yank_cell,
                      'r':   self.reload,
                      'c':   self.toggle_column_width,
+                     'C':   self.set_current_column_width,
                      '?':   self.help,
                      curses.KEY_F1:     self.help,
                      curses.KEY_UP:     self.up,
