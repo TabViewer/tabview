@@ -77,7 +77,7 @@ class Viewer:
             stdscr, data
         kwargs: dict of other keyword arguments.
             start_pos, column_width, column_gap, trunc_char, column_widths,
-            search_str
+            search_str, double_width
 
     """
     def __init__(self, *args, **kwargs):
@@ -95,6 +95,16 @@ class Viewer:
             # Don't make one line file a header row
             self.header_offset = self.header_offset_orig - 1
         self.num_data_columns = len(self.data[0])
+
+        self.double_width = kwargs.get('double_width')
+        # Enable double with character processing for small files
+        if self.double_width is None:
+            self.double_width = len(self.data) * self.num_data_columns < 65000
+        if self.double_width:
+            self._cell_len = self._cell_len_dw
+        else:
+            self._cell_len = self._cell_len_rw
+
         self.column_width_mode = kwargs['column_width']
         self.column_gap = kwargs['column_gap']
         if kwargs['column_widths'] is None or \
@@ -780,8 +790,18 @@ class Viewer:
             self.column_width = [width for i in
                                  range(0, self.num_data_columns)]
 
-    def _cell_len(self, s):
-        """Return the number of character cells a string will take"""
+    def _cell_len_rw(self, s):
+        """Return the number of character cells a string will take
+        (regular version). Defined as self._cell_len in __init__
+
+        """
+        return len(s)
+
+    def _cell_len_dw(self, s):
+        """Return the number of character cells a string will take
+        (double-width aware). Defined as self._cell_len in __init__
+
+        """
         len = 0
         for c in s:
             w = 2 if unicodedata.east_asian_width(c) == 'W' else 1
@@ -976,7 +996,8 @@ def main(stdscr, *args, **kwargs):
 
 
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
-         trunc_char='…', column_widths=None, search_str=None):
+         trunc_char='…', column_widths=None, search_str=None,
+         double_width=None):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -995,6 +1016,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
         column_widths: list of widths for each column [len1, len2, lenxxx...]
         trunc_char: character to indicate continuation of too-long columns
         search_str: string to search for
+        double_width: boolean indicating whether double-width characters
+                      should be handled (defaults to False for large files)
 
     """
     if sys.version_info.major < 3:
@@ -1017,7 +1040,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                                column_gap=column_gap,
                                trunc_char=trunc_char,
                                column_widths=column_widths,
-                               search_str=search_str)
+                               search_str=search_str,
+                               double_width=double_width)
             except (QuitException, KeyboardInterrupt):
                 return 0
             except ReloadException as e:
