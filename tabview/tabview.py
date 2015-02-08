@@ -26,7 +26,7 @@ if sys.version_info.major < 3:
     # Python 2.7 shim
     str = unicode
 
-    def CTRL(key):
+    def KEY_CTRL(key):
         return curses.ascii.ctrl(bytes(key))
 
     def addstr(*args):
@@ -43,7 +43,7 @@ if sys.version_info.major < 3:
 
 else:
     # Python 3 wrappers
-    def CTRL(key):
+    def KEY_CTRL(key):
         return curses.ascii.ctrl(key)
 
     def addstr(*args):
@@ -138,9 +138,9 @@ class Viewer:
         if self.double_width is None:
             self.double_width = len(self.data) * self.num_data_columns < 65000
         if self.double_width:
-            self._cell_len = self._cell_len_dw
+            self._cell_len = self.__cell_len_dw
         else:
-            self._cell_len = self._cell_len_rw
+            self._cell_len = len
 
     def _init_column_widths(self, cw, cws):
         """Initialize column widths
@@ -570,8 +570,8 @@ class Viewer:
                      curses.KEY_IC:     self.mark,
                      curses.KEY_DC:     self.goto_mark,
                      curses.KEY_ENTER:  self.show_cell,
-                     CTRL('a'):  self.line_home,
-                     CTRL('e'):  self.line_end,
+                     KEY_CTRL('a'):  self.line_home,
+                     KEY_CTRL('e'):  self.line_end,
                      }
 
     def run(self):
@@ -803,14 +803,8 @@ class Viewer:
             self.column_width = [width for i in
                                  range(0, self.num_data_columns)]
 
-    def _cell_len_rw(self, s):
-        """Return the number of character cells a string will take
-        (regular version). Defined as self._cell_len in __init__
-
-        """
-        return len(s)
-
-    def _cell_len_dw(self, s):
+    @staticmethod
+    def __cell_len_dw(s):
         """Return the number of character cells a string will take
         (double-width aware). Defined as self._cell_len in __init__
 
