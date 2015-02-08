@@ -95,27 +95,14 @@ class Viewer:
             # Don't make one line file a header row
             self.header_offset = self.header_offset_orig - 1
         self.num_data_columns = len(self.data[0])
-
-        self.double_width = kwargs.get('double_width')
-        # Enable double with character processing for small files
-        if self.double_width is None:
-            self.double_width = len(self.data) * self.num_data_columns < 65000
-        if self.double_width:
-            self._cell_len = self._cell_len_dw
-        else:
-            self._cell_len = self._cell_len_rw
-
-        self.column_width_mode = kwargs['column_width']
-        self.column_gap = kwargs['column_gap']
-        if kwargs['column_widths'] is None or \
-                len(self.data[0]) != len(kwargs['column_widths']):
-            self._get_column_widths(kwargs['column_width'])
-        else:
-            self.column_width = kwargs['column_widths']
-
+        self._init_double_width(kwargs.get('double_width'))
+        self.column_width_mode = kwargs.get('column_width')
+        self.column_gap = kwargs.get('column_gap')
+        self._init_column_widths(kwargs.get('column_width'),
+                                 kwargs.get('column_widths'))
         try:
-            kwargs['trunc_char'].encode(sys.stdout.encoding or 'utf-8')
-            self.trunc_char = kwargs['trunc_char']
+            kwargs.get('trunc_char').encode(sys.stdout.encoding or 'utf-8')
+            self.trunc_char = kwargs.get('trunc_char')
         except (UnicodeDecodeError, UnicodeError):
             self.trunc_char = '>'
 
@@ -124,7 +111,7 @@ class Viewer:
         self.max_y, self.max_x = 0, 0
         self.num_columns = 0
         self.vis_columns = 0
-        self.init_search = self.search_str = kwargs['search_str']
+        self.init_search = self.search_str = kwargs.get('search_str')
         self.res = []
         self.res_idx = 0
         self.modifier = str()
@@ -133,13 +120,39 @@ class Viewer:
         self.display()
         # Handle goto initial position (either (y,x), [y] or y)
         try:
-            self.goto_y(kwargs['start_pos'][0])
+            self.goto_y(kwargs.get('start_pos')[0])
         except TypeError:
-            self.goto_y(kwargs['start_pos'])
+            self.goto_y(kwargs.get('start_pos'))
         try:
-            self.goto_x(kwargs['start_pos'][1])
+            self.goto_x(kwargs.get('start_pos')[1])
         except (IndexError, TypeError):
             pass
+
+    def _init_double_width(self, dw):
+        """Initialize self._cell_len to determine if double width characters
+        are taken into account when calculating cell widths.
+
+        """
+        self.double_width = dw
+        # Enable double with character processing for small files
+        if self.double_width is None:
+            self.double_width = len(self.data) * self.num_data_columns < 65000
+        if self.double_width:
+            self._cell_len = self._cell_len_dw
+        else:
+            self._cell_len = self._cell_len_rw
+
+    def _init_column_widths(self, cw, cws):
+        """Initialize column widths
+
+        Args: - cw: column_width mode
+                cws: list of column widths
+
+        """
+        if cws is None or len(self.data[0]) != len(cws):
+            self._get_column_widths(cw)
+        else:
+            self.column_width = cws
 
     def column_xw(self, x):
         """Return the position and width of the requested column"""
