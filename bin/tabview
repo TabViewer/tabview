@@ -20,18 +20,17 @@ from __future__ import print_function, unicode_literals
 import argparse
 import os
 import sys
-from tabview.tabview import readme, view
+from tabview.tabview import view
 
 
 def arg_parse():
-    """Parse filename and show help. Assumes README is in the same
-    directory as tabview.py
-
-    """
-    parser = argparse.ArgumentParser(formatter_class=
-                                     argparse.RawDescriptionHelpFormatter,
-                                     description="".join(readme()))
-    parser.add_argument('filename')
+    """Parse filename and show help."""
+    parser = argparse.ArgumentParser(description="View a tab-delimited file "
+                                     "in a spreadsheet-like display. "
+                                     "Press F1 or '?' while running for a "
+                                     "list of available keybindings.")
+    parser.add_argument('filename', help="File to read. Use '-' to read from "
+                        "the standard input instead.")
     parser.add_argument('--encoding', '-e', help="Encoding, if required.  "
                         "If the file is UTF-8, Latin-1(iso8859-1) or a few "
                         "other common encodings, it should be detected "
@@ -84,7 +83,7 @@ def start_position(start_norm, start_classic):
 
 def fixup_stdin():
     print("tabview: Reading from stdin...", file=sys.stderr)
-    data = os.fdopen(os.dup(0), 'rb');
+    data = os.fdopen(os.dup(0), 'rb')
     os.dup2(os.open("/dev/tty", os.O_RDONLY), 0)
     return data
 
