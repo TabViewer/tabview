@@ -136,9 +136,9 @@ class Viewer:
         """
         self.double_width = dw
         # Enable double with character processing for small files
-        if self.double_width is None:
+        if self.double_width is False:
             self.double_width = len(self.data) * self.num_data_columns < 65000
-        if self.double_width:
+        if self.double_width is True:
             self._cell_len = self.__cell_len_dw
         else:
             self._cell_len = len
@@ -1002,7 +1002,7 @@ def main(stdscr, *args, **kwargs):
 
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
          trunc_char='…', column_widths=None, search_str=None,
-         double_width=None):
+         double_width=False):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
