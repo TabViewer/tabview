@@ -12,6 +12,7 @@ import _curses
 import curses
 import curses.ascii
 import locale
+import io
 import os
 import re
 import sys
@@ -42,6 +43,9 @@ if sys.version_info.major < 3:
         return scr.insstr(*args)
 
 else:
+    basestring = str
+    file = io.FileIO
+
     # Python 3 wrappers
     def KEY_CTRL(key):
         return curses.ascii.ctrl(key)
@@ -82,10 +86,7 @@ class Viewer:
     """
     def __init__(self, *args, **kwargs):
         self.scr = args[0]
-        if sys.version_info.major < 3:
-            self.data = args[1]
-        else:
-            self.data = [[str(j) for j in i] for i in args[1]]
+        self.data = [[str(j) for j in i] for i in args[1]]
         self.header_offset_orig = 3
         self.header = self.data[0]
         if len(self.data) > 1:
@@ -933,10 +934,7 @@ def data_list_or_file(data):
     Returns: 'file' if data was from a file, 'list' if from a python list/tuple
 
     """
-    try:
-        f = isinstance(data[0], basestring)
-    except NameError:
-        f = isinstance(data[0], bytes)
+    f = isinstance(data[0], (basestring, bytes))
     return 'file' if f is True else 'list'
 
 
@@ -1011,8 +1009,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
     exceptions.
 
     Args:
-        data: data (list of lists, tuple of tuples). Should be normalized to
-            equal row lengths
+        data: data (filename, file, list of lists or tuple of tuples).
+              Should be normalized to equal row lengths
         enc: encoding for file/data
         start_pos: initial file position. Either a single integer for just y
             (row) position, or tuple/list (y,x)
@@ -1033,15 +1031,27 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
     else:
         lc_all = None
     try:
+        buf = None
         while True:
             try:
-                try:
-                    with open(data, 'rb') as f:
-                        d = f.readlines()
-                except TypeError:
-                    d = data
-                d = process_data(d, enc)
-                curses.wrapper(main, d,
+                if isinstance(data, basestring):
+                    with open(data, 'rb') as fd:
+                        new_data = fd.readlines()
+                elif isinstance(data, (io.IOBase, file)):
+                    new_data = data.readlines()
+                else:
+                    new_data = data
+
+                if new_data:
+                    buf = process_data(new_data, enc)
+                elif buf:
+                    # cannot reload the file
+                    pass
+                else:
+                    # cannot read the file
+                    return 1
+
+                curses.wrapper(main, buf,
                                start_pos=start_pos,
                                column_width=column_width,
                                column_gap=column_gap,
