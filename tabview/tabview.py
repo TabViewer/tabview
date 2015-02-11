@@ -254,45 +254,41 @@ class Viewer:
     def home(self):
         self.goto_y(1)
 
-    def goto_y(self, m):
-        if m >= len(self.data):
-            m = len(self.data)
-        if m > 0:
-            if self.win_y < m <= self.win_y + \
-                    (self.max_y - self.header_offset):
-                # same screen, change y appropriately.
-                self.y = m - 1 - self.win_y
-            elif m <= self.win_y:
-                # going back
-                self.y = 0
-                self.win_y = m - 1
-            else:
-                # going forward
-                self.win_y = m - (self.max_y - self.header_offset)
-                self.y = (self.max_y - self.header_offset) - 1
+    def goto_y(self, y):
+        y = max(min(len(self.data), y), 1)
+        if self.win_y < y <= self.win_y + \
+                (self.max_y - self.header_offset):
+            # same screen, change y appropriately.
+            self.y = y - 1 - self.win_y
+        elif y <= self.win_y:
+            # going back
+            self.y = 0
+            self.win_y = y - 1
+        else:
+            # going forward
+            self.win_y = y - (self.max_y - self.header_offset)
+            self.y = (self.max_y - self.header_offset) - 1
 
     def goto_row(self):
         m = self.consume_modifier(len(self.data))
         self.goto_y(m)
 
-    def goto_x(self, m):
-        if m > self.num_data_columns:
-            m = self.num_data_columns
-        if m > 0:
-            if self.win_x < m <= self.win_x + self.num_columns:
-                # same screen, change x value appropriately.
-                self.x = m - 1 - self.win_x
-            elif m <= self.win_x:
-                # going back
-                self.x = 0
-                self.win_x = m - 1
-                self.recalculate_layout()
-            else:
-                # going forward
-                cols = self.num_columns_rev(m - 1)
-                self.win_x = m - cols
-                self.x = cols - 1
-                self.recalculate_layout()
+    def goto_x(self, x):
+        x = max(min(self.num_data_columns, x), 1)
+        if self.win_x < x <= self.win_x + self.num_columns:
+            # same screen, change x value appropriately.
+            self.x = x - 1 - self.win_x
+        elif x <= self.win_x:
+            # going back
+            self.x = 0
+            self.win_x = x - 1
+            self.recalculate_layout()
+        else:
+            # going forward
+            cols = self.num_columns_rev(x - 1)
+            self.win_x = x - cols
+            self.x = cols - 1
+            self.recalculate_layout()
 
     def goto_col(self):
         m = self.consume_modifier()
