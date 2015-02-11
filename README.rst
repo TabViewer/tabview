@@ -141,4 +141,8 @@ Keybindings:
 **[num]c**                   Toggle variable column width mode (mode/max),
                              or set width to [num]
 **[num]C**                   Maximize current column, or set width to [num]
+**[num][**                   Skip to (nth) change in row value (backward)
+**[num]]**                   Skip to (nth) change in row value (forward)
+**[num]{**                   Skip to (nth) change in column value (backward)
+**[num]}**                   Skip to (nth) change in column value (forward)
 ==========================   =================================================
