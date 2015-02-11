@@ -47,7 +47,7 @@ def arg_parse():
                         help="Specify column width. 'max' or 'mode' (default) "
                         "for variable widths, or an integer value for "
                         "fixed column width.")
-    parser.add_argument('--double_width', action='store_true',
+    parser.add_argument('--double_width', action='store_true', default=None,
                         help="Force full handling of double-width characters "
                         "for large files (with a performance penalty)")
     return parser.parse_known_args()
