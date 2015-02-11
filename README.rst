@@ -36,7 +36,7 @@ Other Contributors:
     + Matus Gura <matus.gura@gmail.com>
     + Nathan Typanski <ntypanski@gmail.com>
     + Sébastien Celles <s.celles@gmail.com>
-    + Yuri D'Elia <yuri.delia@eurac.edu>
+    + Yuri D'Elia <wavexx@thregr.org>
 
 The highlighted position is shown in the top-left corner of the screen; next to
 it are shown the contents of that cell.
