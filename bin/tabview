@@ -18,7 +18,6 @@
 """
 from __future__ import print_function, unicode_literals
 import argparse
-import io
 import os
 import sys
 from tabview.tabview import readme, view
@@ -85,15 +84,9 @@ def start_position(start_norm, start_classic):
 
 def fixup_stdin():
     print("tabview: Reading from stdin...", file=sys.stderr)
-    buf = io.BytesIO()
-    if isinstance(sys.stdin, io.TextIOBase):
-        data = sys.stdin.buffer.read()
-    else:
-        data = sys.stdin.read()
+    data = os.fdopen(os.dup(0), 'rb');
     os.dup2(os.open("/dev/tty", os.O_RDONLY), 0)
-    buf.write(data)
-    buf.seek(0)
-    return buf
+    return data
 
 
 if __name__ == '__main__':

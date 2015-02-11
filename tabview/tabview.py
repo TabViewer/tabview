@@ -44,6 +44,7 @@ if sys.version_info.major < 3:
 
 else:
     basestring = str
+    file = io.FileIO
 
     # Python 3 wrappers
     def CTRL(key):
@@ -1042,7 +1043,7 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 if isinstance(data, basestring):
                     with open(data, 'rb') as fd:
                         new_data = fd.readlines()
-                elif isinstance(data, io.IOBase):
+                elif isinstance(data, (io.IOBase, file)):
                     new_data = data.readlines()
                 else:
                     new_data = data
