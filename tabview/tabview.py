@@ -554,6 +554,10 @@ class Viewer:
                      'r':   self.reload,
                      'c':   self.toggle_column_width,
                      'C':   self.set_current_column_width,
+                     ']':   self.skip_to_row_change,
+                     '[':   self.skip_to_row_change_reverse,
+                     '}':   self.skip_to_col_change,
+                     '{':   self.skip_to_col_change_reverse,
                      '?':   self.help,
                      curses.KEY_F1:     self.help,
                      curses.KEY_UP:     self.up,
@@ -857,6 +861,33 @@ class Viewer:
         d = zip(*d)
         return [max(1, min(250, max(set(self._cell_len(j) for j in i))))
                 for i in d]
+
+    def _skip_to_value_change(self, x_inc, y_inc):
+        m = self.consume_modifier()
+        for _ in range(m):
+            x = self.win_x + self.x
+            y = self.win_y + self.y
+            v = self.data[y][x]
+            y += y_inc
+            x += x_inc
+            while y >= 0 and y < len(self.data) \
+                    and x >= 0 and x < self.num_data_columns \
+                    and self.data[y][x] == v:
+                y += y_inc
+                x += x_inc
+            self.goto_yx(y + 1, x + 1)
+
+    def skip_to_row_change(self):
+        self._skip_to_value_change(0, 1)
+
+    def skip_to_row_change_reverse(self):
+        self._skip_to_value_change(0, -1)
+
+    def skip_to_col_change(self):
+        self._skip_to_value_change(1, 0)
+
+    def skip_to_col_change_reverse(self):
+        self._skip_to_value_change(-1, 0)
 
 
 def csv_sniff(data, enc):
