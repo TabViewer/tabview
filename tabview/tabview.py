@@ -85,6 +85,10 @@ class Viewer:
 
     """
     def __init__(self, *args, **kwargs):
+        # Fix for python curses resize bug:
+        # http://bugs.python.org/issue2675
+        os.unsetenv('LINES')
+        os.unsetenv('COLUMNS')
         self.scr = args[0]
         self.data = [[str(j) for j in i] for i in args[1]]
         self.header_offset_orig = 3
