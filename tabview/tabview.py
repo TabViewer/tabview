@@ -73,6 +73,159 @@ class QuitException(Exception):
     pass
 
 
+class TextBox:
+    def __init__(self, scr, data='', title=None, editable=False):
+        self._running = False
+        self.scr = scr
+        self.data = self.orig_data = data
+        self.title = title
+        self.editable = editable
+        self.tdata = []    # transformed data
+        self.hid_rows = 0  # number of hidden rows from the beginning
+        self.cur_y = 0     # cursor Y coordinate
+        self.cur_x = 0     # cursor X coordinate
+        self.term_rows, self.term_cols = scr.getmaxyx()
+        self.setup_handlers()
+
+    def setup_handlers(self):
+        self.handlers = {curses.ascii.NL:      self.close,
+                         curses.ascii.CR:      self.close,
+                         curses.KEY_ENTER:     self.close,
+                         curses.ascii.ESC:     self.discard_and_close,
+                         curses.KEY_UP:        self.move_up,
+                         curses.KEY_DOWN:      self.move_down,
+                         curses.KEY_LEFT:      self.move_left,
+                         curses.KEY_RIGHT:     self.move_right,
+                         curses.KEY_HOME:      self.move_start,
+                         curses.KEY_END:       self.move_end,
+                         curses.KEY_BACKSPACE: self.delete_left,
+                         curses.ascii.BS:      self.delete_left,
+                         curses.ascii.DEL:     self.delete_left,
+                         curses.KEY_DC:        self.delete_right,
+                         }
+
+    def _calculate_layout(self):
+        # transform raw data into list of lines ready to be printed
+        chunk_size = self.term_cols - 2
+        self.tdata = [self.data[i:i+chunk_size] 
+                      for i in range(0, len(self.data), chunk_size)]
+        # number of lines in the box
+        self.nlines = min(len(self.tdata), int(self.term_rows/2 - 2))
+        if self.nlines == 0:
+            self.nlines = 1
+
+    def run(self):
+        self._running = True
+        self._calculate_layout()
+        self.move_end()
+        while self._running:
+            self.display()
+            c = self.scr.getch()
+            self.handle_key(c)
+        curses.curs_set(False)
+
+    def handle_key(self, inp):
+        try:
+            self.handlers[inp]()
+        except KeyError:
+            pass
+        if self.editable and curses.ascii.isprint(inp):
+            self.add_char(chr(inp))
+
+    def add_char(self, char):
+        letter_pos = self.cur_x + (self.cur_y + self.hid_rows) * (self.term_cols - 2)
+        self.data = self.data[:letter_pos] + char + self.data[letter_pos:]
+        self._calculate_layout()
+        self.move_right()
+
+    @property
+    def line_end(self):
+        if len(self.data) <= self.cur_y + self.hid_rows:
+            return 0
+        line_len = len(self.tdata[self.cur_y + self.hid_rows])
+        if self.cur_y + self.hid_rows < len(self.tdata) - 1:
+            line_len -= 1
+        return line_len
+
+    def move_start(self):
+        self.cur_y = self.cur_x = self.hid_rows = 0
+
+    def move_end(self):
+        if len(self.tdata) == 0:
+            self.move_start()
+        else:
+            self.hid_rows = len(self.tdata) - self.nlines
+            self.cur_y = self.nlines - 1
+            self.cur_x = len(self.tdata[-1])
+
+    def discard_and_close(self):
+        self.data = self.orig_data
+        self.close()
+
+    def close(self):
+        self._running = False
+
+    def move_up(self):
+        if self.cur_y > 0:
+            self.cur_y -= 1
+        elif self.hid_rows > 0:
+            self.hid_rows -= 1
+
+    def move_right(self):
+        if self.cur_x < self.line_end:
+            self.cur_x += 1
+        elif self.cur_y < self.nlines - 1:
+            self.cur_y += 1
+            self.cur_x = 0
+        elif self.cur_y + self.hid_rows < len(self.tdata) - 1:
+            self.hid_rows += 1
+            self.cur_x = 0
+
+    def move_down(self):
+        if self.cur_y + self.hid_rows + 1 == len(self.tdata) - 1:
+            self.move_end()
+        elif self.cur_y < self.nlines - 1:
+            self.cur_y += 1
+        elif self.cur_y + self.hid_rows < len(self.tdata) - 1:
+            self.hid_rows += 1
+
+    def move_left(self):
+        if self.cur_x > 0:
+            self.cur_x -= 1
+        elif self.cur_y > 0:
+            self.cur_y -= 1
+            self.cur_x = self.line_end
+        elif self.hid_rows > 0:
+            self.hid_rows -= 1
+            self.cur_x = self.line_end
+
+    def delete_left(self):
+        if self.hid_rows == 0 and self.cur_x ==0:
+            return
+        letter_pos = (self.cur_x - 1) + (self.cur_y + self.hid_rows) * (self.term_cols - 2)
+        self.data = self.data[:letter_pos] + self.data[letter_pos+1:]
+        self._calculate_layout()
+        self.move_left()
+
+    def delete_right(self):
+        letter_pos = self.cur_x + (self.cur_y + self.hid_rows) * (self.term_cols - 2)
+        self.data = self.data[:letter_pos] + self.data[letter_pos+1:]
+        self._calculate_layout()
+
+    def display(self):
+        curses.curs_set(True)
+        window = curses.newwin(self.nlines + 2, self.term_cols,
+                               self.term_rows - self.nlines - 2, 0)
+        visible_rows = self.tdata[self.hid_rows:self.hid_rows+self.nlines]
+        addstr(window, 1, 1, '\n '.join(visible_rows))
+        window.box()
+        if self.title:
+            addstr(window, 0, 2, self.title)
+        window.move(self.cur_y + 1, self.cur_x + 1)
+        self.scr.refresh()
+        window.refresh()
+
+
 class Viewer:
     """The actual CSV viewer class.
 
@@ -315,23 +468,9 @@ class Viewer:
         yp = self.y + self.win_y
         xp = self.x + self.win_x
         try:
-            # Don't display popup if the cursor if somehow off the
-            # end of the normal row, for example if the list has an
-            # uneven number of columns
-            s = self.data[yp][xp].splitlines()
-            s = [wrap(i, 78, subsequent_indent="  ") for i in s]
-            s = [i for j in s for i in j]
+            win = TextBox(self.scr, self.data[yp][xp])
+            win.run()
         except IndexError:
-            return
-        if not s:
-            # Only display pop-up if cells have contents
-            return
-        lines = len(s) + 2
-        scr2 = curses.newwin(lines, 80, 5, 5)
-        scr2.move(0, 0)
-        addstr(scr2, 1, 1, "\n".join(s))
-        scr2.box()
-        while not scr2.getch():
             pass
 
     def search(self):
@@ -1056,6 +1195,12 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                       should be handled (defaults to False for large files)
 
     """
+    # reduce the delay after pressing ESC
+    try:
+        os.environ['ESCDELAY']
+    except KeyError:
+        os.environ['ESCDELAY'] = '25'
+
     if sys.version_info.major < 3:
         lc_all = locale.getlocale(locale.LC_ALL)
         locale.setlocale(locale.LC_ALL, '')
