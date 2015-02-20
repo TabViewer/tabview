@@ -17,6 +17,7 @@ import os
 import re
 import sys
 from collections import Counter
+from curses.textpad import Textbox
 from operator import itemgetter
 from subprocess import Popen, PIPE
 from textwrap import wrap
@@ -320,17 +321,30 @@ class Viewer:
             return
         TextBox(self.scr, data=s, title=self.location_string(yp, xp))()
 
+    def _search_validator(self, ch):
+        """Fix Enter and backspace for textbox"""
+        if ch == curses.ascii.NL:
+            return curses.ascii.BEL
+        elif ch == 127:
+            return 8
+        else:
+            return ch
+
     def search(self):
         """Search (case independent) from the top for string and goto
         that spot"""
         if self.init_search is None:
-            scr2 = curses.newwin(4, 40, 15, 15)
+            scr2 = curses.newwin(3, self.max_x, self.max_y - 3, 0)
+            scr3 = scr2.derwin(1, self.max_x - 12, 1, 9)
             scr2.box()
             scr2.move(1, 1)
             addstr(scr2, "Search: ")
-            curses.echo()
-            self.search_str = scr2.getstr().decode(sys.stdout.encoding).lower()
-            curses.noecho()
+            scr2.refresh()
+            curses.curs_set(1)
+            textpad = Textbox(scr3, insert_mode=True)
+            self.search_str = textpad.edit(self._search_validator)
+            self.search_str = self.search_str.lower().strip()
+
         if self.search_str or self.init_search:
             self.search_str = self.search_str or self.init_search
             self.res = [(y, x) for y, line in enumerate(self.data) for
@@ -344,6 +358,10 @@ class Viewer:
         if self.res:
             ys, xs = self.res[self.res_idx]
             self.goto_yx(ys + 1, xs + 1)
+        try:
+            curses.curs_set(0)
+        except _curses.error:
+            pass
 
     def next_result(self):
         if self.init_search:
