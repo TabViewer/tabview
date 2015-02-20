@@ -314,25 +314,11 @@ class Viewer:
         "Display current cell in a pop-up window"
         yp = self.y + self.win_y
         xp = self.x + self.win_x
-        try:
-            # Don't display popup if the cursor if somehow off the
-            # end of the normal row, for example if the list has an
-            # uneven number of columns
-            s = self.data[yp][xp].splitlines()
-            s = [wrap(i, 78, subsequent_indent="  ") for i in s]
-            s = [i for j in s for i in j]
-        except IndexError:
-            return
+        s = "\n" + self.data[yp][xp]
         if not s:
             # Only display pop-up if cells have contents
             return
-        lines = len(s) + 2
-        scr2 = curses.newwin(lines, 80, 5, 5)
-        scr2.move(0, 0)
-        addstr(scr2, 1, 1, "\n".join(s))
-        scr2.box()
-        while not scr2.getch():
-            pass
+        TextBox(self.scr, data=s, title=self.location_string(yp, xp))()
 
     def search(self):
         """Search (case independent) from the top for string and goto
@@ -386,13 +372,7 @@ class Viewer:
         idx = help_txt.index('Keybindings:\n')
         help_txt = [i.replace('**', '') for i in help_txt[idx:]
                     if '=' not in i]
-        lines = len(help_txt) + 2
-        scr2 = curses.newwin(lines, 82, 5, 5)
-        scr2.move(0, 0)
-        addstr(scr2, 1, 1, " ".join(help_txt))
-        scr2.box()
-        while not scr2.getch():
-            pass
+        TextBox(self.scr, data="".join(help_txt), title="Help")()
 
     def toggle_header(self):
         if self.header_offset == self.header_offset_orig:
@@ -892,6 +872,92 @@ class Viewer:
 
     def skip_to_col_change_reverse(self):
         self._skip_to_value_change(-1, 0)
+
+
+class TextBox:
+    """Display a scrollable text box in the bottom half of the screen.
+
+    """
+    def __init__(self, scr, data='', title=""):
+        self._running = False
+        self.scr = scr
+        self.data = data
+        self.title = title
+        self.tdata = []    # transformed data
+        self.hid_rows = 0  # number of hidden rows from the beginning
+        self.setup_handlers()
+
+    def __call__(self):
+        self.run()
+
+    def setup_handlers(self):
+        self.handlers = {'\n':              self.close,
+                         curses.KEY_ENTER:  self.close,
+                         'q':               self.close,
+                         curses.KEY_RESIZE: self.close,
+                         curses.KEY_DOWN:   self.scroll_down,
+                         'j':               self.scroll_down,
+                         curses.KEY_UP:     self.scroll_up,
+                         'k':               self.scroll_up,
+                         }
+
+    def _calculate_layout(self):
+        """Setup popup window and format data. """
+        self.scr.touchwin()
+        self.term_rows, self.term_cols = self.scr.getmaxyx()
+        self.box_height = self.term_rows - int(self.term_rows / 2)
+        self.win = curses.newwin(int(self.term_rows / 2),
+                                 self.term_cols, self.box_height, 0)
+        try:
+            curses.curs_set(False)
+        except _curses.error:
+            pass
+        # transform raw data into list of lines ready to be printed
+        s = self.data.splitlines()
+        s = [wrap(i, self.term_cols - 3, subsequent_indent=" ")
+             or [""] for i in s]
+        self.tdata = [i for j in s for i in j]
+        # -3 -- 2 for the box lines and 1 for the title row
+        self.nlines = min(len(self.tdata), self.box_height - 3)
+        self.scr.refresh()
+
+    def run(self):
+        self._running = True
+        self._calculate_layout()
+        while self._running:
+            self.display()
+            c = self.scr.getch()
+            self.handle_key(c)
+
+    def handle_key(self, key):
+        if 0 < key < 256:
+            key = chr(key)
+        try:
+            self.handlers[key]()
+        except KeyError:
+            pass
+
+    def close(self):
+        self._running = False
+
+    def scroll_down(self):
+        if self.box_height - 3 + self.hid_rows <= len(self.tdata):
+            self.hid_rows += 1
+        self.hid_rows = min(len(self.tdata), self.hid_rows)
+
+    def scroll_up(self):
+        self.hid_rows -= 1
+        self.hid_rows = max(0, self.hid_rows)
+
+    def display(self):
+        self.win.erase()
+        addstr(self.win, 1, 1, self.title[:self.term_cols - 3],
+               curses.A_STANDOUT)
+        visible_rows = self.tdata[self.hid_rows:self.hid_rows +
+                                  self.nlines]
+        addstr(self.win, 2, 1, '\n '.join(visible_rows))
+        self.win.box()
+        self.win.refresh()
 
 
 def csv_sniff(data, enc):
