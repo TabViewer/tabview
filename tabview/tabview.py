@@ -15,6 +15,7 @@ import locale
 import io
 import os
 import re
+import string
 import sys
 from collections import Counter
 from curses.textpad import Textbox
@@ -118,8 +119,7 @@ class Viewer:
         self.num_columns = 0
         self.vis_columns = 0
         self.init_search = self.search_str = kwargs.get('search_str')
-        self.res = []
-        self.res_idx = 0
+        self._search_win_open = 0
         self.modifier = str()
         self.define_keys()
         self.resize()
@@ -322,74 +322,153 @@ class Viewer:
         TextBox(self.scr, data=s, title=self.location_string(yp, xp))()
 
     def _search_validator(self, ch):
-        """Fix Enter and backspace for textbox"""
-        if ch == curses.ascii.NL:
+        """Fix Enter and backspace for textbox.
+
+        Used as an aux function for the textpad.edit method
+
+        """
+        if ch == curses.ascii.NL:  # Enter
             return curses.ascii.BEL
-        elif ch == 127:
+        elif ch == 127:  # Backspace
+            self.search_str = self.textpad.gather().strip().lower()[:-1]
             return 8
         else:
+            if 0 < ch < 256:
+                c = chr(ch)
+                if c in string.printable:
+                    res = self.textpad.gather().strip().lower()
+                    self.search_str = res + chr(ch)
+                    self.search_results(look_in_cur=True)
+                    self.display()
             return ch
 
     def search(self):
-        """Search (case independent) from the top for string and goto
-        that spot"""
-        if self.init_search is None:
-            scr2 = curses.newwin(3, self.max_x, self.max_y - 3, 0)
-            scr3 = scr2.derwin(1, self.max_x - 12, 1, 9)
-            scr2.box()
-            scr2.move(1, 1)
-            addstr(scr2, "Search: ")
-            scr2.refresh()
-            curses.curs_set(1)
-            textpad = Textbox(scr3, insert_mode=True)
-            self.search_str = textpad.edit(self._search_validator)
-            self.search_str = self.search_str.lower().strip()
-
-        if self.search_str or self.init_search:
-            self.search_str = self.search_str or self.init_search
-            self.res = [(y, x) for y, line in enumerate(self.data) for
-                        x, item in enumerate(line)
-                        if self.search_str in item.lower()]
-            self.res_idx = 0
-            self.x = self.y = 0
-            self.init_search = None
-        else:
-            self.res = []
-        if self.res:
-            ys, xs = self.res[self.res_idx]
-            self.goto_yx(ys + 1, xs + 1)
+        """Open search window, get input and set the search string."""
+        if self.init_search is not None:
+            return
+        scr2 = curses.newwin(3, self.max_x, self.max_y - 3, 0)
+        scr3 = scr2.derwin(1, self.max_x - 12, 1, 9)
+        scr2.box()
+        scr2.move(1, 1)
+        addstr(scr2, "Search: ")
+        scr2.refresh()
+        curses.curs_set(1)
+        self._search_win_open = 3
+        self.textpad = Textbox(scr3, insert_mode=True)
+        self.search_str = self.textpad.edit(self._search_validator)
+        self.search_str = self.search_str.lower().strip()
         try:
             curses.curs_set(0)
         except _curses.error:
             pass
+        if self.search_str:
+            self.init_search = None
+        self._search_win_open = 0
 
-    def next_result(self):
-        if self.init_search:
-            self.search()
-        if self.res:
-            if self.res_idx < len(self.res) - 1:
-                self.res_idx += 1
-            else:
-                self.res_idx = 0
-            ys, xs = self.res[self.res_idx]
-            self.goto_yx(ys + 1, xs + 1)
+    def search_results(self, rev=False, look_in_cur=False):
+        """Given self.search_str or self.init_search, find next result after
+        current position and reposition the cursor there.
 
-    def prev_result(self):
-        if self.init_search:
-            self.search()
-        if self.res:
-            if self.res_idx > 0:
-                self.res_idx -= 1
+        Args: rev - True/False search backward if true
+              look_in_cur - True/False start search in current cell
+
+        """
+        if not self.search_str and not self.init_search:
+            return
+        self.search_str = self.search_str or self.init_search
+        yp, xp = self.y + self.win_y, self.x + self.win_x
+        if rev is True:
+            data, yp, xp = self._reverse_data(self.data, yp, xp)
+        else:
+            data = self.data
+        if look_in_cur is False:
+            # Skip ahead/back one cell
+            if xp < len(data[0]) - 1:
+                xp += 1
+            elif xp >= len(data[0]) - 1 and yp < len(data) - 1:
+                # Skip ahead a line if at the end of the current line
+                yp += 1
+                xp = 0
             else:
-                self.res_idx = len(self.res) - 1
-            ys, xs = self.res[self.res_idx]
-            self.goto_yx(ys + 1, xs + 1)
+                # Skip back to the top if at the end of the data
+                yp = xp = 0
+        search_order = [self._search_cur_line_r,
+                        self._search_next_line_to_end,
+                        self._search_next_line_from_beg,
+                        self._search_cur_line_l]
+        for search in search_order:
+            y, x, res = search(data, yp, xp)
+            if res is True:
+                yp, xp = y, x
+                break
+        if rev is True:
+            yp, xp = self._reverse_yp_xp(data, yp, xp)
+        self.goto_yx(yp + 1, xp + 1)
+
+    def search_results_prev(self, rev=False, look_in_cur=False):
+        """Search backwards"""
+        self.search_results(rev=True, look_in_cur=look_in_cur)
+
+    def _reverse_yp_xp(self, data, yp, xp):
+        return len(data) - 1 - yp, len(data[0]) - 1 - xp
+
+    def _reverse_data(self, data, yp, xp):
+        yp, xp = self._reverse_yp_xp(data, yp, xp)
+        data = [i[::-1] for i in data[::-1]]
+        return data, yp, xp
+
+    def _search_cur_line_r(self, data, yp, xp):
+        """ Current line first, from yp,xp to the right """
+        res = False
+        for x, item in enumerate(data[yp][xp:]):
+            if self.search_str in item.lower():
+                xp += x
+                res = True
+                break
+        return yp, xp, res
+
+    def _search_cur_line_l(self, data, yp, xp):
+        """Last, search from beginning of current line to current position """
+        res = x = False
+        for x, item in enumerate(data[yp][:xp]):
+            if self.search_str in item.lower():
+                res = True
+                break
+        return yp, x, res
+
+    def _search_next_line_to_end(self, data, yp, xp):
+        """ Search from next line to the end """
+        res = done = False
+        for y, line in enumerate(data[yp + 1:]):
+            for x, item in enumerate(line):
+                if self.search_str in item.lower():
+                    done = True
+                    break
+            if done is True:
+                res = True
+                yp, xp = yp + 1 + y, x
+                break
+        return yp, xp, res
+
+    def _search_next_line_from_beg(self, data, yp, xp):
+        """Search from beginning to line before current."""
+        res = done = y = x = False
+        for y, line in enumerate(data[:yp]):
+            for x, item in enumerate(line):
+                if self.search_str in item.lower():
+                    done = True
+                    break
+            if done is True:
+                res = True
+                yp, xp = y, x
+                break
+        return yp, xp, res
 
     def help(self):
         help_txt = readme()
         idx = help_txt.index('Keybindings:\n')
         help_txt = [i.replace('**', '') for i in help_txt[idx:]
-                    if '=' not in i]
+                    if '===' not in i]
         TextBox(self.scr, data="".join(help_txt), title="Help")()
 
     def toggle_header(self):
@@ -539,8 +618,8 @@ class Viewer:
                      '|':   self.goto_col,
                      '\n':  self.show_cell,
                      '/':   self.search,
-                     'n':   self.next_result,
-                     'p':   self.prev_result,
+                     'n':   self.search_results,
+                     'p':   self.search_results_prev,
                      't':   self.toggle_header,
                      '-':   self.column_gap_down,
                      '+':   self.column_gap_up,
@@ -720,7 +799,8 @@ class Viewer:
                 addstr(self.scr, self.header_offset - 1, xc, s, curses.A_BOLD)
 
         # Print the table data
-        for y in range(0, self.max_y - self.header_offset):
+        for y in range(0, self.max_y - self.header_offset -
+                       self._search_win_open):
             yc = y + self.header_offset
             self.scr.move(yc, 0)
             self.scr.clrtoeol()
