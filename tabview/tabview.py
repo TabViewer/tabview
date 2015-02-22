@@ -402,7 +402,7 @@ class Viewer:
                 yp, xp = y, x
                 break
         if rev is True:
-            yp, xp = self._reverse_yp_xp(data, yp, xp)
+            self.data, yp, xp = self._reverse_data(data, yp, xp)
         self.goto_yx(yp + 1, xp + 1)
 
     def search_results_prev(self, rev=False, look_in_cur=False):
@@ -414,7 +414,10 @@ class Viewer:
 
     def _reverse_data(self, data, yp, xp):
         yp, xp = self._reverse_yp_xp(data, yp, xp)
-        data = [i[::-1] for i in data[::-1]]
+        data.reverse()
+        for idx, i in enumerate(data):
+            i.reverse()
+            data[idx] = i
         return data, yp, xp
 
     def _search_cur_line_r(self, data, yp, xp):
