@@ -50,7 +50,7 @@ Features:
 * Toggle persistent header row
 * Sort ascending or descending by any column. Dynamically change column width and gap
 * Sort in 'natural order' to improve numeric sorting
-* Full-text search, n and p to cycle between search results
+* Full-text incremental search, n and p to cycle between search results
 * 'Enter' to view the full cell contents
 * Yank cell contents to the clipboard
 * File can be reloaded in-place if the data changes.

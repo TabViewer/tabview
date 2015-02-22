@@ -1,3 +1,10 @@
+*Version 1.4.0 2015/02/21*
+ - Incremental (find-as-you type) search
+ - Reload changed file, saving various display parameters
+ - Variable width columns ('mode', 'max' or fixed width)
+ - Support reading from stdin
+ - Resize columns individually or as a whole
+ - Add commands to skip to next changed value (by row column)
  - Pass a y,x start position on command line or to view()
 
 *Version 1.3.0 2015-01-17*
