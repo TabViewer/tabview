@@ -1200,7 +1200,7 @@ def main(stdscr, *args, **kwargs):
 
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
          trunc_char='…', column_widths=None, search_str=None,
-         double_width=False):
+         double_width=False, delimiter=None):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -1221,6 +1221,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
         search_str: string to search for
         double_width: boolean indicating whether double-width characters
                       should be handled (defaults to False for large files)
+        delimiter: CSV delimiter. Typically needed only if the automatic
+                   delimiter detection doesn't work. None => automatic
 
     """
     if sys.version_info.major < 3:
@@ -1241,7 +1243,7 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                     new_data = data
 
                 if new_data:
-                    buf = process_data(new_data, enc)
+                    buf = process_data(new_data, enc, delimiter)
                 elif buf:
                     # cannot reload the file
                     pass
