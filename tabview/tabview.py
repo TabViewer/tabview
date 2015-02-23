@@ -320,6 +320,7 @@ class Viewer:
             # Only display pop-up if cells have contents
             return
         TextBox(self.scr, data=s, title=self.location_string(yp, xp))()
+        self.resize()
 
     def _search_validator(self, ch):
         """Fix Enter and backspace for textbox.
@@ -473,6 +474,7 @@ class Viewer:
         help_txt = [i.replace('**', '') for i in help_txt[idx:]
                     if '===' not in i]
         TextBox(self.scr, data="".join(help_txt), title="Help")()
+        self.resize()
 
     def toggle_header(self):
         if self.header_offset == self.header_offset_orig:
