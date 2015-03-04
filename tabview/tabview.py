@@ -93,15 +93,8 @@ class Viewer:
         os.unsetenv('COLUMNS')
         self.scr = args[0]
         self.data = [[str(j) for j in i] for i in args[1]]
-        self.header_offset_orig = 3
-        self.header = self.data[0]
-        if len(self.data) > 1:
-            del self.data[0]
-            self.header_offset = self.header_offset_orig
-        else:
-            # Don't make one line file a header row
-            self.header_offset = self.header_offset_orig - 1
         self.num_data_columns = len(self.data[0])
+        self._init_headers()
         self._init_double_width(kwargs.get('double_width'))
         self.column_width_mode = kwargs.get('column_width')
         self.column_gap = kwargs.get('column_gap')
@@ -133,6 +126,22 @@ class Viewer:
             self.goto_x(kwargs.get('start_pos')[1])
         except (IndexError, TypeError):
             pass
+
+    def _init_headers(self):
+        """Initialize 1st row as header_row. First column is assumed to not be
+        a header/index row at first.
+
+        """
+        self.header_offset_y_orig = 3
+        self.header_row = self.data[0]
+        if len(self.data) > 1:
+            del self.data[0]
+            self.header_offset = self.header_offset_y_orig
+        else:
+            # Don't make one line file a header row
+            self.header_offset = self.header_offset_y_orig - 1
+        self.header_offset_x_orig = 0
+        self.header_column = []
 
     def _init_double_width(self, dw):
         """Initialize self._cell_len to determine if double width characters
@@ -480,17 +489,17 @@ class Viewer:
         self.resize()
 
     def toggle_header(self):
-        if self.header_offset == self.header_offset_orig:
+        if self.header_offset == self.header_offset_y_orig:
             # Turn off header row
             self.header_offset = self.header_offset - 1
-            self.data.insert(0, self.header)
+            self.data.insert(0, self.header_row)
             self.y = self.y + 1
         else:
             if len(self.data) == 1:
                 return
             # Turn on header row
-            self.header_offset = self.header_offset_orig
-            del self.data[self.data.index(self.header)]
+            self.header_offset = self.header_offset_y_orig
+            del self.data[self.data.index(self.header_row)]
             if self.y > 0:
                 self.y = self.y - 1
             elif self.win_y > 0:
@@ -763,13 +772,13 @@ class Viewer:
         max_y = str(len(self.data))
         max_x = str(len(self.data[0]))
         max_yx = yx_str.format(max_y, max_x)
-        max_label = label_str.format('-', max(self.header, key=len))
-        if self.header_offset != self.header_offset_orig:
+        max_label = label_str.format('-', max(self.header_row, key=len))
+        if self.header_offset != self.header_offset_y_orig:
             # Hide column labels if header row disabled
             label = ""
             max_width = min(int(self.max_x * .3), len(max_yx))
         else:
-            label = label_str.format('-', self.header[xp])
+            label = label_str.format('-', self.header_row[xp])
             max_width = min(int(self.max_x * .3), len(max_yx + max_label))
         yx = yx_str.format(yp + 1, xp + 1)
         pad = " " * (max_width - len(yx) - len(label))
@@ -798,7 +807,7 @@ class Viewer:
         self.scr.hline(1, 0, curses.ACS_HLINE, self.max_x)
 
         # Print the header if the correct offset is set
-        if self.header_offset == self.header_offset_orig:
+        if self.header_offset == self.header_offset_y_orig:
             self.scr.move(self.header_offset - 1, 0)
             self.scr.clrtoeol()
             for x in range(0, self.vis_columns):
@@ -861,10 +870,10 @@ class Viewer:
 
     def hdrstr(self, x, width):
         "Format the content of the requested header for display"
-        if len(self.header) <= x:
+        if len(self.header_row) <= x:
             s = ""
         else:
-            s = self.header[x]
+            s = self.header_row[x]
         return self.strpad(s, width)
 
     def cellstr(self, y, x, width):
