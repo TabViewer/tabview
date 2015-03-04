@@ -263,7 +263,7 @@ class Viewer:
     def goto_y(self, y):
         y = max(min(len(self.data), y), 1)
         if self.win_y < y <= self.win_y + \
-                (self.max_y - self.header_offset):
+                (self.max_y - self.header_offset - self._search_win_open):
             # same screen, change y appropriately.
             self.y = y - 1 - self.win_y
         elif y <= self.win_y:
@@ -272,8 +272,10 @@ class Viewer:
             self.win_y = y - 1
         else:
             # going forward
-            self.win_y = y - (self.max_y - self.header_offset)
-            self.y = (self.max_y - self.header_offset) - 1
+            self.win_y = y - (self.max_y - self.header_offset -
+                              self._search_win_open)
+            self.y = (self.max_y - self.header_offset -
+                      self._search_win_open) - 1
 
     def goto_row(self):
         m = self.consume_modifier(len(self.data))
