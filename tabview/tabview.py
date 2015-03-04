@@ -404,7 +404,8 @@ class Viewer:
                 break
         if rev is True:
             self.data, yp, xp = self._reverse_data(data, yp, xp)
-        self.goto_yx(yp + 1, xp + 1)
+        if res is True:
+            self.goto_yx(yp + 1, xp + 1)
 
     def search_results_prev(self, rev=False, look_in_cur=False):
         """Search backwards"""
