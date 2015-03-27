@@ -24,7 +24,6 @@ from operator import itemgetter
 from subprocess import Popen, PIPE
 from textwrap import wrap
 import unicodedata
-import pandas
 
 
 if sys.version_info.major < 3:
@@ -94,11 +93,11 @@ class Viewer:
         os.unsetenv('LINES')
         os.unsetenv('COLUMNS')
         self.scr = args[0]
-        if type(args[1]) == pandas.core.frame.DataFrame:
+        if type(args[1]).__name__ == 'DataFrame':
             self.data = args[1].values.tolist()
             self.header_offset_orig = 3
             self.header_offset = 3
-            self.header = list(pandas.Series(args[1].columns).astype(unicode))
+            self.header = [unicode(i) for i in args[1].columns]
             self.num_data_columns = len(self.header)
             self._init_double_width(kwargs.get('double_width'))
             self.column_width_mode = kwargs.get('column_width')
@@ -1266,7 +1265,7 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 else:
                     new_data = data
 
-                if type(new_data) == pandas.core.frame.DataFrame:
+                if type(new_data).__name__ == 'DataFrame':
                     buf = process_df(new_data)
 
                 elif new_data:
