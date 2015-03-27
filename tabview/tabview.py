@@ -94,8 +94,8 @@ class Viewer:
         os.unsetenv('LINES')
         os.unsetenv('COLUMNS')
         self.scr = args[0]
-	if type(args[1]) == pandas.core.frame.DataFrame:
-	    self.data = args[1].values.tolist()
+        if type(args[1]) == pandas.core.frame.DataFrame:
+            self.data = args[1].values.tolist()
             self.header_offset_orig = 3
             self.header_offset = 3
             self.header = list(pandas.Series(args[1].columns).astype(unicode))
@@ -105,7 +105,7 @@ class Viewer:
             self.column_gap = kwargs.get('column_gap')
             self._init_column_widths(kwargs.get('column_width'),
                                      kwargs.get('column_widths'))
-	else:
+        else:
             self.data = [[str(j) for j in i] for i in args[1]]
             self.header_offset_orig = 3
             self.header = self.data[0]
