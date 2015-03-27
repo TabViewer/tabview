@@ -86,22 +86,15 @@ class Viewer:
             search_str, double_width
 
     """
-    def __init__(self, *args, **kwargs):
+    def __init__(self, scr, data, **kwargs):
         # Fix for python curses resize bug:
         # http://bugs.python.org/issue2675
         os.unsetenv('LINES')
         os.unsetenv('COLUMNS')
-        self.scr = args[0]
-        self.data = [[str(j) for j in i] for i in args[1]]
-        self.header_offset_orig = 3
-        self.header = self.data[0]
-        if len(self.data) > 1:
-            del self.data[0]
-            self.header_offset = self.header_offset_orig
-        else:
-            # Don't make one line file a header row
-            self.header_offset = self.header_offset_orig - 1
-        self.num_data_columns = len(self.data[0])
+        self.scr = scr
+        self.data = data
+        self.header_offset = 2
+        self._update_headers()
         self._init_double_width(kwargs.get('double_width'))
         self.column_width_mode = kwargs.get('column_width')
         self.column_gap = kwargs.get('column_gap')
@@ -118,6 +111,7 @@ class Viewer:
         self.max_y, self.max_x = 0, 0
         self.num_columns = 0
         self.vis_columns = 0
+        self.vis_lines = 0
         self.init_search = self.search_str = kwargs.get('search_str')
         self._search_win_open = 0
         self.modifier = str()
@@ -142,7 +136,7 @@ class Viewer:
         self.double_width = dw
         # Enable double with character processing for small files
         if self.double_width is False:
-            self.double_width = len(self.data) * self.num_data_columns < 65000
+            self.double_width = self.data.shape[0] * self.data.shape[1] < 65000
         if self.double_width is True:
             self._cell_len = self.__cell_len_dw
         else:
@@ -155,7 +149,7 @@ class Viewer:
                 cws: list of column widths
 
         """
-        if cws is None or len(self.data[0]) != len(cws):
+        if cws is None or self.data.shape[1] != len(cws):
             self._get_column_widths(cw)
         else:
             self.column_width = cws
@@ -203,8 +197,8 @@ class Viewer:
 
     def page_down(self):
         m = self.consume_modifier()
-        row_shift = (self.max_y - self.header_offset) * m
-        end = len(self.data) - 1
+        row_shift = self.vis_lines * m
+        end = self.data.shape[0] - 1
         if self.win_y <= end - row_shift:
             new_win_y = self.win_y + row_shift
             if new_win_y + self.y > end:
@@ -215,7 +209,7 @@ class Viewer:
 
     def page_up(self):
         m = self.consume_modifier()
-        row_shift = (self.max_y - self.header_offset) * m
+        row_shift = self.vis_lines * m
         if self.win_y == 0:
             self.y = 0
         elif self.win_y < row_shift:
@@ -225,7 +219,7 @@ class Viewer:
 
     def page_right(self):
         for _ in range(self.consume_modifier()):
-            end = self.num_data_columns - 1
+            end = self.data.shape[1] - 1
             if self.win_x <= end - self.num_columns:
                 cols = self.num_columns_fwd(self.win_x + self.x)
                 new_win_x = self.win_x + cols
@@ -261,9 +255,8 @@ class Viewer:
         self.goto_y(1)
 
     def goto_y(self, y):
-        y = max(min(len(self.data), y), 1)
-        if self.win_y < y <= self.win_y + \
-                (self.max_y - self.header_offset - self._search_win_open):
+        y = max(min(self.data.shape[0], y), 1)
+        if self.win_y < y <= self.win_y + self.vis_lines:
             # same screen, change y appropriately.
             self.y = y - 1 - self.win_y
         elif y <= self.win_y:
@@ -272,17 +265,15 @@ class Viewer:
             self.win_y = y - 1
         else:
             # going forward
-            self.win_y = y - (self.max_y - self.header_offset -
-                              self._search_win_open)
-            self.y = (self.max_y - self.header_offset -
-                      self._search_win_open) - 1
+            self.win_y = y - self.vis_lines
+            self.y = self.vis_lines - 1
 
     def goto_row(self):
-        m = self.consume_modifier(len(self.data))
+        m = self.consume_modifier(self.data.shape[0])
         self.goto_y(m)
 
     def goto_x(self, x):
-        x = max(min(self.num_data_columns, x), 1)
+        x = max(min(self.data.shape[1], x), 1)
         if self.win_x < x <= self.win_x + self.num_columns:
             # same screen, change x value appropriately.
             self.x = x - 1 - self.win_x
@@ -310,14 +301,14 @@ class Viewer:
         self.goto_x(1)
 
     def line_end(self):
-        end = len(self.data[self.y + self.win_y])
+        end = self.data.shape[1]
         self.goto_x(end)
 
     def show_cell(self):
         "Display current cell in a pop-up window"
         yp = self.y + self.win_y
         xp = self.x + self.win_x
-        s = "\n" + self.data[yp][xp]
+        s = "\n" + self.data(yp, xp)
         if not s:
             # Only display pop-up if cells have contents
             return
@@ -347,6 +338,8 @@ class Viewer:
 
     def search(self):
         """Open search window, get input and set the search string."""
+        # TODO
+        assert(False)
         if self.init_search is not None:
             return
         scr2 = curses.newwin(3, self.max_x, self.max_y - 3, 0)
@@ -376,6 +369,8 @@ class Viewer:
               look_in_cur - True/False start search in current cell
 
         """
+        # TODO
+        assert(False)
         if not self.search_str and not self.init_search:
             return
         self.search_str = self.search_str or self.init_search
@@ -479,25 +474,37 @@ class Viewer:
         TextBox(self.scr, data="".join(help_txt), title="Help")()
         self.resize()
 
-    def toggle_header(self):
-        if self.header_offset == self.header_offset_orig:
-            # Turn off header row
-            self.header_offset = self.header_offset - 1
-            self.data.insert(0, self.header)
-            self.y = self.y + 1
+    def _full_hdr(self, x):
+        hdrs = [self.data.header(lvl, x) for lvl in range(self.data.hdr_len)]
+        return '>'.join(hdrs)
+
+    def _update_headers(self):
+        if self.data.hdr_len == 0:
+            self._full_hdr_labels = []
+            self.max_label_len = 0
         else:
-            if len(self.data) == 1:
-                return
-            # Turn on header row
-            self.header_offset = self.header_offset_orig
-            del self.data[self.data.index(self.header)]
-            if self.y > 0:
-                self.y = self.y - 1
-            elif self.win_y > 0:
-                # Scroll down 1 to keep cursor on the same item
-                self.up()
-                self.down()
-                self.y = self.y - 1
+            self._full_hdr_labels = [self._full_hdr(x) for x in range(self.data.shape[1])]
+            self.max_label_len = max(map(len, self._full_hdr_labels))
+
+    def reset_header(self, y=0, hdr_len=0):
+        old_hdr_len = self.data.hdr_len
+        end = min(y + hdr_len, self.data.shape[0])
+        hdr_rows = [self.data.idx_y[yi] for yi in range(y, end)]
+        self.data.reset_header(hdr_rows)
+        self.y = max(0, self.y + old_hdr_len - len(hdr_rows))
+        self._update_headers()
+        self.recalculate_layout()
+
+    def toggle_header(self):
+        hdr_len = max(1, self.consume_modifier())
+        if self.data.hdr_len:
+            self.reset_header()
+        else:
+            self.reset_header(0, hdr_len)
+
+    def set_header(self):
+        hdr_len = max(1, self.consume_modifier())
+        self.reset_header(self.y + self.win_y, hdr_len)
 
     def column_gap_down(self):
         self.column_gap = max(0, self.column_gap - 1)
@@ -510,13 +517,13 @@ class Viewer:
     def column_width_all_down(self):
         self.column_width = [max(1, self.column_width[i] -
                                  max(1, int(self.column_width[i] * 0.2)))
-                             for i in range(0, self.num_data_columns)]
+                             for i in range(0, self.data.shape[1])]
         self.recalculate_layout()
 
     def column_width_all_up(self):
         self.column_width = [max(1, self.column_width[i] +
                                  max(1, int(self.column_width[i] * 0.2)))
-                             for i in range(0, self.num_data_columns)]
+                             for i in range(0, self.data.shape[1])]
         self.recalculate_layout()
 
     def column_width_down(self):
@@ -530,34 +537,16 @@ class Viewer:
         self.recalculate_layout()
 
     def sort_by_column(self):
-        xp = self.x + self.win_x
-        self.data = sorted(self.data, key=itemgetter(xp))
+        self.data.sort_col(self.x + self.win_x)
 
     def sort_by_column_reverse(self):
-        xp = self.x + self.win_x
-        self.data = sorted(self.data, key=itemgetter(xp), reverse=True)
+        self.data.sort_col(self.x + self.win_x, reverse=True)
 
     def sort_by_column_natural(self):
-        xp = self.x + self.win_x
-        self.data = self.sorted_nicely(self.data, itemgetter(xp))
+        self.data.sort_col(self.x + self.win_x, mode='natural')
 
     def sort_by_column_natural_reverse(self):
-        xp = self.x + self.win_x
-        self.data = self.sorted_nicely(self.data, itemgetter(xp), rev=True)
-
-    def sorted_nicely(self, ls, key, rev=False):
-        """ Sort the given iterable in the way that humans expect.
-
-        From StackOverflow: http://goo.gl/nGBUrQ
-
-        """
-        def convert(text):
-            return int(text) if text.isdigit() else text
-
-        def alphanum_key(item):
-            return [convert(c) for c in re.split('([0-9]+)', key(item))]
-
-        return sorted(ls, key=alphanum_key, reverse=rev)
+        self.data.sort_col(self.x + self.win_x, mode='natural', reverse=True)
 
     def toggle_column_width(self):
         """Toggle column width mode between 'mode' and 'max' or set fixed
@@ -582,8 +571,8 @@ class Viewer:
             self.modifier = str()
         else:
             width = 0
-            for y in range(0, len(self.data)):
-                width = max(width, self._cell_len(self.data[y][xs]))
+            for y in range(0, self.data.shape[0]):
+                width = max(width, self._cell_len(self.data(y, xs)))
             width = min(250, width)
         self.column_width[xs] = width
         self.recalculate_layout()
@@ -591,7 +580,7 @@ class Viewer:
     def yank_cell(self):
         yp = self.y + self.win_y
         xp = self.x + self.win_x
-        s = self.data[yp][xp]
+        s = self.data(yp, xp)
         # Bail out if not running in X
         try:
             os.environ['DISPLAY']
@@ -629,6 +618,7 @@ class Viewer:
                      'n':   self.search_results,
                      'p':   self.search_results_prev,
                      't':   self.toggle_header,
+                     'T':   self.set_header,
                      '-':   self.column_gap_down,
                      '+':   self.column_gap_up,
                      '<':   self.column_width_all_down,
@@ -721,7 +711,7 @@ class Viewer:
 
         """
         width = cols = 0
-        while (x + cols) < self.num_data_columns \
+        while (x + cols) < self.data.shape[1] \
                 and width + self.column_width[x + cols] <= self.max_x:
             width += self.column_width[x + cols] + self.column_gap
             cols += 1
@@ -743,13 +733,15 @@ class Viewer:
         """Recalulate the screen layout and cursor position"""
         self.max_y, self.max_x = self.scr.getmaxyx()
         self.vis_columns = self.num_columns = self.num_columns_fwd(self.win_x)
-        if self.win_x + self.num_columns < self.num_data_columns:
+        self.vis_lines = self.max_y - self.header_offset - \
+                         self.data.hdr_len - self._search_win_open
+        if self.win_x + self.num_columns < self.data.shape[1]:
             xc, wc = self.column_xw(self.num_columns)
             if wc > len(self.trunc_char):
                 self.vis_columns += 1
         if self.x >= self.num_columns:
             self.goto_x(self.win_x + self.x + 1)
-        if self.y >= self.max_y - self.header_offset:
+        if self.y >= self.vis_lines:
             self.goto_y(self.win_y + self.y + 1)
 
     def location_string(self, yp, xp):
@@ -760,16 +752,16 @@ class Viewer:
         """
         yx_str = " ({},{}) "
         label_str = "{},{}"
-        max_y = str(len(self.data))
-        max_x = str(len(self.data[0]))
+        max_y, max_x = self.data.shape
         max_yx = yx_str.format(max_y, max_x)
-        max_label = label_str.format('-', max(self.header, key=len))
-        if self.header_offset != self.header_offset_orig:
+        max_label = label_str.format('-', ' ' * (self.max_label_len + 1))
+        if self.data.hdr_len == 0:
             # Hide column labels if header row disabled
             label = ""
             max_width = min(int(self.max_x * .3), len(max_yx))
         else:
-            label = label_str.format('-', self.header[xp])
+            header = self._full_hdr_labels[xp]
+            label = label_str.format('-', header)
             max_width = min(int(self.max_x * .3), len(max_yx + max_label))
         yx = yx_str.format(yp + 1, xp + 1)
         pad = " " * (max_width - len(yx) - len(label))
@@ -797,19 +789,22 @@ class Viewer:
         # Print a divider line
         self.scr.hline(1, 0, curses.ACS_HLINE, self.max_x)
 
-        # Print the header if the correct offset is set
-        if self.header_offset == self.header_offset_orig:
-            self.scr.move(self.header_offset - 1, 0)
-            self.scr.clrtoeol()
-            for x in range(0, self.vis_columns):
-                xc, wc = self.column_xw(x)
-                s = self.hdrstr(x + self.win_x, wc)
-                addstr(self.scr, self.header_offset - 1, xc, s, curses.A_BOLD)
+        # Print the header if set
+        if self.data.hdr_len:
+            for y in range(self.data.hdr_len):
+                yc = self.header_offset + y
+                self.scr.move(yc, 0)
+                self.scr.clrtoeol()
+                for x in range(self.vis_columns):
+                    xc, wc = self.column_xw(x)
+                    s = self.data.header(y, x + self.win_x)
+                    s = self.strpad(s, wc)
+                    yc = self.header_offset + y
+                    addstr(self.scr, yc, xc, s, curses.A_BOLD)
 
         # Print the table data
-        for y in range(0, self.max_y - self.header_offset -
-                       self._search_win_open):
-            yc = y + self.header_offset
+        for y in range(self.vis_lines):
+            yc = self.header_offset + self.data.hdr_len + y
             self.scr.move(yc, 0)
             self.scr.clrtoeol()
             for x in range(0, self.vis_columns):
@@ -818,7 +813,8 @@ class Viewer:
                 else:
                     attr = curses.A_NORMAL
                 xc, wc = self.column_xw(x)
-                s = self.cellstr(y + self.win_y, x + self.win_x, wc)
+                ys = y + self.win_y
+                s = self.cellstr(ys, x + self.win_x, wc)
                 if yc == self.max_y - 1 and x == self.vis_columns - 1:
                     # Prevents a curses error when filling in the bottom right
                     # character
@@ -859,21 +855,14 @@ class Viewer:
 
         return buf
 
-    def hdrstr(self, x, width):
-        "Format the content of the requested header for display"
-        if len(self.header) <= x:
-            s = ""
-        else:
-            s = self.header[x]
-        return self.strpad(s, width)
-
     def cellstr(self, y, x, width):
         "Format the content of the requested cell for display"
-        if len(self.data) <= y or len(self.data[y]) <= x:
-            s = ""
+        if x < self.data.shape[1] and y < self.data.shape[0]:
+            s = self.data(y, x)
+            return self.strpad(s, width)
         else:
-            s = self.data[y][x]
-        return self.strpad(s, width)
+            # cellstr is also abused to fill empty cells beyond data boundaries
+            return ' ' * width
 
     def _get_column_widths(self, width):
         """Compute column width array
@@ -883,16 +872,16 @@ class Viewer:
 
         """
         if width == 'max':
-            self.column_width = self._get_column_widths_max(self.data)
+            self.column_width = self._get_column_widths_max()
         elif width == 'mode':
-            self.column_width = self._get_column_widths_mode(self.data)
+            self.column_width = self._get_column_widths_mode()
         else:
             try:
                 width = int(width)
             except (TypeError, ValueError):
                 width = 25
             self.column_width = [width for i in
-                                 range(0, self.num_data_columns)]
+                                 range(0, self.data.shape[1])]
 
     @staticmethod
     def __cell_len_dw(s):
@@ -906,7 +895,7 @@ class Viewer:
             len += w
         return len
 
-    def _mode_len(self, x):
+    def _mode_len(self, y):
         """Compute arithmetic mode (most common value) of the length of each item
         in an iterator.
 
@@ -914,7 +903,8 @@ class Viewer:
             Returns: mode - int.
 
         """
-        lens = [self._cell_len(i) for i in x]
+        lens = [self._cell_len(self.data(x, y))
+                for x in range(self.data.shape[0])]
         m = Counter(lens).most_common()
         # If there are a lot of empty columns, use the 2nd most common length
         # besides 0
@@ -929,40 +919,37 @@ class Viewer:
         else:
             return max(max(1, self.column_gap), max_len)
 
-    def _get_column_widths_mode(self, d):
-        """Given a list of lists, return a list of the variable column width
+    def _get_column_widths_mode(self):
+        """Return a list of the variable column width
         for each column using the arithmetic mode.
 
-        Args: d - list of lists with x columns
         Returns: list of ints [len_1, len_2...len_x]
 
         """
-        d = zip(*d)
-        return [self._mode_len(i) for i in d]
+        return [self._mode_len(y) for y in range(self.data.shape[1])]
 
-    def _get_column_widths_max(self, d):
-        """Given a list of lists, return a list of the variable column width
+    def _get_column_widths_max(self):
+        """Return a list of the variable column width
         for each column using the max length.
 
-        Args: d - list of lists with x columns
         Returns: list of ints [len_1, len_2...len_x]
 
         """
-        d = zip(*d)
-        return [max(1, min(250, max(set(self._cell_len(j) for j in i))))
-                for i in d]
+        return [max(1, min(250, max(set(self._cell_len(self.data(x, y))
+                                        for x in range(self.data.shape[0])))))
+                for y in range(self.data.shape[1])]
 
     def _skip_to_value_change(self, x_inc, y_inc):
         m = self.consume_modifier()
         for _ in range(m):
             x = self.win_x + self.x
             y = self.win_y + self.y
-            v = self.data[y][x]
+            v = self.data(y, x)
             y += y_inc
             x += x_inc
-            while y >= 0 and y < len(self.data) \
-                    and x >= 0 and x < self.num_data_columns \
-                    and self.data[y][x] == v:
+            while y >= 0 and y < self.data.shape[0] \
+                    and x >= 0 and x < self.data.shape[1] \
+                    and self.data(y, x) == v:
                 y += y_inc
                 x += x_inc
             self.goto_yx(y + 1, x + 1)
@@ -1081,78 +1068,205 @@ def csv_sniff(data, enc):
     return dialect.delimiter
 
 
-def process_data(data, enc=None, delim=None):
-    """Given a list of lists, check for the encoding and delimiter and return a
-    list of CSV rows (normalized to a single length)
+def alphanum_key(item):
+    return [int(c) if c.isdigit() else c
+            for c in re.split('([0-9]+)', item)]
 
-    """
-    if data_list_or_file(data) == 'list':
-        # If data is from an object (list of lists) instead of a file
+
+class ListAdapter(object):
+    def __init__(self, data):
+        self._data = data
+        self.shape = (len(self._data), len(self._data[0]))
+
+    def __call__(self, y, x):
+        # lists might have unmatching row lenghts, handle padding here
+        row = self._data[y]
+        return row[x] if x < len(row) else None
+
+
+class NDArrayAdapter(object):
+    def __init__(self, data):
+        if len(data.shape) == 1:
+            self._data = data.reshape((data.shape[0], 1))
+        else:
+            self._data = data
+        self.shape = self._data.shape
+
+    def __call__(self, y, x):
+        return self._data.item(y, x)
+
+
+class SubView(object):
+    def __init__(self, data, hdr_rows=None, idx_cols=None):
+        self._data = data
+        self.shape = data.shape
+        self.reset_header(hdr_rows)
+        self.reset_index(idx_cols)
+
+    def header(self, lvl, x):
+        v = self._data(self._hdr_rows[lvl], x)
+        return str(v) if v is not None else ''
+
+    def reset_header(self, hdr_rows=None):
+        self._hdr_rows = hdr_rows if hdr_rows is not None else []
+        self.hdr_len = len(self._hdr_rows)
+        u_hdr = set(self._hdr_rows)
+        self.shape = (self._data.shape[0] - len(u_hdr), self.shape[1])
+        self.idx_y = [y for y in range(self._data.shape[0]) if y not in u_hdr]
+
+    def index(self, lvl, y):
+        return self._data(y, self._idx_cols[lvl])
+
+    def reset_index(self, idx_cols=None):
+        self._idx_cols = idx_cols if idx_cols is not None else []
+        self.idx_len = len(self._idx_cols)
+        u_idx = set(self._idx_cols)
+        self.shape = (self.shape[0], self._data.shape[1] - len(u_idx))
+        self.idx_x = [x for x in range(self._data.shape[1]) if x not in u_idx]
+
+    def __call__(self, y, x):
+        v = self._data(self.idx_y[y], self.idx_x[x])
+        return str(v) if v is not None else ''
+
+    def sort_col(self, x, mode='normal', reverse=False):
+        if mode == 'natural':
+            keyf = lambda y: alphanum_key(self._data(y, self.idx_x[x]))
+        else:
+            keyf = lambda y: self._data(y, self.idx_x[x])
+        self.idx_y = sorted(self.idx_y, key=keyf, reverse=reverse)
+
+
+class FrameView(object):
+    class Indexer(object):
+        def __getitem__(self, x):
+            return x
+
+    def __init__(self, data):
+        self._data = data
+        self.shape = self._data.shape
+        self.idx_x = self.idx_y = FrameView.Indexer()
+        self._hdr = self._data.columns
+        if self._hdr.__class__.__name__ == 'MultiIndex':
+            self.hdr_len = len(self._data.columns.levels)
+        else:
+            self.hdr_len = 1
+        self.idx_len = 0 # TODO
+
+    def header(self, lvl, x):
+        if self._hdr.__class__.__name__ == 'MultiIndex':
+            return str(self._data.columns[x][lvl])
+        else:
+            return str(self._data.columns[x])
+
+    def reset_header(self, hdr_rows=None):
+        # TODO
+        assert(False)
+
+    def index(self, lvl, y):
+        # TODO
+        assert(False)
+
+    def reset_index(self, idx_cols=None):
+        # TODO
+        assert(False)
+
+    def __call__(self, y, x):
+        return str(self._data.iat[y, x])
+
+    def sort_col(self, x, mode='normal', reverse=False):
+        # TODO
+        assert(False)
+
+
+def wrap_data(data, enc=None, delim=None, hdr_rows=None):
+    """Given a data input, determine the input type and wrap data accordingly. """
+
+    data_type = input_type(data)
+
+    if data_type == 'dict':
+        # TODO: for large dicts, a DictAdapter might avoid a lot of copying
+        data = [data.keys()] + map(list, zip(*[data[i] for i in data.keys()]))
+        return SubView(ListAdapter(data), [0])
+
+    elif data_type == 'pandas':
+        # If data is from a pandas object.
+        import numpy as np
+        if data.__class__.__name__ != 'DataFrame':
+            import pandas as pd
+            if data.__class__.__name__ == 'Series':
+                data = pd.DataFrame(data)
+            elif data.__class__.__name__ == 'Panel':
+                data = data.to_frame()
+        return FrameView(data)
+
+    elif data_type == 'numpy':
+        if hdr_rows is None and len(data) > 1:
+            header = [0]
+        elif hdr_rows is not None:
+            header = range(min(len(data) - 1, hdr_rows))
+        else:
+            header = []
+        return SubView(NDArrayAdapter(data), header)
+
+    elif data_type == 'file':
+        # If data is from a file.
+        if enc is None:
+            enc = detect_encoding(data)
+        if delim is None:
+            delim = csv_sniff(data[0], enc)
+        csv_data = []
         if sys.version_info.major < 3:
-            data = py2_list_to_unicode(data)
-        return pad_data(data)
-    if enc is None:
-        enc = detect_encoding(data)
-    if delim is None:
-        delim = csv_sniff(data[0], enc)
-    csv_data = []
-    if sys.version_info.major < 3:
-        csv_obj = csv.reader(data, delimiter=delim.encode(enc))
-        for row in csv_obj:
-            row = [str(x, enc) for x in row]
-            csv_data.append(row)
+            csv_obj = csv.reader(data, delimiter=delim.encode(enc))
+            for row in csv_obj:
+                row = [str(x, enc) for x in row]
+                csv_data.append(row)
+        else:
+            data = [i.decode(enc) for i in data]
+            csv_obj = csv.reader(data, delimiter=delim)
+            for row in csv_obj:
+                csv_data.append(row)
+        if hdr_rows is None and len(csv_data) > 1:
+            csv_header = [0]
+        elif hdr_rows is not None:
+            csv_header = range(min(len(csv_data) - 1, hdr_rows))
+        else:
+            csv_header = []
+        return SubView(ListAdapter(csv_data), csv_header)
+
     else:
-        data = [i.decode(enc) for i in data]
-        csv_obj = csv.reader(data, delimiter=delim)
-        for row in csv_obj:
-            csv_data.append(row)
-    return pad_data(csv_data)
+        # If data is from a list of lists.
+        if hdr_rows is None and len(data) > 1:
+            header = [0]
+        elif hdr_rows is not None:
+            header = range(min(len(data) - 1, hdr_rows))
+        else:
+            header = []
+        return SubView(ListAdapter(data), header)
 
 
-def py2_list_to_unicode(data):
-    """Convert strings/int to unicode for python 2
-
-    """
-    enc = detect_encoding()
-    csv_data = []
-    for row in data:
-        r = []
-        for x in row:
-            try:
-                r.append(str(x, enc))
-            except TypeError:
-                # The 'enc' parameter fails with int values
-                r.append(str(x))
-        csv_data.append(r)
-    return csv_data
-
-
-def data_list_or_file(data):
-    """Determine if 'data' is a list of lists or list of strings/bytes
+def input_type(data):
+    """Determines the type of data to be processed.
 
     Python 3 - reading a file returns a list of byte strings
     Python 2 - reading a file returns a list of strings
     Both - list of lists is just a list
 
-    Returns: 'file' if data was from a file, 'list' if from a python list/tuple
+    Returns: 'file' if data is from a file, 'list' if from a python list/tuple,
+    'dict' if from a python dictionary, 'numpy' if from a numpy ndarray, and
+    'pandas' if from a pandas Series, DataFrame or Panel.
 
     """
-    f = isinstance(data[0], (basestring, bytes))
-    return 'file' if f is True else 'list'
-
-
-def pad_data(d):
-    """Pad data rows to the length of the longest row.
-
-        Args: d - list of lists
-
-    """
-    max_len = set((len(i) for i in d))
-    if len(max_len) == 1:
-        return d
-    else:
-        max_len = max(max_len)
-        return [i + [""] * (max_len - len(i)) for i in d]
+    if isinstance(data, dict):
+        return 'dict'
+    elif data.__class__.__name__ in ['Series', 'DataFrame', 'Panel']:
+        return 'pandas'
+    elif data.__class__.__name__ == 'ndarray':
+        return 'numpy'
+    elif isinstance(data, list):
+        if isinstance(data[0], (basestring, bytes)):
+            return 'file'
+        else:
+            return 'list'
 
 
 def readme():
@@ -1185,7 +1299,7 @@ def detect_encoding(data=None):
         try:
             for line in data:
                 line.decode(c)
-        except (UnicodeDecodeError, UnicodeError):
+        except (UnicodeDecodeError, UnicodeError, AttributeError):
             continue
         return c
     print("Encoding not detected. Please pass encoding value manually")
@@ -1205,14 +1319,15 @@ def main(stdscr, *args, **kwargs):
 
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
          trunc_char='…', column_widths=None, search_str=None,
-         double_width=False, delimiter=None):
+         double_width=False, delimiter=None, hdr_rows=None):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
     exceptions.
 
     Args:
-        data: data (filename, file, list of lists or tuple of tuples).
+        data: data (filename, file, dict, list of lists, tuple of tuples,
+              numpy ndarray or pandas Series/DataFrame/Panel).
               Should be normalized to equal row lengths
         enc: encoding for file/data
         start_pos: initial file position. Either a single integer for just y
@@ -1228,11 +1343,15 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                       should be handled (defaults to False for large files)
         delimiter: CSV delimiter. Typically needed only if the automatic
                    delimiter detection doesn't work. None => automatic
+        hdr_rows: number of header rows in the input data. None => automatic
 
     """
     if sys.version_info.major < 3:
-        lc_all = locale.getlocale(locale.LC_ALL)
-        locale.setlocale(locale.LC_ALL, '')
+        try:
+            lc_all = locale.getlocale(locale.LC_ALL)
+            locale.setlocale(locale.LC_ALL, '')
+        except:
+            lc_all = None
     else:
         lc_all = None
     try:
@@ -1247,8 +1366,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 else:
                     new_data = data
 
-                if new_data:
-                    buf = process_data(new_data, enc, delimiter)
+                if input_type(new_data):
+                    buf = wrap_data(new_data, enc, delimiter, hdr_rows)
                 elif buf:
                     # cannot reload the file
                     pass
@@ -1264,6 +1383,7 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                                column_widths=column_widths,
                                search_str=search_str,
                                double_width=double_width)
+
             except (QuitException, KeyboardInterrupt):
                 return 0
             except ReloadException as e:
