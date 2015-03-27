@@ -1266,7 +1266,11 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                     new_data = data
 
                 if type(new_data).__name__ == 'DataFrame':
-                    buf = process_df(new_data)
+                    if new_data.any().any():
+                        buf = process_df(new_data)
+                    else:
+                        # empty dataframe
+                        return 1
 
                 elif new_data:
                     buf = process_data(new_data, enc, delimiter)
