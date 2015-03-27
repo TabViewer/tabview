@@ -93,33 +93,21 @@ class Viewer:
         os.unsetenv('LINES')
         os.unsetenv('COLUMNS')
         self.scr = args[0]
-        if type(args[1]).__name__ == 'DataFrame':
-            self.data = args[1].values.tolist()
-            self.header_offset_orig = 3
-            self.header_offset = 3
-            self.header = [unicode(i) for i in args[1].columns]
-            self.num_data_columns = len(self.header)
-            self._init_double_width(kwargs.get('double_width'))
-            self.column_width_mode = kwargs.get('column_width')
-            self.column_gap = kwargs.get('column_gap')
-            self._init_column_widths(kwargs.get('column_width'),
-                                     kwargs.get('column_widths'))
+        self.data = args[1]['data']
+        self.header_offset_orig = 3
+        self.header = args[1]['header']
+        if len(self.data) > 1:
+#            del self.data[0]
+            self.header_offset = self.header_offset_orig
         else:
-            self.data = [[str(j) for j in i] for i in args[1]]
-            self.header_offset_orig = 3
-            self.header = self.data[0]
-            if len(self.data) > 1:
-                del self.data[0]
-                self.header_offset = self.header_offset_orig
-            else:
-                # Don't make one line file a header row
-                self.header_offset = self.header_offset_orig - 1
-            self.num_data_columns = len(self.data[0])
-            self._init_double_width(kwargs.get('double_width'))
-            self.column_width_mode = kwargs.get('column_width')
-            self.column_gap = kwargs.get('column_gap')
-            self._init_column_widths(kwargs.get('column_width'),
-                                     kwargs.get('column_widths'))
+            # Don't make one line file a header row
+            self.header_offset = self.header_offset_orig - 1
+        self.num_data_columns = len(self.data[0])
+        self._init_double_width(kwargs.get('double_width'))
+        self.column_width_mode = kwargs.get('column_width')
+        self.column_gap = kwargs.get('column_gap')
+        self._init_column_widths(kwargs.get('column_width'),
+                                    kwargs.get('column_widths'))
         try:
             kwargs.get('trunc_char').encode(sys.stdout.encoding or 'utf-8')
             self.trunc_char = kwargs.get('trunc_char')
@@ -1094,16 +1082,45 @@ def csv_sniff(data, enc):
     return dialect.delimiter
 
 
-def process_data(data, enc=None, delim=None):
+def process_data(data, enc=None, delim=None, **kwargs):
     """Given a list of lists, check for the encoding and delimiter and return a
     list of CSV rows (normalized to a single length)
 
     """
-    if data_list_or_file(data) == 'list':
+    if input_type(data) == 'list':
         # If data is from an object (list of lists) instead of a file
         if sys.version_info.major < 3:
             data = py2_list_to_unicode(data)
-        return pad_data(data)
+        data = [[str(j) for j in i] for i in pad_data(data)]
+        return {'data' : data[1:], 'header' : data[0]}
+
+    if input_type(data) == 'dict':
+        if kwargs['orient'] == 'columns':
+            header = [str(i) for i in data.keys()]
+            data = zip(*[d[i] for i in d.keys()])
+        elif kwargs['orient'] == 'index':
+            data =  [[i[0]] + i[1] for i in data.items()]
+            header = [str(i) for i in range(len(data[0]))]
+        # If data is from an object (dict of lists) instead of a file
+        if sys.version_info.major < 3:
+            data = pad_data(py2_list_to_unicode(data))
+        return {'data' : data, 'header' : header}
+    
+    if input_type(data) == 'pandas':
+        import pandas as pd
+        if data.__class__.__name__ == 'Series':
+            data = pd.DataFrame(data)
+        elif data.__class__.__name__ == 'Panel':
+            data = data.to_frame()
+        data = data.reset_index().fillna('').apply(lambda x: x.astype(str))
+        return {'data': data.values.tolist(), 'header': [str(i) for i in data.columns]}
+
+    if input_type(data) == 'numpy':
+        import numpy as np
+        unicode_convert = np.vectorize(str)
+        data = unicode_convert(data)
+        return {'data': data, 'header': [str(i) for i in range(data.shape[0])]}
+
     if enc is None:
         enc = detect_encoding(data)
     if delim is None:
@@ -1119,10 +1136,9 @@ def process_data(data, enc=None, delim=None):
         csv_obj = csv.reader(data, delimiter=delim)
         for row in csv_obj:
             csv_data.append(row)
-    return pad_data(csv_data)
+    csv_data = [[str(j) for j in i] for i in pad_data(csv_data)]
+    return {'data': csv_data[1:], 'header': csv_data[0]}
 
-def process_df(data):
-    return data.reset_index().fillna('').apply(lambda x: x.astype(unicode))
 
 def py2_list_to_unicode(data):
     """Convert strings/int to unicode for python 2
@@ -1142,7 +1158,7 @@ def py2_list_to_unicode(data):
     return csv_data
 
 
-def data_list_or_file(data):
+def input_type(data):
     """Determine if 'data' is a list of lists or list of strings/bytes
 
     Python 3 - reading a file returns a list of byte strings
@@ -1152,8 +1168,17 @@ def data_list_or_file(data):
     Returns: 'file' if data was from a file, 'list' if from a python list/tuple
 
     """
-    f = isinstance(data[0], (basestring, bytes))
-    return 'file' if f is True else 'list'
+    if isinstance(data, dict):
+        return 'dict'
+    elif data.__class__.__name__ in ['Series', 'DataFrame', 'Panel']:
+        return 'pandas'
+    elif data.__class__.__name__ == 'ndarray':
+        return 'numpy'
+    elif isinstance(data, list):
+        if isinstance(data[0], (basestring, bytes)):
+            return 'file'
+        else:
+            return 'list'
 
 
 def pad_data(d):
@@ -1220,7 +1245,7 @@ def main(stdscr, *args, **kwargs):
 
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
          trunc_char='…', column_widths=None, search_str=None,
-         double_width=False, delimiter=None):
+         double_width=False, delimiter=None, orient='columns'):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -1265,15 +1290,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 else:
                     new_data = data
 
-                if type(new_data).__name__ == 'DataFrame':
-                    if new_data.any().any():
-                        buf = process_df(new_data)
-                    else:
-                        # empty dataframe
-                        return 1
-
-                elif new_data:
-                    buf = process_data(new_data, enc, delimiter)
+                if input_type(new_data):
+                    buf = process_data(new_data, enc, delimiter, orient=orient)
                 elif buf:
                     # cannot reload the file
                     pass
