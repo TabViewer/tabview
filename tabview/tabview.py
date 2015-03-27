@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 """ tabview.py -- View a tab-delimited file in a spreadsheet-like display.
 
@@ -23,6 +24,7 @@ from operator import itemgetter
 from subprocess import Popen, PIPE
 from textwrap import wrap
 import unicodedata
+import pandas
 
 
 if sys.version_info.major < 3:
@@ -92,21 +94,33 @@ class Viewer:
         os.unsetenv('LINES')
         os.unsetenv('COLUMNS')
         self.scr = args[0]
-        self.data = [[str(j) for j in i] for i in args[1]]
-        self.header_offset_orig = 3
-        self.header = self.data[0]
-        if len(self.data) > 1:
-            del self.data[0]
-            self.header_offset = self.header_offset_orig
-        else:
-            # Don't make one line file a header row
-            self.header_offset = self.header_offset_orig - 1
-        self.num_data_columns = len(self.data[0])
-        self._init_double_width(kwargs.get('double_width'))
-        self.column_width_mode = kwargs.get('column_width')
-        self.column_gap = kwargs.get('column_gap')
-        self._init_column_widths(kwargs.get('column_width'),
-                                 kwargs.get('column_widths'))
+	if type(args[1]) == pandas.core.frame.DataFrame:
+	    self.data = args[1].values.tolist()
+            self.header_offset_orig = 3
+            self.header_offset = 3
+            self.header = list(pandas.Series(args[1].columns).astype(unicode))
+            self.num_data_columns = len(self.header)
+            self._init_double_width(kwargs.get('double_width'))
+            self.column_width_mode = kwargs.get('column_width')
+            self.column_gap = kwargs.get('column_gap')
+            self._init_column_widths(kwargs.get('column_width'),
+                                     kwargs.get('column_widths'))
+	else:
+            self.data = [[str(j) for j in i] for i in args[1]]
+            self.header_offset_orig = 3
+            self.header = self.data[0]
+            if len(self.data) > 1:
+                del self.data[0]
+                self.header_offset = self.header_offset_orig
+            else:
+                # Don't make one line file a header row
+                self.header_offset = self.header_offset_orig - 1
+            self.num_data_columns = len(self.data[0])
+            self._init_double_width(kwargs.get('double_width'))
+            self.column_width_mode = kwargs.get('column_width')
+            self.column_gap = kwargs.get('column_gap')
+            self._init_column_widths(kwargs.get('column_width'),
+                                     kwargs.get('column_widths'))
         try:
             kwargs.get('trunc_char').encode(sys.stdout.encoding or 'utf-8')
             self.trunc_char = kwargs.get('trunc_char')
@@ -1108,6 +1122,8 @@ def process_data(data, enc=None, delim=None):
             csv_data.append(row)
     return pad_data(csv_data)
 
+def process_df(data):
+    return data.reset_index().fillna('').apply(lambda x: x.astype(unicode))
 
 def py2_list_to_unicode(data):
     """Convert strings/int to unicode for python 2
@@ -1231,8 +1247,11 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
 
     """
     if sys.version_info.major < 3:
-        lc_all = locale.getlocale(locale.LC_ALL)
-        locale.setlocale(locale.LC_ALL, '')
+        try:
+            lc_all = locale.getlocale(locale.LC_ALL)
+            locale.setlocale(locale.LC_ALL, '')
+        except:
+            lc_all = None
     else:
         lc_all = None
     try:
@@ -1247,7 +1266,10 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 else:
                     new_data = data
 
-                if new_data:
+                if type(new_data) == pandas.core.frame.DataFrame:
+                    buf = process_df(new_data)
+
+                elif new_data:
                     buf = process_data(new_data, enc, delimiter)
                 elif buf:
                     # cannot reload the file
@@ -1255,6 +1277,7 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 else:
                     # cannot read the file
                     return 1
+
 
                 curses.wrapper(main, buf,
                                start_pos=start_pos,
@@ -1264,6 +1287,7 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                                column_widths=column_widths,
                                search_str=search_str,
                                double_width=double_width)
+
             except (QuitException, KeyboardInterrupt):
                 return 0
             except ReloadException as e:
