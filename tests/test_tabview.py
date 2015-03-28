@@ -70,7 +70,8 @@ class TestTabviewUnits(unittest.TestCase):
         """
         fn, _, sample_data = info
         code = 'utf-8'  # Per top line of file
-        res = t.process_data(self.data(fn))
+        fn_proc = t.process_data(self.data(fn))
+        res = [fn_proc['header']] + fn_proc['data']
         # Check that process_file returns a list of lists
         self.assertEqual(type(res), list)
         self.assertEqual(type(res[0]), list)
