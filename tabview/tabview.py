@@ -96,11 +96,7 @@ class Viewer:
         self.data = args[1]['data']
         self.header_offset_orig = 3
         self.header = args[1]['header']
-#        if len(self.data) > 1:
         self.header_offset = self.header_offset_orig
-#        else:
-            # Don't make one line file a header row
-#            self.header_offset = self.header_offset_orig - 1
         self.num_data_columns = len(self.header)
         self._init_double_width(kwargs.get('double_width'))
         self.column_width_mode = kwargs.get('column_width')
@@ -1129,8 +1125,9 @@ def process_data(data, enc=None, delim=None, **kwargs):
         if len(data.shape) == 1:
             data = np.array((data,))
         
-        header = [str(i) for i in range(data.shape[1])]
-        
+        header = [str(i) for i in range(data.shape[1])] 
+        data = data.tolist()
+
         return {'data': data, 'header': header}
 
     if enc is None:
