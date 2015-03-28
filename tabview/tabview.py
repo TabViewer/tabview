@@ -96,13 +96,12 @@ class Viewer:
         self.data = args[1]['data']
         self.header_offset_orig = 3
         self.header = args[1]['header']
-        if len(self.data) > 1:
-#            del self.data[0]
-            self.header_offset = self.header_offset_orig
-        else:
+#        if len(self.data) > 1:
+        self.header_offset = self.header_offset_orig
+#        else:
             # Don't make one line file a header row
-            self.header_offset = self.header_offset_orig - 1
-        self.num_data_columns = len(self.data[0])
+#            self.header_offset = self.header_offset_orig - 1
+        self.num_data_columns = len(self.header)
         self._init_double_width(kwargs.get('double_width'))
         self.column_width_mode = kwargs.get('column_width')
         self.column_gap = kwargs.get('column_gap')
@@ -1092,12 +1091,18 @@ def process_data(data, enc=None, delim=None, **kwargs):
         if sys.version_info.major < 3:
             data = py2_list_to_unicode(data)
         data = [[str(j) for j in i] for i in pad_data(data)]
-        return {'data' : data[1:], 'header' : data[0]}
+        if len(data) > 1:
+            header = data[0]
+            data = data[1:]
+        else:
+            header = [str(i) for i in range(len(data[0]))]
+
+        return {'data' : data, 'header' : header}
 
     if input_type(data) == 'dict':
         if kwargs['orient'] == 'columns':
             header = [str(i) for i in data.keys()]
-            data = zip(*[d[i] for i in d.keys()])
+            data = zip(*[data[i] for i in data.keys()])
         elif kwargs['orient'] == 'index':
             data =  [[i[0]] + i[1] for i in data.items()]
             header = [str(i) for i in range(len(data[0]))]
@@ -1112,14 +1117,21 @@ def process_data(data, enc=None, delim=None, **kwargs):
             data = pd.DataFrame(data)
         elif data.__class__.__name__ == 'Panel':
             data = data.to_frame()
-        data = data.reset_index().fillna('').apply(lambda x: x.astype(str))
+        data = data.reset_index().fillna('').apply(lambda x: x.astype(object).astype(str))
         return {'data': data.values.tolist(), 'header': [str(i) for i in data.columns]}
 
     if input_type(data) == 'numpy':
         import numpy as np
         unicode_convert = np.vectorize(str)
         data = unicode_convert(data)
-        return {'data': data, 'header': [str(i) for i in range(data.shape[0])]}
+        data[np.where(data == 'nan')] = ''
+
+        if len(data.shape) == 1:
+            data = np.array((data,))
+        
+        header = [str(i) for i in range(data.shape[1])]
+        
+        return {'data': data, 'header': header}
 
     if enc is None:
         enc = detect_encoding(data)
@@ -1137,7 +1149,13 @@ def process_data(data, enc=None, delim=None, **kwargs):
         for row in csv_obj:
             csv_data.append(row)
     csv_data = [[str(j) for j in i] for i in pad_data(csv_data)]
-    return {'data': csv_data[1:], 'header': csv_data[0]}
+    
+    if len(csv_data) > 1:
+        csv_data = csv_data[1:]
+        csv_header = csv_data[0]
+    else:
+        csv_header = [str(i) for i in range(len(csv_data[0]))]
+    return {'data': csv_data, 'header': csv_header}
 
 
 def py2_list_to_unicode(data):
