@@ -1151,8 +1151,8 @@ def process_data(data, enc=None, delim=None, **kwargs):
     csv_data = [[str(j) for j in i] for i in pad_data(csv_data)]
     
     if len(csv_data) > 1:
-        csv_data = csv_data[1:]
         csv_header = csv_data[0]
+        csv_data = csv_data[1:]
     else:
         csv_header = [str(i) for i in range(len(csv_data[0]))]
     return {'data': csv_data, 'header': csv_header}
