@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 """ tabview.py -- View a tab-delimited file in a spreadsheet-like display.
 
@@ -102,7 +101,7 @@ class Viewer:
         self.column_width_mode = kwargs.get('column_width')
         self.column_gap = kwargs.get('column_gap')
         self._init_column_widths(kwargs.get('column_width'),
-                                    kwargs.get('column_widths'))
+                                 kwargs.get('column_widths'))
         try:
             kwargs.get('trunc_char').encode(sys.stdout.encoding or 'utf-8')
             self.trunc_char = kwargs.get('trunc_char')
@@ -1078,12 +1077,76 @@ def csv_sniff(data, enc):
 
 
 def process_data(data, enc=None, delim=None, **kwargs):
-    """Given a list of lists, check for the encoding and delimiter and return a
-    list of CSV rows (normalized to a single length)
+    """Given a data input, determine the input type and process data accordingly.
+
+    Returns a dictionary containing two entries: 'header', which corresponds to
+    the header row, and 'data', which corresponds to the data rows.
 
     """
-    if input_type(data) == 'list':
-        # If data is from an object (list of lists) instead of a file
+
+    process_type = input_type(data)
+
+    if process_type == 'dict':
+        # If data is from a dict object.
+        if kwargs['orient'] == 'columns':
+            header = [str(i) for i in data.keys()]
+            data = zip(*[data[i] for i in data.keys()])
+        elif kwargs['orient'] == 'index':
+            data =  [[i[0]] + i[1] for i in data.items()]
+            header = [str(i) for i in range(len(data[0]))]
+        if sys.version_info.major < 3:
+            data = pad_data(py2_list_to_unicode(data))
+        return {'data' : data, 'header' : header}
+    
+    elif process_type == 'pandas':
+        # If data is from a pandas object.
+        import pandas as pd
+        if data.__class__.__name__ == 'Series':
+            data = pd.DataFrame(data)
+        elif data.__class__.__name__ == 'Panel':
+            data = data.to_frame()
+        data = data.reset_index().fillna('').astype(object).astype(str)
+        return {'data': data.values.tolist(), 'header': [str(i) for i in data.columns]}
+
+    elif process_type == 'numpy':
+        # If data is from a numpy object.
+        import numpy as np
+        unicode_convert = np.vectorize(str)
+        data = unicode_convert(data)
+        data[np.where(data == 'nan')] = ''
+        if len(data.shape) == 1:
+            data = np.array((data,))
+        header = [str(i) for i in range(data.shape[1])] 
+        data = data.tolist()
+        return {'data': data, 'header': header}
+
+    elif process_type == 'file':
+        # If data is from a file.
+        if enc is None:
+            enc = detect_encoding(data)
+        if delim is None:
+            delim = csv_sniff(data[0], enc)
+        csv_data = []
+        if sys.version_info.major < 3:
+            csv_obj = csv.reader(data, delimiter=delim.encode(enc))
+            for row in csv_obj:
+                row = [str(x, enc) for x in row]
+                csv_data.append(row)
+        else:
+            data = [i.decode(enc) for i in data]
+            csv_obj = csv.reader(data, delimiter=delim)
+            for row in csv_obj:
+                csv_data.append(row)
+        csv_data = [[str(j) for j in i] for i in pad_data(csv_data)] 
+        if len(csv_data) > 1:
+            csv_header = csv_data[0]
+            csv_data = csv_data[1:]
+        else:
+            csv_header = [str(i) for i in range(len(csv_data[0]))]
+        return {'data': csv_data, 'header': csv_header}
+
+    else:
+        # If data is from a list of lists.
         if sys.version_info.major < 3:
             data = py2_list_to_unicode(data)
         data = [[str(j) for j in i] for i in pad_data(data)]
@@ -1092,68 +1155,7 @@ def process_data(data, enc=None, delim=None, **kwargs):
             data = data[1:]
         else:
             header = [str(i) for i in range(len(data[0]))]
-
         return {'data' : data, 'header' : header}
-
-    if input_type(data) == 'dict':
-        if kwargs['orient'] == 'columns':
-            header = [str(i) for i in data.keys()]
-            data = zip(*[data[i] for i in data.keys()])
-        elif kwargs['orient'] == 'index':
-            data =  [[i[0]] + i[1] for i in data.items()]
-            header = [str(i) for i in range(len(data[0]))]
-        # If data is from an object (dict of lists) instead of a file
-        if sys.version_info.major < 3:
-            data = pad_data(py2_list_to_unicode(data))
-        return {'data' : data, 'header' : header}
-    
-    if input_type(data) == 'pandas':
-        import pandas as pd
-        if data.__class__.__name__ == 'Series':
-            data = pd.DataFrame(data)
-        elif data.__class__.__name__ == 'Panel':
-            data = data.to_frame()
-        data = data.reset_index().fillna('').apply(lambda x: x.astype(object).astype(str))
-        return {'data': data.values.tolist(), 'header': [str(i) for i in data.columns]}
-
-    if input_type(data) == 'numpy':
-        import numpy as np
-        unicode_convert = np.vectorize(str)
-        data = unicode_convert(data)
-        data[np.where(data == 'nan')] = ''
-
-        if len(data.shape) == 1:
-            data = np.array((data,))
-        
-        header = [str(i) for i in range(data.shape[1])] 
-        data = data.tolist()
-
-        return {'data': data, 'header': header}
-
-    if enc is None:
-        enc = detect_encoding(data)
-    if delim is None:
-        delim = csv_sniff(data[0], enc)
-    csv_data = []
-    if sys.version_info.major < 3:
-        csv_obj = csv.reader(data, delimiter=delim.encode(enc))
-        for row in csv_obj:
-            row = [str(x, enc) for x in row]
-            csv_data.append(row)
-    else:
-        data = [i.decode(enc) for i in data]
-        csv_obj = csv.reader(data, delimiter=delim)
-        for row in csv_obj:
-            csv_data.append(row)
-    csv_data = [[str(j) for j in i] for i in pad_data(csv_data)]
-    
-    if len(csv_data) > 1:
-        csv_header = csv_data[0]
-        csv_data = csv_data[1:]
-    else:
-        csv_header = [str(i) for i in range(len(csv_data[0]))]
-    return {'data': csv_data, 'header': csv_header}
-
 
 def py2_list_to_unicode(data):
     """Convert strings/int to unicode for python 2
@@ -1174,13 +1176,15 @@ def py2_list_to_unicode(data):
 
 
 def input_type(data):
-    """Determine if 'data' is a list of lists or list of strings/bytes
+    """Determines the type of data to be processed.
 
     Python 3 - reading a file returns a list of byte strings
     Python 2 - reading a file returns a list of strings
     Both - list of lists is just a list
 
-    Returns: 'file' if data was from a file, 'list' if from a python list/tuple
+    Returns: 'file' if data is from a file, 'list' if from a python list/tuple,
+    'dict' if from a python dictionary, 'numpy' if from a numpy ndarray, and 
+    'pandas' if from a pandas Series, DataFrame or Panel.
 
     """
     if isinstance(data, dict):
@@ -1267,7 +1271,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
     exceptions.
 
     Args:
-        data: data (filename, file, list of lists or tuple of tuples).
+        data: data (filename, file, dict, list of lists, tuple of tuples,
+              numpy ndarray or pandas Series/DataFrame/Panel).
               Should be normalized to equal row lengths
         enc: encoding for file/data
         start_pos: initial file position. Either a single integer for just y
@@ -1313,7 +1318,6 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 else:
                     # cannot read the file
                     return 1
-
 
                 curses.wrapper(main, buf,
                                start_pos=start_pos,
