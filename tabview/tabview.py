@@ -1105,7 +1105,10 @@ def process_data(data, enc=None, delim=None, **kwargs):
             data = pd.DataFrame(data)
         elif data.__class__.__name__ == 'Panel':
             data = data.to_frame()
-        data = data.reset_index().fillna('').astype(object).astype(str)
+        data = data.reset_index()
+        if len(data.select_dtypes(include=['datetime']).columns) > 0:
+            data[data.select_dtypes(include=['datetime']).columns] = data[data.select_dtypes(include=['datetime']).columns].astype(object)
+        data = data.fillna('').astype(str)
         return {'data': data.values.tolist(), 'header': [str(i) for i in data.columns]}
 
     elif process_type == 'numpy':
