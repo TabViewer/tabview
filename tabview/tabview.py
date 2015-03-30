@@ -1090,12 +1090,14 @@ def process_data(data, enc=None, delim=None, **kwargs):
         # If data is from a dict object.
         if kwargs['orient'] == 'columns':
             header = [str(i) for i in data.keys()]
-            data = zip(*[data[i] for i in data.keys()])
+            data = list(zip(*[data[i] for i in data.keys()]))
         elif kwargs['orient'] == 'index':
             data =  [[i[0]] + i[1] for i in data.items()]
             header = [str(i) for i in range(len(data[0]))]
         if sys.version_info.major < 3:
             data = pad_data(py2_list_to_unicode(data))
+        else:
+            data = [[str(j) for j in i] for i in pad_data(data)]
         return {'data' : data, 'header' : header}
     
     elif process_type == 'pandas':
@@ -1151,8 +1153,9 @@ def process_data(data, enc=None, delim=None, **kwargs):
     else:
         # If data is from a list of lists.
         if sys.version_info.major < 3:
-            data = py2_list_to_unicode(data)
-        data = [[str(j) for j in i] for i in pad_data(data)]
+            data = pad_data(py2_list_to_unicode(data))
+        else:
+            data = [[str(j) for j in i] for i in pad_data(data)]
         if len(data) > 1:
             header = data[0]
             data = data[1:]
