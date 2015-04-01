@@ -1108,16 +1108,33 @@ def process_data(data, enc=None, delim=None, **kwargs):
         elif data.__class__.__name__ == 'Panel':
             data = data.to_frame()
         data = data.reset_index()
+        header = [str(i) for i in data.columns]
         if len(data.select_dtypes(include=['datetime']).columns) > 0:
             data[data.select_dtypes(include=['datetime']).columns] = data[data.select_dtypes(include=['datetime']).columns].astype(object)
-        data = data.fillna('').astype(str)
-        return {'data': data.values.tolist(), 'header': [str(i) for i in data.columns]}
+        try:
+            data = data.fillna('').astype(str)
+        except:
+            if len(data.select_dtypes(include=['number', 'bool']).columns) > 0:
+                data[data.select_dtypes(include=['number', 'bool']).columns] = data[data.select_dtypes(include=['number', 'bool']).columns].astype(str)
+            df_codec = detect_encoding(data.values.ravel().tolist())
+            data = data.fillna('').applymap(lambda x: x.decode(df_codec))
+        return {'data': data.values.tolist(), 'header': header}
 
     elif process_type == 'numpy':
         # If data is from a numpy object.
         import numpy as np
-        unicode_convert = np.vectorize(str)
-        data = unicode_convert(data)
+        try:
+            unicode_convert = np.vectorize(str)
+            data = unicode_convert(data)
+        except:
+            def np_decode(x, codec):
+                try:
+                    return str(x)
+                except:
+                    return x.decode(codec)
+            np_codec = detect_encoding(data.ravel().tolist())
+            unicode_convert = np.vectorize(lambda x: np_decode(x, np_codec))
+            data = unicode_convert(data)
         data[np.where(data == 'nan')] = ''
         if len(data.shape) == 1:
             data = np.array((data,))
@@ -1250,7 +1267,7 @@ def detect_encoding(data=None):
         try:
             for line in data:
                 line.decode(c)
-        except (UnicodeDecodeError, UnicodeError):
+        except (UnicodeDecodeError, UnicodeError, AttributeError):
             continue
         return c
     print("Encoding not detected. Please pass encoding value manually")

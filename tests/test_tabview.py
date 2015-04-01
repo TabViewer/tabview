@@ -160,14 +160,14 @@ class TestTabviewIntegration(unittest.TestCase):
                        column_widths=None, trunc_char='…',
                        search_str=None)
     
-#    def test_tabview_array_2d(self):
-#        curses.wrapper(self.main, t.process_data(pd.read_csv(data_1[0], encoding='utf-8').values),
-#                       start_pos=(0, 0), column_width=20, column_gap=2,
-#                       column_widths=None, trunc_char='…',
-#                       search_str=None)
+    def test_tabview_array_2d(self):
+        curses.wrapper(self.main, t.process_data(pd.read_csv(data_1[0]).values),
+                       start_pos=(0, 0), column_width=20, column_gap=2,
+                       column_widths=None, trunc_char='…',
+                       search_str=None)
 
     def test_tabview_pandas_dataframe(self):
-        curses.wrapper(self.main, t.process_data(pd.read_csv(data_1[0], encoding='utf-8')),
+        curses.wrapper(self.main, t.process_data(pd.read_csv(data_1[0])),
                        start_pos=(0, 0), column_width=20, column_gap=2,
                        column_widths=None, trunc_char='…',
                        search_str=None)
