@@ -142,13 +142,13 @@ class TestTabviewIntegration(unittest.TestCase):
                        column_widths=[4, 5, 1], trunc_char='>',
                        search_str=None)
 
-    def test_tabview_array_dict_columns(self):
+    def test_tabview_dict_columns(self):
         curses.wrapper(self.main, t.process_data(dict_1, orient='columns'),
                        start_pos=(0, 0), column_width=20, column_gap=2,
                        column_widths=None, trunc_char='…',
                        search_str=None)
 
-    def test_tabview_array_dict_index(self):
+    def test_tabview_dict_index(self):
         curses.wrapper(self.main, t.process_data(dict_1, orient='index'),
                        start_pos=(0, 0), column_width=20, column_gap=2,
                        column_widths=None, trunc_char='…',
@@ -162,13 +162,13 @@ class TestTabviewIntegration(unittest.TestCase):
     
     def test_tabview_array_2d(self):
         curses.wrapper(self.main, t.process_data(pd.read_csv(data_1[0]).values),
-                       start_pos=(0, 0), column_width=20, column_gap=2,
+                       start_pos=(0, 0), column_width='mode', column_gap=2,
                        column_widths=None, trunc_char='…',
                        search_str=None)
 
     def test_tabview_pandas_dataframe(self):
         curses.wrapper(self.main, t.process_data(pd.read_csv(data_1[0])),
-                       start_pos=(0, 0), column_width=20, column_gap=2,
+                       start_pos=(0, 0), column_width='mode', column_gap=2,
                        column_widths=None, trunc_char='…',
                        search_str=None)
 
