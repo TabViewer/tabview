@@ -1102,23 +1102,24 @@ def process_data(data, enc=None, delim=None, **kwargs):
     
     elif process_type == 'pandas':
         # If data is from a pandas object.
-        import pandas as pd
-        if data.__class__.__name__ == 'Series':
-            data = pd.DataFrame(data)
-        elif data.__class__.__name__ == 'Panel':
-            data = data.to_frame()
+        import numpy as np
+        if data.__class__.__name__ != 'DataFrame':
+            import pandas as pd
+            if data.__class__.__name__ == 'Series':
+                data = pd.DataFrame(data)
+            elif data.__class__.__name__ == 'Panel':
+                data = data.to_frame()
         data = data.reset_index()
         header = [str(i) for i in data.columns]
-        if len(data.select_dtypes(include=['datetime']).columns) > 0:
-            data[data.select_dtypes(include=['datetime']).columns] = data[data.select_dtypes(include=['datetime']).columns].astype(object)
         try:
-            data = data.fillna('').astype(str)
+            unicode_convert = np.vectorize(str)
+            data = unicode_convert(data.values)
         except:
-            if len(data.select_dtypes(include=['number', 'bool']).columns) > 0:
-                data[data.select_dtypes(include=['number', 'bool']).columns] = data[data.select_dtypes(include=['number', 'bool']).columns].astype(str)
-            df_codec = detect_encoding(data.values.ravel().tolist())
-            data = data.fillna('').applymap(lambda x: x.decode(df_codec))
-        return {'data': data.values.tolist(), 'header': header}
+            np_codec = detect_encoding(data.select_dtypes(include=['object']).values.ravel().tolist())
+            unicode_convert = np.vectorize(lambda x: np_decode(x, np_codec))
+            data = unicode_convert(data.values)
+        data[np.where(data == 'nan')] = ''
+        return {'data': data.tolist(), 'header': header}
 
     elif process_type == 'numpy':
         # If data is from a numpy object.
@@ -1127,11 +1128,6 @@ def process_data(data, enc=None, delim=None, **kwargs):
             unicode_convert = np.vectorize(str)
             data = unicode_convert(data)
         except:
-            def np_decode(x, codec):
-                try:
-                    return str(x)
-                except:
-                    return x.decode(codec)
             np_codec = detect_encoding(data.ravel().tolist())
             unicode_convert = np.vectorize(lambda x: np_decode(x, np_codec))
             data = unicode_convert(data)
@@ -1179,6 +1175,15 @@ def process_data(data, enc=None, delim=None, **kwargs):
         else:
             header = [str(i) for i in range(len(data[0]))]
         return {'data' : data, 'header' : header}
+
+def np_decode(inp_str, codec):
+    """String decoding function for numpy arrays.
+
+    """
+    try:
+        return str(inp_str)
+    except:
+        return inp_str.decode(codec)
 
 def py2_list_to_unicode(data):
     """Convert strings/int to unicode for python 2
