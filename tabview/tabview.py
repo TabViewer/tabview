@@ -662,6 +662,7 @@ class Viewer:
                      curses.KEY_ENTER:  self.show_cell,
                      KEY_CTRL('a'):  self.line_home,
                      KEY_CTRL('e'):  self.line_end,
+                     KEY_CTRL('l'):  self.scr.redrawwin,
                      }
 
     def run(self):
