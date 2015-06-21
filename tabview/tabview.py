@@ -1082,9 +1082,9 @@ def csv_sniff(data, enc):
     return dialect.delimiter
 
 
-def process_data(data, enc=None, delim=None):
-    """Given a list of lists, check for the encoding and delimiter and return a
-    list of CSV rows (normalized to a single length)
+def process_data(data, enc=None, delim=None, quoting=None):
+    """Given a list of lists, check for the encoding, quoting and delimiter and
+    return a list of CSV rows (normalized to a single length)
 
     """
     if data_list_or_file(data) == 'list':
@@ -1096,15 +1096,20 @@ def process_data(data, enc=None, delim=None):
         enc = detect_encoding(data)
     if delim is None:
         delim = csv_sniff(data[0], enc)
+    if quoting is not None:
+        quoting = getattr(csv, quoting)
+    else:
+        quoting = csv.QUOTE_MINIMAL
     csv_data = []
     if sys.version_info.major < 3:
-        csv_obj = csv.reader(data, delimiter=delim.encode(enc))
+        csv_obj = csv.reader(data, delimiter=delim.encode(enc),
+                             quoting=quoting)
         for row in csv_obj:
             row = [str(x, enc) for x in row]
             csv_data.append(row)
     else:
         data = [i.decode(enc) for i in data]
-        csv_obj = csv.reader(data, delimiter=delim)
+        csv_obj = csv.reader(data, delimiter=delim, quoting=quoting)
         for row in csv_obj:
             csv_data.append(row)
     return pad_data(csv_data)
@@ -1206,7 +1211,7 @@ def main(stdscr, *args, **kwargs):
 
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
          trunc_char='…', column_widths=None, search_str=None,
-         double_width=False, delimiter=None):
+         double_width=False, delimiter=None, quoting=None):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -1229,6 +1234,14 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                       should be handled (defaults to False for large files)
         delimiter: CSV delimiter. Typically needed only if the automatic
                    delimiter detection doesn't work. None => automatic
+        quoting: CSV quoting. None => automatic. This can be useful when
+                 csv.QUOTE_NONE isn't automatically detected, for example when
+                 using as a MySQL pager. Allowed values are per the Python
+                 documentation:
+                     QUOTE_MINIMAL
+                     QUOTE_NONNUMERIC
+                     QUOTE_ALL
+                     QUOTE_NONE
 
     """
     if sys.version_info.major < 3:
@@ -1249,7 +1262,7 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                     new_data = data
 
                 if new_data:
-                    buf = process_data(new_data, enc, delimiter)
+                    buf = process_data(new_data, enc, delimiter, quoting)
                 elif buf:
                     # cannot reload the file
                     pass

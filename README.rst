@@ -100,6 +100,11 @@ Usage:
         import tabview as t
         t.view(<filename>, start_pos=(60,40))
 
+* Using as the pager for MySQL. Set these options in ~/.my.cnf::
+
+      pager=tabview -d '\t' --quoting QUOTE_NONE -
+      silent
+
 Tests:
 ------
 

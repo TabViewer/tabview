@@ -18,6 +18,7 @@
 """
 from __future__ import print_function, unicode_literals
 import argparse
+import csv
 import os
 import sys
 from tabview.tabview import view
@@ -39,6 +40,9 @@ def arg_parse():
     parser.add_argument('--delimiter', '-d', default=None,
                         help="CSV delimiter. Not typically necessary since "
                         "automatic delimiter sniffing is used.")
+    parser.add_argument('--quoting', default=None,
+                        choices=[i for i in dir(csv) if i.startswith("QUOTE")],
+                        help="CSV quoting style. Not typically required.")
     parser.add_argument('--start_pos', '-s',
                         help="Initial cursor display position. "
                         "Single number for just y (row) position, or two "
@@ -101,4 +105,4 @@ if __name__ == '__main__':
         data = fixup_stdin()
     view(data, enc=args.encoding, start_pos=start_pos,
          column_width=args.width, double_width=args.double_width,
-         delimiter=args.delimiter)
+         delimiter=args.delimiter, quoting=args.quoting)
