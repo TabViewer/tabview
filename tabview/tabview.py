@@ -93,6 +93,7 @@ class Viewer:
         os.unsetenv('COLUMNS')
         self.scr = args[0]
         self.data = [[str(j) for j in i] for i in args[1]]
+        self.info = kwargs.get('info')
         self.header_offset_orig = 3
         self.header = self.data[0]
         if len(self.data) > 1:
@@ -322,6 +323,32 @@ class Viewer:
             # Only display pop-up if cells have contents
             return
         TextBox(self.scr, data=s, title=self.location_string(yp, xp))()
+        self.resize()
+
+    def show_info(self):
+        """Display data information in a pop-up window
+
+        """
+        fn = self.info
+        yp = self.y + self.win_y
+        xp = self.x + self.win_x
+        location = self.location_string(yp, xp)
+
+        def sizeof_fmt(num, suffix='B'):
+            for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
+                if abs(num) < 1024.0:
+                    return "{:3.1f}{}{}".format(num, unit, suffix)
+                num /= 1024.0
+            return "{:.1f}{}{}".format(num, 'Yi', suffix)
+        size = sizeof_fmt(sys.getsizeof(self.data))
+        rows_cols = str((len(self.data), self.num_data_columns))
+        info = [("Filename/Data Info:", fn),
+                ("Current Location:", location),
+                ("Total Rows/Columns:", rows_cols),
+                ("Data Size:", size)]
+        display = "\n\n".join(["{:<20}{:<}".format(i, j)
+                               for i, j in info])
+        TextBox(self.scr, data=display)()
         self.resize()
 
     def _search_validator(self, ch):
@@ -663,6 +690,7 @@ class Viewer:
                      KEY_CTRL('a'):  self.line_home,
                      KEY_CTRL('e'):  self.line_end,
                      KEY_CTRL('l'):  self.scr.redrawwin,
+                     KEY_CTRL('g'):  self.show_info,
                      }
 
     def run(self):
@@ -759,7 +787,7 @@ class Viewer:
         trunc_char appended if it's longer than the allowed width.
 
         """
-        yx_str = " ({},{}) "
+        yx_str = "({},{}) "
         label_str = "{},{}"
         max_y = str(len(self.data))
         max_x = str(len(self.data[0]))
@@ -787,7 +815,7 @@ class Viewer:
         # Print the current cursor cell in the top left corner
         self.scr.move(0, 0)
         self.scr.clrtoeol()
-        info = self.location_string(yp, xp)
+        info = " {}".format(self.location_string(yp, xp))
         addstr(self.scr, info, curses.A_REVERSE)
 
         # Adds the current cell content after the 'current cell' display
@@ -1211,7 +1239,7 @@ def main(stdscr, *args, **kwargs):
 
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
          trunc_char='…', column_widths=None, search_str=None,
-         double_width=False, delimiter=None, quoting=None):
+         double_width=False, delimiter=None, quoting=None, info=None):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -1242,6 +1270,9 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                      QUOTE_NONNUMERIC
                      QUOTE_ALL
                      QUOTE_NONE
+        info: Data information to be displayed on ^g. For example a variable
+              name or description of the current data. Defaults to the filename
+              or "" if input was not from a file
 
     """
     if sys.version_info.major < 3:
@@ -1249,6 +1280,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
         locale.setlocale(locale.LC_ALL, '')
     else:
         lc_all = None
+    if info is None:
+        info = ""
     try:
         buf = None
         while True:
@@ -1256,6 +1289,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 if isinstance(data, basestring):
                     with open(data, 'rb') as fd:
                         new_data = fd.readlines()
+                        if info == "":
+                            info = data
                 elif isinstance(data, (io.IOBase, file)):
                     new_data = data.readlines()
                 else:
@@ -1277,7 +1312,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                                trunc_char=trunc_char,
                                column_widths=column_widths,
                                search_str=search_str,
-                               double_width=double_width)
+                               double_width=double_width,
+                               info=info)
             except (QuitException, KeyboardInterrupt):
                 return 0
             except ReloadException as e:
