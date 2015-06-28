@@ -126,6 +126,7 @@ Keybindings:
 **g**                        Goto top of current column
 **[num]G**                   Goto line <num> or bottom of current column 
                              if num not given
+**Ctrl-g**                   Show file/data information
 **Insert or m**              Memorize this position
 **Delete or '**              Return to memorized position (if any)
 **Enter**                    View full cell contents in pop-up window.
