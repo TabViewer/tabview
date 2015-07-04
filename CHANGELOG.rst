@@ -1,3 +1,8 @@
+*Version 1.4.1 2015/04/04*
+
+ - File/data information popup
+ - Allow handling of different quoting schemes
+
 *Version 1.4.0 2015/02/21*
  - Incremental (find-as-you type) search
  - Reload changed file, saving various display parameters
