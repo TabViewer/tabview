@@ -30,6 +30,8 @@ data_2 = ('sample/test_latin-1.csv', 'latin-1', res2)
 
 list_1 = [['a', 'b', 'c'], ['d', 'e', 'f'], [1, 2, 3]]
 
+win_newlines = ('sample/windows_newlines.csv')
+
 
 class TestTabviewUnits(unittest.TestCase):
     """Unit tests for tabview
@@ -132,6 +134,10 @@ class TestTabviewIntegration(unittest.TestCase):
                        column_widths=[4, 5, 1], trunc_char='>',
                        search_str=None)
 
+    def test_tabview_windows_newlines(self):
+        curses.wrapper(self.main, t.process_data(self.data(win_newlines)),
+                       start_pos=(0, 1), column_width='mode', column_gap=5,
+                       column_widths=None, trunc_char='…', search_str=None)
 
 if __name__ == '__main__':
     unittest.main()

@@ -1110,11 +1110,27 @@ def csv_sniff(data, enc):
     return dialect.delimiter
 
 
+def fix_newlines(data):
+    """If there are windows \r newlines in the input data, split the string on
+    the \r characters. I can't figure another way to enable universal newlines
+    without messing up Unicode support.
+
+    """
+    if sys.version_info.major < 3:
+        if len(data) == 1 and '\r' in data[0]:
+            data = data[0].split('\r')
+    else:
+        if len(data) == 1 and b'\r' in data[0]:
+            data = data[0].split(b'\r')
+    return data
+
+
 def process_data(data, enc=None, delim=None, quoting=None):
     """Given a list of lists, check for the encoding, quoting and delimiter and
     return a list of CSV rows (normalized to a single length)
 
     """
+    data = fix_newlines(data)
     if data_list_or_file(data) == 'list':
         # If data is from an object (list of lists) instead of a file
         if sys.version_info.major < 3:
