@@ -619,6 +619,8 @@ class Viewer:
         yp = self.y + self.win_y
         xp = self.x + self.win_x
         s = self.data[yp][xp]
+        if sys.version_info.major < 3:
+            s = s.encode(sys.stdout.encoding or 'utf-8')
         # Bail out if not running in X
         try:
             os.environ['DISPLAY']
