@@ -374,8 +374,6 @@ class Viewer:
 
     def search(self):
         """Open search window, get input and set the search string."""
-        if self.init_search is not None:
-            return
         scr2 = curses.newwin(3, self.max_x, self.max_y - 3, 0)
         scr3 = scr2.derwin(1, self.max_x - 12, 1, 9)
         scr2.box()
