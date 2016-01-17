@@ -1,3 +1,8 @@
+*Version 1.4.2 2016/01/17*
+
+ - Fix some packaging issues
+ - Can now run 'python setup.py test' to run the unit tests
+
 *Version 1.4.1 2015/04/04*
 
  - File/data information popup

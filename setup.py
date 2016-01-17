@@ -8,18 +8,19 @@ except ImportError:
     pass
 
 setup(name="tabview",
-      version="1.4.1",
+      version="1.4.2",
       description="A curses command-line CSV and list (tabular data) viewer",
       long_description=open('README.rst').read(),
       author="Scott Hansen",
       author_email="firecat4153@gmail.com",
       url="https://github.com/firecat53/tabview",
-      download_url="https://github.com/firecat53/tabview/tarball/1.4.0",
+      download_url="https://github.com/firecat53/tabview/tarball/1.4.2",
       packages=['tabview'],
       scripts=['bin/tabview'],
       package_data={'tabview': ['README.rst']},
       data_files=[('share/doc/tabview',
                    ['README.rst', 'LICENSE.txt', 'CHANGELOG.rst'])],
+      test_suite='test/test_tabview.py',
       license="MIT",
       classifiers=[
           'Development Status :: 4 - Beta',
@@ -38,6 +39,6 @@ setup(name="tabview",
           'Topic :: Scientific/Engineering :: Visualization',
           'Topic :: Utilities',
       ],
-      keywords='data spreadsheet view viewer console curses csv comma separated values',
-
+      keywords=("data spreadsheet view viewer console "
+                "curses csv comma separated values"),
       )
