@@ -1093,15 +1093,17 @@ def process_data(data, enc=None, delim=None, **kwargs):
         # If data is from a dict object.
         if kwargs['orient'] == 'columns':
             header = [str(i) for i in data.keys()]
+            index = [str(i) for i in range(len(data[0]))]
             data = list(zip(*[data[i] for i in data.keys()]))
         elif kwargs['orient'] == 'index':
             data =  [[i[0]] + i[1] for i in data.items()]
             header = [str(i) for i in range(len(data[0]))]
+            index = [str(i) for i in data.keys()]
         if sys.version_info.major < 3:
             data = pad_data(py2_list_to_unicode(data))
         else:
             data = [[str(j) for j in i] for i in pad_data(data)]
-        return {'data' : data, 'header' : header}
+        return {'data' : data, 'header' : header, 'index': index}
     
     elif process_type == 'pandas':
         # If data is from a pandas object.
@@ -1163,9 +1165,10 @@ def process_data(data, enc=None, delim=None, **kwargs):
         if len(csv_data) > 1:
             csv_header = csv_data[0]
             csv_data = csv_data[1:]
+            csv_index = [l.split(delim, 1)[0] for l in csv_data]
         else:
             csv_header = [str(i) for i in range(len(csv_data[0]))]
-        return {'data': csv_data, 'header': csv_header}
+        return {'data': csv_data, 'header': csv_header, 'index': csv_index}
 
     else:
         # If data is from a list of lists.
@@ -1173,12 +1176,14 @@ def process_data(data, enc=None, delim=None, **kwargs):
             data = pad_data(py2_list_to_unicode(data))
         else:
             data = [[str(j) for j in i] for i in pad_data(data)]
+        
+        index = [d[0] for d in data]
         if len(data) > 1:
             header = data[0]
             data = data[1:]
         else:
             header = [str(i) for i in range(len(data[0]))]
-        return {'data' : data, 'header' : header}
+        return {'data': data, 'header': header, 'index': index}
 
 def np_decode(inp_str, codec):
     """String decoding function for numpy arrays.
