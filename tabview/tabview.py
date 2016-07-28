@@ -95,6 +95,7 @@ class Viewer:
         self.data = args[1]['data']
         self.header_offset_orig = 3
         self.header = args[1]['header']
+        self.index = args[1].get('index', False)
         self.header_offset = self.header_offset_orig
         self.num_data_columns = len(self.header)
         self._init_double_width(kwargs.get('double_width'))
@@ -758,13 +759,15 @@ class Viewer:
         max_y = str(len(self.data))
         max_x = str(len(self.data[0]))
         max_yx = yx_str.format(max_y, max_x)
-        max_label = label_str.format('-', max(self.header, key=len))
+        y_cord = max(self.index, key=len) if self.index else '-'
+        max_label = label_str.format(y_cord, max(self.header, key=len))
         if self.header_offset != self.header_offset_orig:
             # Hide column labels if header row disabled
             label = ""
             max_width = min(int(self.max_x * .3), len(max_yx))
         else:
-            label = label_str.format('-', self.header[xp])
+            y_cord = self.index[yp] if self.index else '-'
+            label = label_str.format(y_cord, self.header[xp])
             max_width = min(int(self.max_x * .3), len(max_yx + max_label))
         yx = yx_str.format(yp + 1, xp + 1)
         pad = " " * (max_width - len(yx) - len(label))
@@ -1090,15 +1093,18 @@ def process_data(data, enc=None, delim=None, **kwargs):
         # If data is from a dict object.
         if kwargs['orient'] == 'columns':
             header = [str(i) for i in data.keys()]
+            # no index because dict is unordered?
+            #index = [str(i) for i in range(len(data[0]))]
             data = list(zip(*[data[i] for i in data.keys()]))
         elif kwargs['orient'] == 'index':
             data =  [[i[0]] + i[1] for i in data.items()]
             header = [str(i) for i in range(len(data[0]))]
+            #index = [str(i) for i in data.keys()]
         if sys.version_info.major < 3:
             data = pad_data(py2_list_to_unicode(data))
         else:
             data = [[str(j) for j in i] for i in pad_data(data)]
-        return {'data' : data, 'header' : header}
+        return {'data' : data, 'header' : header, 'index': False}
     
     elif process_type == 'pandas':
         # If data is from a pandas object.
@@ -1109,6 +1115,7 @@ def process_data(data, enc=None, delim=None, **kwargs):
                 data = pd.DataFrame(data)
             elif data.__class__.__name__ == 'Panel':
                 data = data.to_frame()
+        index = [str(i) for i in list(data.index)]
         data = data.reset_index()
         header = [str(i) for i in data.columns]
         try:
@@ -1119,7 +1126,7 @@ def process_data(data, enc=None, delim=None, **kwargs):
             unicode_convert = np.vectorize(lambda x: np_decode(x, np_codec))
             data = unicode_convert(data.values)
         data[np.where(data == 'nan')] = ''
-        return {'data': data.tolist(), 'header': header}
+        return {'data': data.tolist(), 'header': header, 'index': index}
 
     elif process_type == 'numpy':
         # If data is from a numpy object.
@@ -1135,8 +1142,9 @@ def process_data(data, enc=None, delim=None, **kwargs):
         if len(data.shape) == 1:
             data = np.array((data,))
         header = [str(i) for i in range(data.shape[1])] 
+        index = [str(i) for i in range(data.shape[0])] 
         data = data.tolist()
-        return {'data': data, 'header': header}
+        return {'data': data, 'header': header, 'index': index}
 
     elif process_type == 'file':
         # If data is from a file.
@@ -1159,9 +1167,10 @@ def process_data(data, enc=None, delim=None, **kwargs):
         if len(csv_data) > 1:
             csv_header = csv_data[0]
             csv_data = csv_data[1:]
+            csv_index = [l[0] for l in csv_data]
         else:
             csv_header = [str(i) for i in range(len(csv_data[0]))]
-        return {'data': csv_data, 'header': csv_header}
+        return {'data': csv_data, 'header': csv_header, 'index': csv_index}
 
     else:
         # If data is from a list of lists.
@@ -1169,12 +1178,14 @@ def process_data(data, enc=None, delim=None, **kwargs):
             data = pad_data(py2_list_to_unicode(data))
         else:
             data = [[str(j) for j in i] for i in pad_data(data)]
+        
+        index = [d[0] for d in data]
         if len(data) > 1:
             header = data[0]
             data = data[1:]
         else:
             header = [str(i) for i in range(len(data[0]))]
-        return {'data' : data, 'header' : header}
+        return {'data': data, 'header': header, 'index': index}
 
 def np_decode(inp_str, codec):
     """String decoding function for numpy arrays.
