@@ -95,7 +95,7 @@ class Viewer:
         self.data = args[1]['data']
         self.header_offset_orig = 3
         self.header = args[1]['header']
-        self.index = args[1].get(['index'], False)
+        self.index = args[1].get('index', False)
         self.header_offset = self.header_offset_orig
         self.num_data_columns = len(self.header)
         self._init_double_width(kwargs.get('double_width'))
@@ -767,7 +767,7 @@ class Viewer:
             max_width = min(int(self.max_x * .3), len(max_yx))
         else:
             y_cord = self.index[yp] if self.index else '-'
-            label = label_str.format(, self.header[xp])
+            label = label_str.format(y_cord, self.header[xp])
             max_width = min(int(self.max_x * .3), len(max_yx + max_label))
         yx = yx_str.format(yp + 1, xp + 1)
         pad = " " * (max_width - len(yx) - len(label))
