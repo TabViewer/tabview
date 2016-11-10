@@ -1125,7 +1125,7 @@ def fix_newlines(data):
     return data
 
 
-def process_data(data, enc=None, delim=None, quoting=None, quote_char=b'"'):
+def process_data(data, enc=None, delim=None, quoting=None, quote_char=str('"')):
     """Given a list of lists, check for the encoding, quoting and delimiter and
     return a list of CSV rows (normalized to a single length)
 
@@ -1257,7 +1257,7 @@ def main(stdscr, *args, **kwargs):
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
          trunc_char='…', column_widths=None, search_str=None,
          double_width=False, delimiter=None, quoting=None, info=None,
-         quote_char=b'"'):
+         quote_char=str('"')):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or

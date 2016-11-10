@@ -57,7 +57,7 @@ def arg_parse():
     parser.add_argument('--double_width', action='store_true', default=False,
                         help="Force full handling of double-width characters "
                         "for large files (with a performance penalty)")
-    parser.add_argument('--quote-char', '-q', default=b'"',
+    parser.add_argument('--quote-char', '-q', default=str('"'),
                         help="Quote character. Not typically necessary.")
     return parser.parse_known_args()
 
