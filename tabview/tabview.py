@@ -1147,7 +1147,7 @@ def process_data(data, enc=None, delim=None, quoting=None, quote_char=str('"')):
     csv_data = []
     if sys.version_info.major < 3:
         csv_obj = csv.reader(data, delimiter=delim.encode(enc),
-                             quoting=quoting, quotechar=quote_char)
+                             quoting=quoting, quotechar=quote_char.encode(enc))
         for row in csv_obj:
             row = [str(x, enc) for x in row]
             csv_data.append(row)
