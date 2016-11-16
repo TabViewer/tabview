@@ -57,6 +57,8 @@ def arg_parse():
     parser.add_argument('--double_width', action='store_true', default=False,
                         help="Force full handling of double-width characters "
                         "for large files (with a performance penalty)")
+    parser.add_argument('--quote-char', '-q', default=str('"'),
+                        help="Quote character. Not typically necessary.")
     return parser.parse_known_args()
 
 
@@ -105,4 +107,4 @@ if __name__ == '__main__':
         data = fixup_stdin()
     view(data, enc=args.encoding, start_pos=start_pos,
          column_width=args.width, double_width=args.double_width,
-         delimiter=args.delimiter, quoting=args.quoting)
+         delimiter=args.delimiter, quoting=args.quoting, quote_char=args.quote_char)
