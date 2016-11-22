@@ -1125,7 +1125,7 @@ def fix_newlines(data):
     return data
 
 
-def process_data(data, enc=None, delim=None, quoting=None):
+def process_data(data, enc=None, delim=None, quoting=None, quote_char=str('"')):
     """Given a list of lists, check for the encoding, quoting and delimiter and
     return a list of CSV rows (normalized to a single length)
 
@@ -1147,13 +1147,14 @@ def process_data(data, enc=None, delim=None, quoting=None):
     csv_data = []
     if sys.version_info.major < 3:
         csv_obj = csv.reader(data, delimiter=delim.encode(enc),
-                             quoting=quoting)
+                             quoting=quoting, quotechar=quote_char.encode(enc))
         for row in csv_obj:
             row = [str(x, enc) for x in row]
             csv_data.append(row)
     else:
         data = [i.decode(enc) for i in data]
-        csv_obj = csv.reader(data, delimiter=delim, quoting=quoting)
+        csv_obj = csv.reader(data, delimiter=delim, quoting=quoting,
+                             quotechar=quote_char)
         for row in csv_obj:
             csv_data.append(row)
     return pad_data(csv_data)
@@ -1255,7 +1256,8 @@ def main(stdscr, *args, **kwargs):
 
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
          trunc_char='…', column_widths=None, search_str=None,
-         double_width=False, delimiter=None, quoting=None, info=None):
+         double_width=False, delimiter=None, quoting=None, info=None,
+         quote_char=str('"')):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -1313,7 +1315,7 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                     new_data = data
 
                 if new_data:
-                    buf = process_data(new_data, enc, delimiter, quoting)
+                    buf = process_data(new_data, enc, delimiter, quoting, quote_char)
                 elif buf:
                     # cannot reload the file
                     pass
