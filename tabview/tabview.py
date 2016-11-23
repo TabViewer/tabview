@@ -97,6 +97,7 @@ class Viewer(object):
         self.align_right = kwargs.get('align_right', False)
         self.header = args[1]['header']
         self.index = args[1].get('index', False)
+        self.index_depth = kwargs.get('index_depth')
         self.header_offset = self.header_offset_orig
         self.num_data_columns = len(self.header)
         self._init_double_width(kwargs.get('double_width'))
@@ -806,18 +807,33 @@ class Viewer(object):
                 addstr(self.scr, self.header_offset - 1, xc, s, curses.A_BOLD)
 
         # Print the table data
+        # for each row
         for y in range(0, self.max_y - self.header_offset -
                        self._search_win_open):
             yc = y + self.header_offset
             self.scr.move(yc, 0)
             self.scr.clrtoeol()
+            # for each col
             for x in range(0, self.vis_columns):
+                bold = isinstance(self.index_depth, int) and x < self.index_depth
                 if x == self.x and y == self.y:
                     attr = curses.A_REVERSE
                 else:
-                    attr = curses.A_NORMAL
+                    if bold:
+                        attr = curses.A_BOLD
+                    else:
+                        attr = curses.A_NORMAL
+
                 xc, wc = self.column_xw(x)
                 s = self.cellstr(y + self.win_y, x + self.win_x, wc)
+                
+                # if it's part of the index, only show it if different
+                # from the previous one at same. this is for pandas multiindex
+                if y > 0 \
+                    and bold \
+                    and s == self.cellstr(y-1 + self.win_y, x + self.win_x, wc):
+                    s = ''
+                
                 if yc == self.max_y - 1 and x == self.vis_columns - 1:
                     # Prevents a curses error when filling in the bottom right
                     # character
@@ -1099,13 +1115,13 @@ def process_data(data, enc=None, delim=None, **kwargs):
     elif process_type == 'pandas':
         # If data is from a pandas object.
         import numpy as np
+        import pandas as pd
         if data.__class__.__name__ != 'DataFrame':
-            import pandas as pd
             if data.__class__.__name__ == 'Series':
                 data = pd.DataFrame(data)
             elif data.__class__.__name__ == 'Panel':
                 data = data.to_frame()
-        # multiindex changes can go here
+
         index = [str(i) for i in list(data.index)]
         data = data.reset_index()
         header = [str(i) for i in data.columns]
@@ -1292,6 +1308,15 @@ def main(stdscr, *args, **kwargs):
     Viewer(stdscr, *args, **kwargs).run()
 
 
+def get_index_depth(data):
+    import pandas as pd
+    if isinstance(data, (pd.DataFrame, pd.Series)):
+        if isinstance(data.index, pd.MultiIndex):
+            return len(data.index.levels)
+        else:
+            return 1
+    return False
+
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
          trunc_char='…', column_widths=None, search_str=None,
          double_width=False, delimiter=None, orient='columns', align_right=False):
@@ -1340,6 +1365,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 else:
                     new_data = data
 
+                index_depth = get_index_depth(new_data)
+
                 if input_type(new_data):
                     buf = process_data(new_data, enc, delimiter, orient=orient)
                 elif buf:
@@ -1357,7 +1384,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                                column_widths=column_widths,
                                search_str=search_str,
                                double_width=double_width,
-                               align_right=align_right)
+                               align_right=align_right,
+                               index_depth=index_depth)
 
             except (QuitException, KeyboardInterrupt):
                 return 0
