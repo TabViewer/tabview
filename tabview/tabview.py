@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 """ tabview.py -- View a tab-delimited file in a spreadsheet-like display.
 
@@ -23,6 +24,7 @@ from operator import itemgetter
 from subprocess import Popen, PIPE
 from textwrap import wrap
 import unicodedata
+import pandas
 
 
 if sys.version_info.major < 3:
@@ -92,22 +94,33 @@ class Viewer:
         os.unsetenv('LINES')
         os.unsetenv('COLUMNS')
         self.scr = args[0]
-        self.data = [[str(j) for j in i] for i in args[1]]
-        self.info = kwargs.get('info')
-        self.header_offset_orig = 3
-        self.header = self.data[0]
-        if len(self.data) > 1:
-            del self.data[0]
-            self.header_offset = self.header_offset_orig
-        else:
-            # Don't make one line file a header row
-            self.header_offset = self.header_offset_orig - 1
-        self.num_data_columns = len(self.data[0])
-        self._init_double_width(kwargs.get('double_width'))
-        self.column_width_mode = kwargs.get('column_width')
-        self.column_gap = kwargs.get('column_gap')
-        self._init_column_widths(kwargs.get('column_width'),
-                                 kwargs.get('column_widths'))
+    if type(args[1]) == pandas.core.frame.DataFrame:
+        self.data = args[1].values.tolist()
+            self.header_offset_orig = 3
+            self.header_offset = 3
+            self.header = list(pandas.Series(args[1].columns).astype(unicode))
+            self.num_data_columns = len(self.header)
+            self._init_double_width(kwargs.get('double_width'))
+            self.column_width_mode = kwargs.get('column_width')
+            self.column_gap = kwargs.get('column_gap')
+            self._init_column_widths(kwargs.get('column_width'),
+                                     kwargs.get('column_widths'))
+    else:
+            self.data = [[str(j) for j in i] for i in args[1]]
+            self.header_offset_orig = 3
+            self.header = self.data[0]
+            if len(self.data) > 1:
+                del self.data[0]
+                self.header_offset = self.header_offset_orig
+            else:
+                # Don't make one line file a header row
+                self.header_offset = self.header_offset_orig - 1
+            self.num_data_columns = len(self.data[0])
+            self._init_double_width(kwargs.get('double_width'))
+            self.column_width_mode = kwargs.get('column_width')
+            self.column_gap = kwargs.get('column_gap')
+            self._init_column_widths(kwargs.get('column_width'),
+                                     kwargs.get('column_widths'))
         try:
             kwargs.get('trunc_char').encode(sys.stdout.encoding or 'utf-8')
             self.trunc_char = kwargs.get('trunc_char')
@@ -325,32 +338,6 @@ class Viewer:
         TextBox(self.scr, data=s, title=self.location_string(yp, xp))()
         self.resize()
 
-    def show_info(self):
-        """Display data information in a pop-up window
-
-        """
-        fn = self.info
-        yp = self.y + self.win_y
-        xp = self.x + self.win_x
-        location = self.location_string(yp, xp)
-
-        def sizeof_fmt(num, suffix='B'):
-            for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
-                if abs(num) < 1024.0:
-                    return "{:3.1f}{}{}".format(num, unit, suffix)
-                num /= 1024.0
-            return "{:.1f}{}{}".format(num, 'Yi', suffix)
-        size = sizeof_fmt(sys.getsizeof(self.data))
-        rows_cols = str((len(self.data), self.num_data_columns))
-        info = [("Filename/Data Info:", fn),
-                ("Current Location:", location),
-                ("Total Rows/Columns:", rows_cols),
-                ("Data Size:", size)]
-        display = "\n\n".join(["{:<20}{:<}".format(i, j)
-                               for i, j in info])
-        TextBox(self.scr, data=display)()
-        self.resize()
-
     def _search_validator(self, ch):
         """Fix Enter and backspace for textbox.
 
@@ -374,6 +361,8 @@ class Viewer:
 
     def search(self):
         """Open search window, get input and set the search string."""
+        if self.init_search is not None:
+            return
         scr2 = curses.newwin(3, self.max_x, self.max_y - 3, 0)
         scr3 = scr2.derwin(1, self.max_x - 12, 1, 9)
         scr2.box()
@@ -617,8 +606,6 @@ class Viewer:
         yp = self.y + self.win_y
         xp = self.x + self.win_x
         s = self.data[yp][xp]
-        if sys.version_info.major < 3:
-            s = s.encode(sys.stdout.encoding or 'utf-8')
         # Bail out if not running in X
         try:
             os.environ['DISPLAY']
@@ -689,8 +676,6 @@ class Viewer:
                      curses.KEY_ENTER:  self.show_cell,
                      KEY_CTRL('a'):  self.line_home,
                      KEY_CTRL('e'):  self.line_end,
-                     KEY_CTRL('l'):  self.scr.redrawwin,
-                     KEY_CTRL('g'):  self.show_info,
                      }
 
     def run(self):
@@ -787,7 +772,7 @@ class Viewer:
         trunc_char appended if it's longer than the allowed width.
 
         """
-        yx_str = "({},{}) "
+        yx_str = " ({},{}) "
         label_str = "{},{}"
         max_y = str(len(self.data))
         max_x = str(len(self.data[0]))
@@ -815,7 +800,7 @@ class Viewer:
         # Print the current cursor cell in the top left corner
         self.scr.move(0, 0)
         self.scr.clrtoeol()
-        info = " {}".format(self.location_string(yp, xp))
+        info = self.location_string(yp, xp)
         addstr(self.scr, info, curses.A_REVERSE)
 
         # Adds the current cell content after the 'current cell' display
@@ -1110,27 +1095,11 @@ def csv_sniff(data, enc):
     return dialect.delimiter
 
 
-def fix_newlines(data):
-    """If there are windows \r newlines in the input data, split the string on
-    the \r characters. I can't figure another way to enable universal newlines
-    without messing up Unicode support.
+def process_data(data, enc=None, delim=None):
+    """Given a list of lists, check for the encoding and delimiter and return a
+    list of CSV rows (normalized to a single length)
 
     """
-    if sys.version_info.major < 3:
-        if len(data) == 1 and '\r' in data[0]:
-            data = data[0].split('\r')
-    else:
-        if len(data) == 1 and b'\r' in data[0]:
-            data = data[0].split(b'\r')
-    return data
-
-
-def process_data(data, enc=None, delim=None, quoting=None):
-    """Given a list of lists, check for the encoding, quoting and delimiter and
-    return a list of CSV rows (normalized to a single length)
-
-    """
-    data = fix_newlines(data)
     if data_list_or_file(data) == 'list':
         # If data is from an object (list of lists) instead of a file
         if sys.version_info.major < 3:
@@ -1140,24 +1109,21 @@ def process_data(data, enc=None, delim=None, quoting=None):
         enc = detect_encoding(data)
     if delim is None:
         delim = csv_sniff(data[0], enc)
-    if quoting is not None:
-        quoting = getattr(csv, quoting)
-    else:
-        quoting = csv.QUOTE_MINIMAL
     csv_data = []
     if sys.version_info.major < 3:
-        csv_obj = csv.reader(data, delimiter=delim.encode(enc),
-                             quoting=quoting)
+        csv_obj = csv.reader(data, delimiter=delim.encode(enc))
         for row in csv_obj:
             row = [str(x, enc) for x in row]
             csv_data.append(row)
     else:
         data = [i.decode(enc) for i in data]
-        csv_obj = csv.reader(data, delimiter=delim, quoting=quoting)
+        csv_obj = csv.reader(data, delimiter=delim)
         for row in csv_obj:
             csv_data.append(row)
     return pad_data(csv_data)
 
+def process_df(data):
+    return data.reset_index().fillna('').apply(lambda x: x.astype(unicode))
 
 def py2_list_to_unicode(data):
     """Convert strings/int to unicode for python 2
@@ -1255,7 +1221,7 @@ def main(stdscr, *args, **kwargs):
 
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
          trunc_char='…', column_widths=None, search_str=None,
-         double_width=False, delimiter=None, quoting=None, info=None):
+         double_width=False, delimiter=None):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -1278,26 +1244,16 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                       should be handled (defaults to False for large files)
         delimiter: CSV delimiter. Typically needed only if the automatic
                    delimiter detection doesn't work. None => automatic
-        quoting: CSV quoting. None => automatic. This can be useful when
-                 csv.QUOTE_NONE isn't automatically detected, for example when
-                 using as a MySQL pager. Allowed values are per the Python
-                 documentation:
-                     QUOTE_MINIMAL
-                     QUOTE_NONNUMERIC
-                     QUOTE_ALL
-                     QUOTE_NONE
-        info: Data information to be displayed on ^g. For example a variable
-              name or description of the current data. Defaults to the filename
-              or "" if input was not from a file
 
     """
     if sys.version_info.major < 3:
-        lc_all = locale.getlocale(locale.LC_ALL)
-        locale.setlocale(locale.LC_ALL, '')
+        try:
+            lc_all = locale.getlocale(locale.LC_ALL)
+            locale.setlocale(locale.LC_ALL, '')
+        except:
+            lc_all = None
     else:
         lc_all = None
-    if info is None:
-        info = ""
     try:
         buf = None
         while True:
@@ -1305,21 +1261,23 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 if isinstance(data, basestring):
                     with open(data, 'rb') as fd:
                         new_data = fd.readlines()
-                        if info == "":
-                            info = data
                 elif isinstance(data, (io.IOBase, file)):
                     new_data = data.readlines()
                 else:
                     new_data = data
 
-                if new_data:
-                    buf = process_data(new_data, enc, delimiter, quoting)
+                if type(new_data) == pandas.core.frame.DataFrame:
+                    buf = process_df(new_data)
+
+                elif new_data:
+                    buf = process_data(new_data, enc, delimiter)
                 elif buf:
                     # cannot reload the file
                     pass
                 else:
                     # cannot read the file
                     return 1
+
 
                 curses.wrapper(main, buf,
                                start_pos=start_pos,
@@ -1328,8 +1286,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                                trunc_char=trunc_char,
                                column_widths=column_widths,
                                search_str=search_str,
-                               double_width=double_width,
-                               info=info)
+                               double_width=double_width)
+
             except (QuitException, KeyboardInterrupt):
                 return 0
             except ReloadException as e:
@@ -1342,3 +1300,4 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
     finally:
         if lc_all is not None:
             locale.setlocale(locale.LC_ALL, lc_all)
+            
