@@ -75,7 +75,7 @@ class QuitException(Exception):
     pass
 
 
-class Viewer:
+class Viewer(object):
     """The actual CSV viewer class.
 
     Args:
@@ -94,6 +94,7 @@ class Viewer:
         self.scr = args[0]
         self.data = args[1]['data']
         self.header_offset_orig = 3
+        self.align_right = kwargs.get('align_right', False)
         self.header = args[1]['header']
         self.index = args[1].get('index', False)
         self.header_offset = self.header_offset_orig
@@ -771,10 +772,10 @@ class Viewer:
             max_width = min(int(self.max_x * .3), len(max_yx + max_label))
         yx = yx_str.format(yp + 1, xp + 1)
         pad = " " * (max_width - len(yx) - len(label))
-        all = "{}{}{}".format(yx, label, pad)
-        if len(all) > max_width:
-            all = all[:max_width - 1] + self.trunc_char
-        return all
+        every = "{}{}{}".format(yx, label, pad)
+        if len(every) > max_width:
+            every = every[:max_width - 1] + self.trunc_char
+        return every
 
     def display(self):
         """Refresh the current display"""
@@ -827,35 +828,24 @@ class Viewer:
         self.scr.refresh()
 
     def strpad(self, s, width):
+        """pads cell content, left or right, depending on self.align_right"""
+
         if width < 1:
             return str()
         if '\n' in s:
             s = s.replace('\n', '\\n')
 
-        # take into account double-width characters
-        buf = str()
-        buf_width = 0
-        for c in s:
-            w = 2 if unicodedata.east_asian_width(c) == 'W' else 1
-            if buf_width + w > width:
-                break
-            buf_width += w
-            buf += c
-
-        if len(buf) < len(s):
-            # truncation occurred
-            while buf_width + len(self.trunc_char) > width:
-                c = buf[-1]
-                w = 2 if unicodedata.east_asian_width(c) == 'W' else 1
-                buf = buf[0:-1]
-                buf_width -= w
-            buf += ' ' * (width - buf_width - len(self.trunc_char))
-            buf += self.trunc_char
-        elif buf_width < width:
-            # padding required
-            buf += ' ' * (width - buf_width)
-
-        return buf
+        # simplified this to use python string methods
+        extra_wide = len([c for c in s if unicodedata.east_asian_width(c) == 'W'])
+        if self.align_right:
+            s = s.rjust(width + extra_wide, ' ')
+        else:
+            s = s.ljust(width + extra_wide, ' ')
+        # add truncation character if needed
+        if len(s) > width:
+            s = s[:width-1]
+            s += self.trunc_char
+        return s
 
     def hdrstr(self, x, width):
         "Format the content of the requested header for display"
@@ -978,7 +968,7 @@ class Viewer:
         self._skip_to_value_change(-1, 0)
 
 
-class TextBox:
+class TextBox(object):
     """Display a scrollable text box in the bottom half of the screen.
 
     """
@@ -1115,6 +1105,7 @@ def process_data(data, enc=None, delim=None, **kwargs):
                 data = pd.DataFrame(data)
             elif data.__class__.__name__ == 'Panel':
                 data = data.to_frame()
+        # multiindex changes can go here
         index = [str(i) for i in list(data.index)]
         data = data.reset_index()
         header = [str(i) for i in data.columns]
@@ -1303,7 +1294,7 @@ def main(stdscr, *args, **kwargs):
 
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
          trunc_char='…', column_widths=None, search_str=None,
-         double_width=False, delimiter=None, orient='columns'):
+         double_width=False, delimiter=None, orient='columns', align_right=False):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -1365,7 +1356,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                                trunc_char=trunc_char,
                                column_widths=column_widths,
                                search_str=search_str,
-                               double_width=double_width)
+                               double_width=double_width,
+                               align_right=align_right)
 
             except (QuitException, KeyboardInterrupt):
                 return 0
