@@ -1150,7 +1150,10 @@ def process_data(data, enc=None, delim=None, **kwargs):
             elif data.__class__.__name__ == 'Panel':
                 data = data.to_frame()
 
-        index = [str(i) for i in list(data.index)]
+        if isinstance(data.index, pd.MultiIndex):
+            index = [' '.join(x) for x in list(data.index)]
+        else:
+            index = [str(i) for i in list(data.index)]
         data = data.reset_index()
         header = [str(i) for i in data.columns]
         try:
