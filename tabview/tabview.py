@@ -1,4 +1,3 @@
-
 # -*- coding: utf-8 -*-
 """ tabview.py -- View a tab-delimited file in a spreadsheet-like display.
 
@@ -24,7 +23,6 @@ from operator import itemgetter
 from subprocess import Popen, PIPE
 from textwrap import wrap
 import unicodedata
-import pandas
 
 
 if sys.version_info.major < 3:
@@ -94,33 +92,17 @@ class Viewer:
         os.unsetenv('LINES')
         os.unsetenv('COLUMNS')
         self.scr = args[0]
-    if type(args[1]) == pandas.core.frame.DataFrame:
-        self.data = args[1].values.tolist()
-            self.header_offset_orig = 3
-            self.header_offset = 3
-            self.header = list(pandas.Series(args[1].columns).astype(unicode))
-            self.num_data_columns = len(self.header)
-            self._init_double_width(kwargs.get('double_width'))
-            self.column_width_mode = kwargs.get('column_width')
-            self.column_gap = kwargs.get('column_gap')
-            self._init_column_widths(kwargs.get('column_width'),
-                                     kwargs.get('column_widths'))
-    else:
-            self.data = [[str(j) for j in i] for i in args[1]]
-            self.header_offset_orig = 3
-            self.header = self.data[0]
-            if len(self.data) > 1:
-                del self.data[0]
-                self.header_offset = self.header_offset_orig
-            else:
-                # Don't make one line file a header row
-                self.header_offset = self.header_offset_orig - 1
-            self.num_data_columns = len(self.data[0])
-            self._init_double_width(kwargs.get('double_width'))
-            self.column_width_mode = kwargs.get('column_width')
-            self.column_gap = kwargs.get('column_gap')
-            self._init_column_widths(kwargs.get('column_width'),
-                                     kwargs.get('column_widths'))
+        self.data = args[1]['data']
+        self.header_offset_orig = 3
+        self.header = args[1]['header']
+        self.index = args[1].get('index', False)
+        self.header_offset = self.header_offset_orig
+        self.num_data_columns = len(self.header)
+        self._init_double_width(kwargs.get('double_width'))
+        self.column_width_mode = kwargs.get('column_width')
+        self.column_gap = kwargs.get('column_gap')
+        self._init_column_widths(kwargs.get('column_width'),
+                                 kwargs.get('column_widths'))
         try:
             kwargs.get('trunc_char').encode(sys.stdout.encoding or 'utf-8')
             self.trunc_char = kwargs.get('trunc_char')
@@ -777,13 +759,15 @@ class Viewer:
         max_y = str(len(self.data))
         max_x = str(len(self.data[0]))
         max_yx = yx_str.format(max_y, max_x)
-        max_label = label_str.format('-', max(self.header, key=len))
+        y_cord = max(self.index, key=len) if self.index else '-'
+        max_label = label_str.format(y_cord, max(self.header, key=len))
         if self.header_offset != self.header_offset_orig:
             # Hide column labels if header row disabled
             label = ""
             max_width = min(int(self.max_x * .3), len(max_yx))
         else:
-            label = label_str.format('-', self.header[xp])
+            y_cord = self.index[yp] if self.index else '-'
+            label = label_str.format(y_cord, self.header[xp])
             max_width = min(int(self.max_x * .3), len(max_yx + max_label))
         yx = yx_str.format(yp + 1, xp + 1)
         pad = " " * (max_width - len(yx) - len(label))
@@ -1095,35 +1079,122 @@ def csv_sniff(data, enc):
     return dialect.delimiter
 
 
-def process_data(data, enc=None, delim=None):
-    """Given a list of lists, check for the encoding and delimiter and return a
-    list of CSV rows (normalized to a single length)
+def process_data(data, enc=None, delim=None, **kwargs):
+    """Given a data input, determine the input type and process data accordingly.
+
+    Returns a dictionary containing two entries: 'header', which corresponds to
+    the header row, and 'data', which corresponds to the data rows.
 
     """
-    if data_list_or_file(data) == 'list':
-        # If data is from an object (list of lists) instead of a file
-        if sys.version_info.major < 3:
-            data = py2_list_to_unicode(data)
-        return pad_data(data)
-    if enc is None:
-        enc = detect_encoding(data)
-    if delim is None:
-        delim = csv_sniff(data[0], enc)
-    csv_data = []
-    if sys.version_info.major < 3:
-        csv_obj = csv.reader(data, delimiter=delim.encode(enc))
-        for row in csv_obj:
-            row = [str(x, enc) for x in row]
-            csv_data.append(row)
-    else:
-        data = [i.decode(enc) for i in data]
-        csv_obj = csv.reader(data, delimiter=delim)
-        for row in csv_obj:
-            csv_data.append(row)
-    return pad_data(csv_data)
 
-def process_df(data):
-    return data.reset_index().fillna('').apply(lambda x: x.astype(unicode))
+    process_type = input_type(data)
+
+    if process_type == 'dict':
+        # If data is from a dict object.
+        if kwargs['orient'] == 'columns':
+            header = [str(i) for i in data.keys()]
+            # no index because dict is unordered?
+            #index = [str(i) for i in range(len(data[0]))]
+            data = list(zip(*[data[i] for i in data.keys()]))
+        elif kwargs['orient'] == 'index':
+            data =  [[i[0]] + i[1] for i in data.items()]
+            header = [str(i) for i in range(len(data[0]))]
+            #index = [str(i) for i in data.keys()]
+        if sys.version_info.major < 3:
+            data = pad_data(py2_list_to_unicode(data))
+        else:
+            data = [[str(j) for j in i] for i in pad_data(data)]
+        return {'data' : data, 'header' : header, 'index': False}
+    
+    elif process_type == 'pandas':
+        # If data is from a pandas object.
+        import numpy as np
+        if data.__class__.__name__ != 'DataFrame':
+            import pandas as pd
+            if data.__class__.__name__ == 'Series':
+                data = pd.DataFrame(data)
+            elif data.__class__.__name__ == 'Panel':
+                data = data.to_frame()
+        index = [str(i) for i in list(data.index)]
+        data = data.reset_index()
+        header = [str(i) for i in data.columns]
+        try:
+            unicode_convert = np.vectorize(str)
+            data = unicode_convert(data.values)
+        except:
+            np_codec = detect_encoding(data.select_dtypes(include=['object']).values.ravel().tolist())
+            unicode_convert = np.vectorize(lambda x: np_decode(x, np_codec))
+            data = unicode_convert(data.values)
+        data[np.where(data == 'nan')] = ''
+        return {'data': data.tolist(), 'header': header, 'index': index}
+
+    elif process_type == 'numpy':
+        # If data is from a numpy object.
+        import numpy as np
+        try:
+            unicode_convert = np.vectorize(str)
+            data = unicode_convert(data)
+        except:
+            np_codec = detect_encoding(data.ravel().tolist())
+            unicode_convert = np.vectorize(lambda x: np_decode(x, np_codec))
+            data = unicode_convert(data)
+        data[np.where(data == 'nan')] = ''
+        if len(data.shape) == 1:
+            data = np.array((data,))
+        header = [str(i) for i in range(data.shape[1])] 
+        index = [str(i) for i in range(data.shape[0])] 
+        data = data.tolist()
+        return {'data': data, 'header': header, 'index': index}
+
+    elif process_type == 'file':
+        # If data is from a file.
+        if enc is None:
+            enc = detect_encoding(data)
+        if delim is None:
+            delim = csv_sniff(data[0], enc)
+        csv_data = []
+        if sys.version_info.major < 3:
+            csv_obj = csv.reader(data, delimiter=delim.encode(enc))
+            for row in csv_obj:
+                row = [str(x, enc) for x in row]
+                csv_data.append(row)
+        else:
+            data = [i.decode(enc) for i in data]
+            csv_obj = csv.reader(data, delimiter=delim)
+            for row in csv_obj:
+                csv_data.append(row)
+        csv_data = [[str(j) for j in i] for i in pad_data(csv_data)] 
+        if len(csv_data) > 1:
+            csv_header = csv_data[0]
+            csv_data = csv_data[1:]
+            csv_index = [l[0] for l in csv_data]
+        else:
+            csv_header = [str(i) for i in range(len(csv_data[0]))]
+        return {'data': csv_data, 'header': csv_header, 'index': csv_index}
+
+    else:
+        # If data is from a list of lists.
+        if sys.version_info.major < 3:
+            data = pad_data(py2_list_to_unicode(data))
+        else:
+            data = [[str(j) for j in i] for i in pad_data(data)]
+        
+        index = [d[0] for d in data]
+        if len(data) > 1:
+            header = data[0]
+            data = data[1:]
+        else:
+            header = [str(i) for i in range(len(data[0]))]
+        return {'data': data, 'header': header, 'index': index}
+
+def np_decode(inp_str, codec):
+    """String decoding function for numpy arrays.
+
+    """
+    try:
+        return str(inp_str)
+    except:
+        return inp_str.decode(codec)
 
 def py2_list_to_unicode(data):
     """Convert strings/int to unicode for python 2
@@ -1143,18 +1214,29 @@ def py2_list_to_unicode(data):
     return csv_data
 
 
-def data_list_or_file(data):
-    """Determine if 'data' is a list of lists or list of strings/bytes
+def input_type(data):
+    """Determines the type of data to be processed.
 
     Python 3 - reading a file returns a list of byte strings
     Python 2 - reading a file returns a list of strings
     Both - list of lists is just a list
 
-    Returns: 'file' if data was from a file, 'list' if from a python list/tuple
+    Returns: 'file' if data is from a file, 'list' if from a python list/tuple,
+    'dict' if from a python dictionary, 'numpy' if from a numpy ndarray, and 
+    'pandas' if from a pandas Series, DataFrame or Panel.
 
     """
-    f = isinstance(data[0], (basestring, bytes))
-    return 'file' if f is True else 'list'
+    if isinstance(data, dict):
+        return 'dict'
+    elif data.__class__.__name__ in ['Series', 'DataFrame', 'Panel']:
+        return 'pandas'
+    elif data.__class__.__name__ == 'ndarray':
+        return 'numpy'
+    elif isinstance(data, list):
+        if isinstance(data[0], (basestring, bytes)):
+            return 'file'
+        else:
+            return 'list'
 
 
 def pad_data(d):
@@ -1201,7 +1283,7 @@ def detect_encoding(data=None):
         try:
             for line in data:
                 line.decode(c)
-        except (UnicodeDecodeError, UnicodeError):
+        except (UnicodeDecodeError, UnicodeError, AttributeError):
             continue
         return c
     print("Encoding not detected. Please pass encoding value manually")
@@ -1221,14 +1303,15 @@ def main(stdscr, *args, **kwargs):
 
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
          trunc_char='…', column_widths=None, search_str=None,
-         double_width=False, delimiter=None):
+         double_width=False, delimiter=None, orient='columns'):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
     exceptions.
 
     Args:
-        data: data (filename, file, list of lists or tuple of tuples).
+        data: data (filename, file, dict, list of lists, tuple of tuples,
+              numpy ndarray or pandas Series/DataFrame/Panel).
               Should be normalized to equal row lengths
         enc: encoding for file/data
         start_pos: initial file position. Either a single integer for just y
@@ -1266,18 +1349,14 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 else:
                     new_data = data
 
-                if type(new_data) == pandas.core.frame.DataFrame:
-                    buf = process_df(new_data)
-
-                elif new_data:
-                    buf = process_data(new_data, enc, delimiter)
+                if input_type(new_data):
+                    buf = process_data(new_data, enc, delimiter, orient=orient)
                 elif buf:
                     # cannot reload the file
                     pass
                 else:
                     # cannot read the file
                     return 1
-
 
                 curses.wrapper(main, buf,
                                start_pos=start_pos,
