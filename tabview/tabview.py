@@ -93,7 +93,7 @@ class Viewer(object):
         os.unsetenv('COLUMNS')
         self.scr = args[0]
         self.data = args[1]['data']
-        self.header_offset_orig = 2
+        self.header_offset_orig = 4
         self.align_right = kwargs.get('align_right', False)
         self.header = args[1]['header']
         self.index = args[1].get('index', False)
@@ -799,7 +799,7 @@ class Viewer(object):
 
         # Print the header if the correct offset is set
         if self.header_offset == self.header_offset_orig:
-            self.scr.move(self.header_offset - 1, 0)
+            self.scr.move(2, 0)
             self.scr.clrtoeol()
             for x in range(0, self.vis_columns):
                 is_index = isinstance(self.index_depth, int) and x < self.index_depth
@@ -808,11 +808,11 @@ class Viewer(object):
                     s = self.hdrstr(x, wc)
                 else:
                     s = self.hdrstr(x + self.win_x, wc)
-                addstr(self.scr, self.header_offset, xc, s, curses.A_BOLD)
+                addstr(self.scr, 2, xc, s, curses.A_BOLD)
 
         self.scr.hline(3, 0, curses.ACS_HLINE, self.max_x)
 
-        self.header_offset += 2
+        #self.header_offset += 2
 
         # Print the table data
         # for each row
@@ -826,9 +826,10 @@ class Viewer(object):
 
                 # check if it's part of the index
                 bold = isinstance(self.index_depth, int) and x < self.index_depth
+                selected = x == self.x and y == self.y
 
                 # determine colouring
-                if x == self.x and y == self.y:
+                if selected:
                     attr = curses.A_REVERSE
                 else:
                     if bold:
@@ -847,7 +848,8 @@ class Viewer(object):
                 # from the previous one at same. this is for pandas multiindex
                 if y > 0 \
                     and bold \
-                    and s == self.cellstr(y-1, x, wc):
+                    and s == self.cellstr(y-1, x, wc) \
+                    and not selected:
                     s = ''
 
                 if yc == self.max_y - 1 and x == self.vis_columns - 1:
@@ -867,7 +869,7 @@ class Viewer(object):
                         pass
 
         self.scr.refresh()
-        self.header_offset -= 2
+        #self.header_offset -= 2
 
     def strpad(self, s, width):
         """pads cell content, left or right, depending on self.align_right"""
