@@ -795,27 +795,37 @@ class Viewer(object):
         addstr(self.scr, "  " + s, curses.A_NORMAL)
 
         # Print a divider line
-        self.scr.hline(1, 0, curses.ACS_HLINE, self.max_x)
+        #self.scr.hline(1, 0, curses.ACS_HLINE, self.max_x)
 
         # Print the header if the correct offset is set
         if self.header_offset == self.header_offset_orig:
             self.scr.move(self.header_offset - 1, 0)
             self.scr.clrtoeol()
             for x in range(0, self.vis_columns):
+                is_index = isinstance(self.index_depth, int) and x < self.index_depth
                 xc, wc = self.column_xw(x)
-                s = self.hdrstr(x + self.win_x, wc)
+                if is_index:
+                    s = self.hdrstr(x, wc)
+                else:
+                    s = self.hdrstr(x + self.win_x, wc)
                 addstr(self.scr, self.header_offset - 1, xc, s, curses.A_BOLD)
+
+        self.scr.hline(3, 0, curses.ACS_HLINE, self.max_x)
 
         # Print the table data
         # for each row
-        for y in range(0, self.max_y - self.header_offset -
+        for y in range(1, self.max_y - self.header_offset -
                        self._search_win_open):
             yc = y + self.header_offset
             self.scr.move(yc, 0)
             self.scr.clrtoeol()
             # for each col
             for x in range(0, self.vis_columns):
+
+                # check if it's part of the index
                 bold = isinstance(self.index_depth, int) and x < self.index_depth
+
+                # determine colouring
                 if x == self.x and y == self.y:
                     attr = curses.A_REVERSE
                 else:
@@ -825,7 +835,11 @@ class Viewer(object):
                         attr = curses.A_NORMAL
 
                 xc, wc = self.column_xw(x)
-                s = self.cellstr(y + self.win_y, x + self.win_x, wc)
+
+                if bold:
+                    s = self.cellstr(y, x, wc)
+                else:
+                    s = self.cellstr(y + self.win_y, x + self.win_x, wc)
                 
                 # if it's part of the index, only show it if different
                 # from the previous one at same. this is for pandas multiindex
@@ -833,13 +847,21 @@ class Viewer(object):
                     and bold \
                     and s == self.cellstr(y-1 + self.win_y, x + self.win_x, wc):
                     s = ''
-                
+
                 if yc == self.max_y - 1 and x == self.vis_columns - 1:
                     # Prevents a curses error when filling in the bottom right
                     # character
                     insstr(self.scr, yc, xc, s, attr)
                 else:
                     addstr(self.scr, yc, xc, s, attr)
+
+                # draw a vertical line after the index    
+                if bold and self.index_depth - 1 == x:
+                    try:
+                        self.scr.vline(1, xc+wc+1, curses.ACS_VLINE, self.max_y)
+                    # _curses.error
+                    except:
+                        pass
 
         self.scr.refresh()
 
