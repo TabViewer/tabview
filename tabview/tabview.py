@@ -93,7 +93,7 @@ class Viewer(object):
         os.unsetenv('COLUMNS')
         self.scr = args[0]
         self.data = args[1]['data']
-        self.header_offset_orig = 3
+        self.header_offset_orig = 2
         self.align_right = kwargs.get('align_right', False)
         self.header = args[1]['header']
         self.index = args[1].get('index', False)
@@ -808,13 +808,15 @@ class Viewer(object):
                     s = self.hdrstr(x, wc)
                 else:
                     s = self.hdrstr(x + self.win_x, wc)
-                addstr(self.scr, self.header_offset - 1, xc, s, curses.A_BOLD)
+                addstr(self.scr, self.header_offset, xc, s, curses.A_BOLD)
 
         self.scr.hline(3, 0, curses.ACS_HLINE, self.max_x)
 
+        self.header_offset += 2
+
         # Print the table data
         # for each row
-        for y in range(1, self.max_y - self.header_offset -
+        for y in range(0, self.max_y - self.header_offset -
                        self._search_win_open):
             yc = y + self.header_offset
             self.scr.move(yc, 0)
@@ -845,7 +847,7 @@ class Viewer(object):
                 # from the previous one at same. this is for pandas multiindex
                 if y > 0 \
                     and bold \
-                    and s == self.cellstr(y-1 + self.win_y, x + self.win_x, wc):
+                    and s == self.cellstr(y-1, x, wc):
                     s = ''
 
                 if yc == self.max_y - 1 and x == self.vis_columns - 1:
@@ -855,15 +857,17 @@ class Viewer(object):
                 else:
                     addstr(self.scr, yc, xc, s, attr)
 
-                # draw a vertical line after the index    
+                # draw a vertical line after the index
+                # this is perhaps drawing and redrawing when it should not
                 if bold and self.index_depth - 1 == x:
                     try:
-                        self.scr.vline(1, xc+wc+1, curses.ACS_VLINE, self.max_y)
+                        self.scr.vline(2, xc+wc+1, curses.ACS_VLINE, self.max_y-1)
                     # _curses.error
                     except:
                         pass
 
         self.scr.refresh()
+        self.header_offset -= 2
 
     def strpad(self, s, width):
         """pads cell content, left or right, depending on self.align_right"""
