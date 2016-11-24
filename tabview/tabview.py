@@ -1157,7 +1157,12 @@ def process_data(data, enc=None, delim=None, **kwargs):
             index = [' '.join(x) for x in list(data.index)]
         else:
             index = [str(i) for i in list(data.index)]
-        data = data.reset_index()
+        try:
+            data = data.reset_index()
+        # happens if index name is in columns list
+        except ValueError:
+            data.index.name = None
+            data = data.reset_index()
         header = [str(i) for i in data.columns]
         try:
             unicode_convert = np.vectorize(str)
