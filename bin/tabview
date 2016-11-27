@@ -107,4 +107,5 @@ if __name__ == '__main__':
         data = fixup_stdin()
     view(data, enc=args.encoding, start_pos=start_pos,
          column_width=args.width, double_width=args.double_width,
-         delimiter=args.delimiter, quoting=args.quoting, quote_char=args.quote_char)
+         delimiter=args.delimiter, quoting=args.quoting,
+         quote_char=args.quote_char)

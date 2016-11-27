@@ -2,6 +2,8 @@
 import curses
 import unittest
 import tabview.tabview as t
+import numpy as np
+import pandas as pd
 
 res1 = ["Yugoslavia (Latin)", "Djordje Balasevic", "Jugoslavija",
         "Đorđe Balašević"]
@@ -30,7 +32,9 @@ data_2 = ('sample/test_latin-1.csv', 'latin-1', res2)
 
 list_1 = [['a', 'b', 'c'], ['d', 'e', 'f'], [1, 2, 3]]
 
-win_newlines = ('sample/windows_newlines.csv')
+dict_1 = {1: [1, 'a', 2, 'b'], 2: [3, 'c', '4', 'd']}
+
+np_array_1 = np.array([1,3,5,3,5,np.nan])
 
 
 class TestTabviewUnits(unittest.TestCase):
@@ -72,8 +76,13 @@ class TestTabviewUnits(unittest.TestCase):
         """
         fn, _, sample_data = info
         code = 'utf-8'  # Per top line of file
-        res = t.process_data(self.data(fn))
-        # Check that process_file returns a list of lists
+        # Check that process_file returns a dict
+        fn_proc = t.process_data(self.data(fn))
+        self.assertEqual(type(fn_proc), dict)
+        # Check that the header is the same length as the data
+        self.assertEqual(len(fn_proc['header']), len(fn_proc['data'][0]))
+        # Check that 'data' is a list of lists
+        res = fn_proc['data']
         self.assertEqual(type(res), list)
         self.assertEqual(type(res[0]), list)
         # Have to decode res1 and res2 from utf-8 so they can be compared to
@@ -107,8 +116,7 @@ class TestTabviewIntegration(unittest.TestCase):
         v.display()
         for key in v.keys:
             if key not in ('q', 'Q', 'r', '?', '/', '\n', 'a', 'A', 's', 'S',
-                           'y', curses.KEY_F1, curses.KEY_ENTER,
-                           t.KEY_CTRL('g')):
+                           'y', curses.KEY_F1, curses.KEY_ENTER):
                 v.keys[key]()
             elif key in ('q', 'Q', 'r'):
                 self.assertRaises((t.ReloadException, t.QuitException),
@@ -134,10 +142,41 @@ class TestTabviewIntegration(unittest.TestCase):
                        column_widths=[4, 5, 1], trunc_char='>',
                        search_str=None)
 
-    def test_tabview_windows_newlines(self):
-        curses.wrapper(self.main, t.process_data(self.data(win_newlines)),
-                       start_pos=(0, 1), column_width='mode', column_gap=5,
-                       column_widths=None, trunc_char='…', search_str=None)
+    def test_tabview_dict_columns(self):
+        curses.wrapper(self.main, t.process_data(dict_1, orient='columns'),
+                       start_pos=(0, 0), column_width=20, column_gap=2,
+                       column_widths=None, trunc_char='…',
+                       search_str=None)
+
+    def test_tabview_dict_index(self):
+        curses.wrapper(self.main, t.process_data(dict_1, orient='index'),
+                       start_pos=(0, 0), column_width=20, column_gap=2,
+                       column_widths=None, trunc_char='…',
+                       search_str=None)
+
+    def test_tabview_array_1d(self):
+        curses.wrapper(self.main, t.process_data(np_array_1),
+                       start_pos=(0, 0), column_width=20, column_gap=2,
+                       column_widths=None, trunc_char='…',
+                       search_str=None)
+    
+    def test_tabview_array_2d(self):
+        curses.wrapper(self.main, t.process_data(pd.read_csv(data_1[0]).values),
+                       start_pos=(0, 0), column_width='mode', column_gap=2,
+                       column_widths=None, trunc_char='…',
+                       search_str=None)
+
+    def test_tabview_pandas_dataframe(self):
+        curses.wrapper(self.main, t.process_data(pd.read_csv(data_1[0])),
+                       start_pos=(0, 0), column_width='mode', column_gap=2,
+                       column_widths=None, trunc_char='…',
+                       search_str=None)
+
+    def test_tabview_pandas_series(self):
+        curses.wrapper(self.main, t.process_data(pd.read_csv(data_2[0], encoding='latin-1').iloc[:,0]),
+                       start_pos=(0, 0), column_width=20, column_gap=2,
+                       column_widths=None, trunc_char='…',
+                       search_str=None)
 
 if __name__ == '__main__':
     unittest.main()
