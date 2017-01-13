@@ -96,11 +96,14 @@ class Viewer:
         self.info = kwargs.get('info')
         self.header_offset_orig = 3
         self.header = self.data[0]
-        if len(self.data) > 1:
+        if len(self.data) > 1 and \
+                not any(self._is_num(cell) for cell in self.header):
             del self.data[0]
             self.header_offset = self.header_offset_orig
         else:
             # Don't make one line file a header row
+            # If any of the header line cells are all digits, assume that the
+            # first line is NOT a header
             self.header_offset = self.header_offset_orig - 1
         self.num_data_columns = len(self.data[0])
         self._init_double_width(kwargs.get('double_width'))
@@ -134,6 +137,13 @@ class Viewer:
             self.goto_x(kwargs.get('start_pos')[1])
         except (IndexError, TypeError):
             pass
+
+    def _is_num(self, cell):
+        try:
+            float(cell)
+            return True
+        except ValueError:
+            return False
 
     def _init_double_width(self, dw):
         """Initialize self._cell_len to determine if double width characters
