@@ -1,11 +1,6 @@
 #!/usr/bin/env python
 
 from distutils.core import setup
-try:
-    # Setuptools only needed for building the package
-    import setuptools
-except ImportError:
-    pass
 
 setup(name="tabview",
       version="1.4.2",

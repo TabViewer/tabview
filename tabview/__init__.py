@@ -1,1 +1,1 @@
-from .tabview import view
+from .tabview import view  # noqa
