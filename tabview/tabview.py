@@ -27,7 +27,7 @@ import unicodedata
 
 if sys.version_info.major < 3:
     # Python 2.7 shim
-    str = unicode
+    str = unicode  # noqa
 
     def KEY_CTRL(key):
         return curses.ascii.ctrl(bytes(key))
@@ -59,6 +59,7 @@ else:
     def insstr(*args):
         scr, args = args[0], args[1:]
         return scr.insstr(*args)
+
 
 class ReloadException(Exception):
     def __init__(self, start_pos, column_width, column_gap, column_widths,
@@ -664,66 +665,66 @@ class Viewer:
                 pass
 
     def define_keys(self):
-        self.keys = {'j':   self.down,
-                     'k':   self.up,
-                     'h':   self.left,
-                     'l':   self.right,
-                     'J':   self.page_down,
-                     'K':   self.page_up,
-                     'm':   self.mark,
-                     "'":   self.goto_mark,
-                     'L':   self.page_right,
-                     'H':   self.page_left,
-                     'q':   self.quit,
-                     'Q':   self.quit,
-                     '$':   self.line_end,
-                     '^':   self.line_home,
-                     '0':   self.line_home,
-                     'g':   self.home,
-                     'G':   self.goto_row,
-                     '|':   self.goto_col,
-                     '\n':  self.show_cell,
-                     '/':   self.search,
-                     'n':   self.search_results,
-                     'p':   self.search_results_prev,
-                     't':   self.toggle_header,
-                     '-':   self.column_gap_down,
-                     '+':   self.column_gap_up,
-                     '<':   self.column_width_all_down,
-                     '>':   self.column_width_all_up,
-                     ',':   self.column_width_down,
-                     '.':   self.column_width_up,
-                     'a':   self.sort_by_column_natural,
-                     'A':   self.sort_by_column_natural_reverse,
-                     '1':   self.sort_by_column_numeric,
-                     '!':   self.sort_by_column_numeric_reverse,
-                     's':   self.sort_by_column,
-                     'S':   self.sort_by_column_reverse,
-                     'y':   self.yank_cell,
-                     'r':   self.reload,
-                     'c':   self.toggle_column_width,
-                     'C':   self.set_current_column_width,
-                     ']':   self.skip_to_row_change,
-                     '[':   self.skip_to_row_change_reverse,
-                     '}':   self.skip_to_col_change,
-                     '{':   self.skip_to_col_change_reverse,
-                     '?':   self.help,
-                     curses.KEY_F1:     self.help,
-                     curses.KEY_UP:     self.up,
-                     curses.KEY_DOWN:   self.down,
-                     curses.KEY_LEFT:   self.left,
-                     curses.KEY_RIGHT:  self.right,
-                     curses.KEY_HOME:   self.line_home,
-                     curses.KEY_END:    self.line_end,
-                     curses.KEY_PPAGE:  self.page_up,
-                     curses.KEY_NPAGE:  self.page_down,
-                     curses.KEY_IC:     self.mark,
-                     curses.KEY_DC:     self.goto_mark,
-                     curses.KEY_ENTER:  self.show_cell,
-                     KEY_CTRL('a'):  self.line_home,
-                     KEY_CTRL('e'):  self.line_end,
-                     KEY_CTRL('l'):  self.scr.redrawwin,
-                     KEY_CTRL('g'):  self.show_info,
+        self.keys = {'j': self.down,
+                     'k': self.up,
+                     'h': self.left,
+                     'l': self.right,
+                     'J': self.page_down,
+                     'K': self.page_up,
+                     'm': self.mark,
+                     "'": self.goto_mark,
+                     'L': self.page_right,
+                     'H': self.page_left,
+                     'q': self.quit,
+                     'Q': self.quit,
+                     '$': self.line_end,
+                     '^': self.line_home,
+                     '0': self.line_home,
+                     'g': self.home,
+                     'G': self.goto_row,
+                     '|': self.goto_col,
+                     '\n': self.show_cell,
+                     '/': self.search,
+                     'n': self.search_results,
+                     'p': self.search_results_prev,
+                     't': self.toggle_header,
+                     '-': self.column_gap_down,
+                     '+': self.column_gap_up,
+                     '<': self.column_width_all_down,
+                     '>': self.column_width_all_up,
+                     ',': self.column_width_down,
+                     '.': self.column_width_up,
+                     'a': self.sort_by_column_natural,
+                     'A': self.sort_by_column_natural_reverse,
+                     '1': self.sort_by_column_numeric,
+                     '!': self.sort_by_column_numeric_reverse,
+                     's': self.sort_by_column,
+                     'S': self.sort_by_column_reverse,
+                     'y': self.yank_cell,
+                     'r': self.reload,
+                     'c': self.toggle_column_width,
+                     'C': self.set_current_column_width,
+                     ']': self.skip_to_row_change,
+                     '[': self.skip_to_row_change_reverse,
+                     '}': self.skip_to_col_change,
+                     '{': self.skip_to_col_change_reverse,
+                     '?': self.help,
+                     curses.KEY_F1: self.help,
+                     curses.KEY_UP: self.up,
+                     curses.KEY_DOWN: self.down,
+                     curses.KEY_LEFT: self.left,
+                     curses.KEY_RIGHT: self.right,
+                     curses.KEY_HOME: self.line_home,
+                     curses.KEY_END: self.line_end,
+                     curses.KEY_PPAGE: self.page_up,
+                     curses.KEY_NPAGE: self.page_down,
+                     curses.KEY_IC: self.mark,
+                     curses.KEY_DC: self.goto_mark,
+                     curses.KEY_ENTER: self.show_cell,
+                     KEY_CTRL('a'): self.line_home,
+                     KEY_CTRL('e'): self.line_end,
+                     KEY_CTRL('l'): self.scr.redrawwin,
+                     KEY_CTRL('g'): self.show_info,
                      }
 
     def run(self):
@@ -1059,14 +1060,14 @@ class TextBox:
         self.run()
 
     def setup_handlers(self):
-        self.handlers = {'\n':              self.close,
-                         curses.KEY_ENTER:  self.close,
-                         'q':               self.close,
+        self.handlers = {'\n': self.close,
+                         curses.KEY_ENTER: self.close,
+                         'q': self.close,
                          curses.KEY_RESIZE: self.close,
-                         curses.KEY_DOWN:   self.scroll_down,
-                         'j':               self.scroll_down,
-                         curses.KEY_UP:     self.scroll_up,
-                         'k':               self.scroll_up,
+                         curses.KEY_DOWN: self.scroll_down,
+                         'j': self.scroll_down,
+                         curses.KEY_UP: self.scroll_up,
+                         'k': self.scroll_up,
                          }
 
     def _calculate_layout(self):
@@ -1082,8 +1083,7 @@ class TextBox:
             pass
         # transform raw data into list of lines ready to be printed
         s = self.data.splitlines()
-        s = [wrap(i, self.term_cols - 3, subsequent_indent=" ")
-             or [""] for i in s]
+        s = [wrap(i, self.term_cols - 3, subsequent_indent=" ") or [""] for i in s]
         self.tdata = [i for j in s for i in j]
         # -3 -- 2 for the box lines and 1 for the title row
         self.nlines = min(len(self.tdata), self.box_height - 3)

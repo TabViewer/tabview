@@ -139,5 +139,6 @@ class TestTabviewIntegration(unittest.TestCase):
                        start_pos=(0, 1), column_width='mode', column_gap=5,
                        column_widths=None, trunc_char='…', search_str=None)
 
+
 if __name__ == '__main__':
     unittest.main()
