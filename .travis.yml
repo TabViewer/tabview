@@ -8,11 +8,17 @@ python:
 # command to install dependencies
 install:
   - "pip install ."
+  - "pip install -q flake8"
 
 # command to run tests
-script: python -m unittest discover
+script:
+  - python -m unittest discover
+  - flake8 --version
+  - flake8 --ignore E501 .
+
 branches:
     only:
         - master
+
 notifications:
     email: false
