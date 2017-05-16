@@ -141,6 +141,8 @@ Keybindings:
 **S**                        Sort the table by the current column (descending)
 **a**                        'Natural Sort' the table (ascending)
 **A**                        'Natural Sort' the table (descending)
+**1**                        Sort numerically by the current column (ascending)
+**!**                        Sort numerically by the current column (descending)
 **r**                        Reload file/data. Also resets sort order
 **y**                        Yank cell contents to the clipboard
                              (requires xsel or xclip)

@@ -564,6 +564,16 @@ class Viewer:
         self.column_width[xp] += max(1, int(self.column_width[xp] * 0.2))
         self.recalculate_layout()
 
+    def sort_by_column_numeric(self):
+        xp = self.x + self.win_x
+        #eprint("check",type(itemgetter(xp)))
+        #eprint("check",itemgetter(xp))
+        self.data = sorted(self.data, key=lambda x: float(itemgetter(xp)(x)))
+
+    def sort_by_column_numeric_reverse(self):
+        xp = self.x + self.win_x
+        self.data = sorted(self.data, key=lambda x: float(itemgetter(xp)(x)), reverse=True)
+
     def sort_by_column(self):
         xp = self.x + self.win_x
         self.data = sorted(self.data, key=itemgetter(xp))
@@ -674,6 +684,8 @@ class Viewer:
                      '.':   self.column_width_up,
                      'a':   self.sort_by_column_natural,
                      'A':   self.sort_by_column_natural_reverse,
+                     '1':   self.sort_by_column_numeric,
+                     '!':   self.sort_by_column_numeric_reverse,
                      's':   self.sort_by_column,
                      'S':   self.sort_by_column_reverse,
                      'y':   self.yank_cell,
