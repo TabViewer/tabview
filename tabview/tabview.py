@@ -60,14 +60,6 @@ else:
         scr, args = args[0], args[1:]
         return scr.insstr(*args)
 
-def FloatStringKey(value):
-  """Sort by data type first and by floating point value second, if possible"""
-  try:
-    value = float(value)
-  except:
-    pass
-  return repr(type(value)), value
-
 class ReloadException(Exception):
     def __init__(self, start_pos, column_width, column_gap, column_widths,
                  search_str):
@@ -572,12 +564,15 @@ class Viewer:
         self.recalculate_layout()
 
     def sort_by_column_numeric(self):
-        xp        = self.x + self.win_x
-        self.data = sorted(self.data, key=lambda x: FloatStringKey(itemgetter(xp)(x)))
+        xp = self.x + self.win_x
+        self.data = sorted(self.data, key=lambda x:
+                           self.float_string_key(itemgetter(xp)(x)))
 
     def sort_by_column_numeric_reverse(self):
         xp = self.x + self.win_x
-        self.data = sorted(self.data, key=lambda x: FloatStringKey(itemgetter(xp)(x)), reverse=True)
+        self.data = sorted(self.data, key=lambda x:
+                           self.float_string_key(itemgetter(xp)(x)),
+                           reverse=True)
 
     def sort_by_column(self):
         xp = self.x + self.win_x
@@ -608,6 +603,17 @@ class Viewer:
             return [convert(c) for c in re.split('([0-9]+)', key(item))]
 
         return sorted(ls, key=alphanum_key, reverse=rev)
+
+    def float_string_key(self, value):
+        """Sort by data type first and by floating point value second,
+        if possible. Used for numeric sorting
+
+        """
+        try:
+            value = float(value)
+        except ValueError:
+            pass
+        return repr(type(value)), value
 
     def toggle_column_width(self):
         """Toggle column width mode between 'mode' and 'max' or set fixed

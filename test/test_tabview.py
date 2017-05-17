@@ -107,7 +107,7 @@ class TestTabviewIntegration(unittest.TestCase):
         v.display()
         for key in v.keys:
             if key not in ('q', 'Q', 'r', '?', '/', '\n', 'a', 'A', 's', 'S',
-                           'y', curses.KEY_F1, curses.KEY_ENTER,
+                           '1', '!', 'y', curses.KEY_F1, curses.KEY_ENTER,
                            t.KEY_CTRL('g')):
                 v.keys[key]()
             elif key in ('q', 'Q', 'r'):
