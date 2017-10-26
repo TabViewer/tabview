@@ -23,6 +23,7 @@ from operator import itemgetter
 from subprocess import Popen, PIPE
 from textwrap import wrap
 import unicodedata
+import shlex
 
 
 if sys.version_info.major < 3:
@@ -1157,7 +1158,21 @@ def fix_newlines(data):
             data = data[0].split(b'\r')
     return data
 
-
+def adjust_space_delim(data):
+    """
+    Take data that is space deliminated and clean it to be a *single* space
+    
+    Additionally, if (and only if) the first line begins with '#' or '%', 
+    strip that off
+    """
+    
+    if data[0][0] in '%#':
+        data[0] = data[0][1:]
+    
+    # Split at the white space preserving quotes (if applicable) and 
+    # trailing \n
+    return [' '.join(shlex.split(d)) + '\n' for d in data]
+    
 def process_data(data, enc=None, delim=None, quoting=None, quote_char=str('"')):
     """Given a list of lists, check for the encoding, quoting and delimiter and
     return a list of CSV rows (normalized to a single length)
@@ -1173,6 +1188,8 @@ def process_data(data, enc=None, delim=None, quoting=None, quote_char=str('"')):
         enc = detect_encoding(data)
     if delim is None:
         delim = csv_sniff(data[0], enc)
+        if ' ' in delim:
+            data = adjust_space_delim(data)
     if quoting is not None:
         quoting = getattr(csv, quoting)
     else:
