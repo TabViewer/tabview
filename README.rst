@@ -1,24 +1,20 @@
-.. image:: https://pypip.in/version/tabview/badge.svg
+.. image:: 	https://img.shields.io/github/release/tabviewer/tabview.svg
     :target: https://pypi.python.org/pypi/tabview/
     :alt: Latest Version
 
-.. image:: https://pypip.in/py_versions/tabview/badge.svg
-    :target: https://pypi.python.org/pypi/tabview/
+.. image:: https://img.shields.io/pypi/pyversions/tabview.svg
+    :target: https://pypi.python.org/pypi/tabview/
     :alt: Supported Python versions
 
-.. image:: https://pypip.in/format/tabview/badge.svg
-    :target: https://pypi.python.org/pypi/tabview/
-    :alt: Download format
-
-.. image:: https://pypip.in/license/tabview/badge.svg
+.. image:: 	https://img.shields.io/pypi/l/tabview.svg
     :target: https://pypi.python.org/pypi/tabview/
     :alt: License
 
-.. image:: https://sourcegraph.com/api/repos/github.com/firecat53/tabview/.badges/status.png
-   :target: https://sourcegraph.com/github.com/firecat53/tabview
+.. image:: https://sourcegraph.com/github.com/TabViewer/tabview/-/badge.svg
+   :target: https://sourcegraph.com/github.com/Tabviewer/tabview
 
-.. image:: https://travis-ci.org/firecat53/tabview.svg?branch=master
-    :target: https://travis-ci.org/firecat53/tabview
+.. image:: 	https://img.shields.io/travis/TabViewer/tabview.svg
+    :target: https://travis-ci.org/TabViewer/tabview
 
 Tabview  
 =========
