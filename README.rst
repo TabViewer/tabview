@@ -113,7 +113,7 @@ Keybindings:
 **F1 or ?**                  Show this list of keybindings
 **Cursor keys or h,j,k,l**   Move the highlighted cell, scrolling if required.
 **Q or q**                   Quit
-**Home, 0, ^, Ctrl-a**       Move to the start of this line
+**Home, ^, Ctrl-a**          Move to the start of this line
 **End, $, Ctrl-e**           Move to the end of this line
 **[num]|**                   Goto column <num>, or first column
                              if num not given
@@ -137,8 +137,8 @@ Keybindings:
 **S**                        Sort the table by the current column (descending)
 **a**                        'Natural Sort' the table (ascending)
 **A**                        'Natural Sort' the table (descending)
-**1**                        Sort numerically by the current column (ascending)
-**!**                        Sort numerically by the current column (descending)
+**#**                        Sort numerically by the current column (ascending)
+**@**                        Sort numerically by the current column (descending)
 **r**                        Reload file/data. Also resets sort order
 **y**                        Yank cell contents to the clipboard
                              (requires xsel or xclip)
