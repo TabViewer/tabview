@@ -1,3 +1,14 @@
+*Version 1.4.3 2017/11/13*
+
+  - Added an additional parse step for space-delimited files:
+    1. Replace multiple spaces (such as those to align columns) with a single
+       space.
+    2. If (and only if) the top line begins with a standard comment character
+       ('#' or '%'), it is removed.
+  - Remove '0' for BOL and change numeric sort to '#'/'@'
+  - Add numeric sort
+  - Provide ability to specify quotechar
+
 *Version 1.4.2 2016/01/17*
 
  - Fix some packaging issues

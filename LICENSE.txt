@@ -2,7 +2,7 @@ Scott Hansen <firecat four one five three at gmail dot com>
 
 Based on code contributed by A.M. Kuchling <amk at amk dot ca>
 
-Copyright (c) 2016, Scott Hansen
+Copyright (c) 2017, Scott Hansen
 
 Copyright (c) 2010, Andrew M. Kuchling
 
