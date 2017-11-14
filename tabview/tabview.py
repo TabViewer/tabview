@@ -1157,6 +1157,7 @@ def fix_newlines(data):
             data = data[0].split(b'\r')
     return data
 
+
 def adjust_space_delim(data, enc):
     """Take data that is space deliminated and clean it to be a *single* space
 
@@ -1171,6 +1172,7 @@ def adjust_space_delim(data, enc):
     # trailing \n
     return [(' '.join(shlex.split(d.decode(enc))) + '\n').encode(enc)
             for d in data]
+
 
 def process_data(data, enc=None, delim=None, quoting=None, quote_char=str('"')):
     """Given a list of lists, check for the encoding, quoting and delimiter and
