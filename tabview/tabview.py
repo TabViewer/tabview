@@ -90,8 +90,12 @@ class Viewer:
     def __init__(self, *args, **kwargs):
         # Fix for python curses resize bug:
         # http://bugs.python.org/issue2675
-        os.unsetenv('LINES')
-        os.unsetenv('COLUMNS')
+        try:
+            os.unsetenv('LINES')
+            os.unsetenv('COLUMNS')
+        except AttributeError:
+            # os.unsetenv is not present on Windows
+            pass
         self.scr = args[0]
         self.data = [[str(j) for j in i] for i in args[1]]
         self.info = kwargs.get('info')
@@ -776,7 +780,11 @@ class Viewer:
             curses.is_term_resized(self.max_y, self.max_x)
         if resize is True:
             self.recalculate_layout()
-            curses.resizeterm(self.max_y, self.max_x)
+            try:
+                curses.resizeterm(self.max_y, self.max_x)
+            except AttributeError:
+                # Not supported on Windows
+                pass
 
     def num_columns_fwd(self, x):
         """Count number of fully visible columns starting at x,
@@ -1259,10 +1267,10 @@ def pad_data(d):
 
 def readme():
     path = os.path.dirname(os.path.realpath(__file__))
-    fn = os.path.join(path, "README.rst")
+    fn = os.path.join(path, "..", "README.rst")
     with open(fn, 'rb') as f:
         h = f.readlines()
-        return [i.decode('utf-8') for i in h]
+        return [i.decode('utf-8').replace('\r\n', '\n') for i in h]
 
 
 def detect_encoding(data=None):

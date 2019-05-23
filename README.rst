@@ -69,6 +69,14 @@ Installation:
 * ``$ python setup.py install --user``  OR
 * `Archlinux AUR package <https://aur.archlinux.org/packages/tabview-git/>`_
 
+Installing curses on Windows:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Python for Windows currently doesn't ship with curses. (As of Python 3.7)
+A third-party package must therefore be installed to provide Windows support.
+
+* ``pip install windows-curses``
+
 Usage:
 ------
 

@@ -97,7 +97,7 @@ def fixup_stdin():
     return data
 
 
-if __name__ == '__main__':
+def tabview_cli():
     args, extra = arg_parse()
     pos_plus = [i for i in extra if i.startswith('+')]
     start_pos = start_position(args.start_pos, pos_plus)
@@ -108,3 +108,7 @@ if __name__ == '__main__':
     view(data, enc=args.encoding, start_pos=start_pos,
          column_width=args.width, double_width=args.double_width,
          delimiter=args.delimiter, quoting=args.quoting, quote_char=args.quote_char)
+
+
+if __name__ == '__main__':
+    tabview_cli()
