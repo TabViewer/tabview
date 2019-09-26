@@ -19,6 +19,8 @@
 Tabview  
 =========
 
+**No longer maintained. Check https://github.com/saulpw/visidata**
+
 View a CSV file in a spreadsheet-like display.
 
 Posted by Scott Hansen <firecat4153@gmail.com>
