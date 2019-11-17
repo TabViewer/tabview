@@ -5,6 +5,8 @@ python:
   - "3.4"
   - "3.5"
   - "3.6"
+  - "3.7"
+  - "3.8"
 
 # command to install dependencies
 install:
@@ -15,7 +17,7 @@ install:
 script:
   - python -m unittest discover
   - flake8 --version
-  - flake8 --ignore E501 .
+  - flake8 --extend-ignore E501 .
 
 branches:
     only:
