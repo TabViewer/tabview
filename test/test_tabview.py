@@ -106,7 +106,7 @@ class TestTabviewUnits(unittest.TestCase):
             except AttributeError:
                 i = str(i)
             self.assertEqual(i, res[0][j])
-    
+
     def test_tabview_uri_parse(self):
         # Strip 'file://' from uri (three slashes)
         path = t.parse_path('file:///home/user/test.csv')
@@ -126,8 +126,6 @@ class TestTabviewUnits(unittest.TestCase):
 
         path = t.parse_path('test.csv')
         self.assertEqual(path, 'test.csv')
-
-
 
 
 class TestTabviewIntegration(unittest.TestCase):
