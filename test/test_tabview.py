@@ -107,6 +107,26 @@ class TestTabviewUnits(unittest.TestCase):
                 i = str(i)
             self.assertEqual(i, res[0][j])
 
+    def test_tabview_uri_parse(self):
+        # Strip 'file://' from uri (three slashes)
+        path = t.parse_path('file:///home/user/test.csv')
+        self.assertEqual(path, '/home/user/test.csv')
+
+        # Two slashes
+        path = t.parse_path('file://localhost/test.csv')
+        self.assertEqual(path, '/test.csv')
+
+        # Don't change if no 'file://' in string
+        path = t.parse_path('/home/user/test.csv')
+        self.assertEqual(path, '/home/user/test.csv')
+
+        # Don't change if relative path
+        path = t.parse_path('../test.csv')
+        self.assertEqual(path, '../test.csv')
+
+        path = t.parse_path('test.csv')
+        self.assertEqual(path, 'test.csv')
+
 
 class TestTabviewIntegration(unittest.TestCase):
     """Integration tests for tabview. Run through the curses routines and some

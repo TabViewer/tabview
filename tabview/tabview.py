@@ -25,6 +25,11 @@ from textwrap import wrap
 import unicodedata
 import shlex
 
+if sys.version_info.major < 3:
+    from urlparse import urlparse
+else:
+    from urllib.parse import urlparse
+
 
 if sys.version_info.major < 3:
     # Python 2.7 shim
@@ -1356,7 +1361,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
         while True:
             try:
                 if isinstance(data, basestring):
-                    with open(data, 'rb') as fd:
+                    parsed_path = parse_path(data)
+                    with open(parsed_path, 'rb') as fd:
                         new_data = fd.readlines()
                         if info == "":
                             info = data
@@ -1395,3 +1401,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
     finally:
         if lc_all is not None:
             locale.setlocale(locale.LC_ALL, lc_all)
+
+
+def parse_path(path):
+    parse_result = urlparse(path)
+    return parse_result.path
