@@ -8,13 +8,13 @@ except ImportError:
     pass
 
 setup(name="tabview",
-      version="1.4.3",
+      version="1.4.4",
       description="A curses command-line CSV and list (tabular data) viewer",
       long_description=open('README.rst', 'rb').read().decode('utf-8'),
       author="Scott Hansen",
       author_email="firecat4153@gmail.com",
       url="https://github.com/Tabviewer/tabview",
-      download_url="https://github.com/Tabviewer/tabview/tarball/1.4.3",
+      download_url="https://github.com/Tabviewer/tabview/tarball/1.4.4",
       packages=['tabview'],
       scripts=['bin/tabview'],
       package_data={'tabview': ['README.rst']},
