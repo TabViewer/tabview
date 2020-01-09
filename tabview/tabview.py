@@ -28,13 +28,16 @@ import shlex
 basestring = str
 file = io.FileIO
 
+
 # Python 3 wrappers
 def KEY_CTRL(key):
     return curses.ascii.ctrl(key)
 
+
 def addstr(*args):
     scr, args = args[0], args[1:]
     return scr.addstr(*args)
+
 
 def insstr(*args):
     scr, args = args[0], args[1:]
