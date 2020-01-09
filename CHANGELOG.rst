@@ -1,3 +1,13 @@
+*Version 1.4.4 2020/01/09*
+
+  - Remove Python 2.x support
+  - Add note about Visidata and minimal maintenance
+  - Add file URI scheme support
+  - Fix flake8 errors
+  - Remove python 3.3 support
+  - Update travis.yml for newer python versions and fix flake8 command
+  - Add sample text with long/wide characters
+
 *Version 1.4.3 2017/11/13*
 
   - Added an additional parse step for space-delimited files:

@@ -43,7 +43,7 @@ it are shown the contents of that cell.
 
 Features:
 ---------
-* Python 2.7 and 3.4+
+* Python 3.4+
 * Spreadsheet-like view for easily visualizing tabular data
 * Vim-like navigation (h,j,k,l, g(top), G(bottom), 12G goto line 12, m - mark,
   ' - goto mark, etc.) 
@@ -62,7 +62,7 @@ Features:
 Requires: 
 ---------
 
-* Python 2.7 or 3.4+
+* Python 3.4+
 * Xsel or xclip (Optional - only required for 'yank' to clipboard)
 
 Installation:

@@ -5,8 +5,6 @@
   Based on code contributed by A.M. Kuchling <amk at amk dot ca>
 
 """
-from __future__ import print_function, division, unicode_literals
-
 import csv
 import _curses
 import curses
@@ -23,48 +21,24 @@ from operator import itemgetter
 from subprocess import Popen, PIPE
 from textwrap import wrap
 import unicodedata
+from urllib.parse import urlparse
 import shlex
 
-if sys.version_info.major < 3:
-    from urlparse import urlparse
-else:
-    from urllib.parse import urlparse
 
+basestring = str
+file = io.FileIO
 
-if sys.version_info.major < 3:
-    # Python 2.7 shim
-    str = unicode  # noqa
+# Python 3 wrappers
+def KEY_CTRL(key):
+    return curses.ascii.ctrl(key)
 
-    def KEY_CTRL(key):
-        return curses.ascii.ctrl(bytes(key))
+def addstr(*args):
+    scr, args = args[0], args[1:]
+    return scr.addstr(*args)
 
-    def addstr(*args):
-        scr, args = args[0], list(args[1:])
-        x = 2 if len(args) > 2 else 0
-        args[x] = args[x].encode(sys.stdout.encoding)
-        return scr.addstr(*args)
-
-    def insstr(*args):
-        scr, args = args[0], list(args[1:])
-        x = 2 if len(args) > 2 else 0
-        args[x] = args[x].encode(sys.stdout.encoding)
-        return scr.insstr(*args)
-
-else:
-    basestring = str
-    file = io.FileIO
-
-    # Python 3 wrappers
-    def KEY_CTRL(key):
-        return curses.ascii.ctrl(key)
-
-    def addstr(*args):
-        scr, args = args[0], args[1:]
-        return scr.addstr(*args)
-
-    def insstr(*args):
-        scr, args = args[0], args[1:]
-        return scr.insstr(*args)
+def insstr(*args):
+    scr, args = args[0], args[1:]
+    return scr.insstr(*args)
 
 
 class ReloadException(Exception):
@@ -655,8 +629,6 @@ class Viewer:
         yp = self.y + self.win_y
         xp = self.x + self.win_x
         s = self.data[yp][xp]
-        if sys.version_info.major < 3:
-            s = s.encode(sys.stdout.encoding or 'utf-8')
         # Bail out if not running in X
         try:
             os.environ['DISPLAY']
@@ -1154,12 +1126,8 @@ def fix_newlines(data):
     without messing up Unicode support.
 
     """
-    if sys.version_info.major < 3:
-        if len(data) == 1 and '\r' in data[0]:
-            data = data[0].split('\r')
-    else:
-        if len(data) == 1 and b'\r' in data[0]:
-            data = data[0].split(b'\r')
+    if len(data) == 1 and b'\r' in data[0]:
+        data = data[0].split(b'\r')
     return data
 
 
@@ -1187,8 +1155,6 @@ def process_data(data, enc=None, delim=None, quoting=None, quote_char=str('"')):
     data = fix_newlines(data)
     if data_list_or_file(data) == 'list':
         # If data is from an object (list of lists) instead of a file
-        if sys.version_info.major < 3:
-            data = py2_list_to_unicode(data)
         return pad_data(data)
     if enc is None:
         enc = detect_encoding(data)
@@ -1201,44 +1167,18 @@ def process_data(data, enc=None, delim=None, quoting=None, quote_char=str('"')):
     else:
         quoting = csv.QUOTE_MINIMAL
     csv_data = []
-    if sys.version_info.major < 3:
-        csv_obj = csv.reader(data, delimiter=delim.encode(enc),
-                             quoting=quoting, quotechar=quote_char.encode(enc))
-        for row in csv_obj:
-            row = [str(x, enc) for x in row]
-            csv_data.append(row)
-    else:
-        data = [i.decode(enc) for i in data]
-        csv_obj = csv.reader(data, delimiter=delim, quoting=quoting,
-                             quotechar=quote_char)
-        for row in csv_obj:
-            csv_data.append(row)
+    data = [i.decode(enc) for i in data]
+    csv_obj = csv.reader(data, delimiter=delim, quoting=quoting,
+                         quotechar=quote_char)
+    for row in csv_obj:
+        csv_data.append(row)
     return pad_data(csv_data)
-
-
-def py2_list_to_unicode(data):
-    """Convert strings/int to unicode for python 2
-
-    """
-    enc = detect_encoding()
-    csv_data = []
-    for row in data:
-        r = []
-        for x in row:
-            try:
-                r.append(str(x, enc))
-            except TypeError:
-                # The 'enc' parameter fails with int values
-                r.append(str(x))
-        csv_data.append(r)
-    return csv_data
 
 
 def data_list_or_file(data):
     """Determine if 'data' is a list of lists or list of strings/bytes
 
     Python 3 - reading a file returns a list of byte strings
-    Python 2 - reading a file returns a list of strings
     Both - list of lists is just a list
 
     Returns: 'file' if data was from a file, 'list' if from a python list/tuple
@@ -1349,11 +1289,7 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
               or "" if input was not from a file
 
     """
-    if sys.version_info.major < 3:
-        lc_all = locale.getlocale(locale.LC_ALL)
-        locale.setlocale(locale.LC_ALL, '')
-    else:
-        lc_all = None
+    lc_all = None
     if info is None:
         info = ""
     try:

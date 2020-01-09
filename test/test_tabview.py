@@ -75,18 +75,14 @@ class TestTabviewUnits(unittest.TestCase):
 
         """
         fn, _, sample_data = info
-        code = 'utf-8'  # Per top line of file
         res = t.process_data(self.data(fn))
         # Check that process_file returns a list of lists
         self.assertEqual(type(res), list)
         self.assertEqual(type(res[0]), list)
         # Have to decode res1 and res2 from utf-8 so they can be compared to
-        # the results from the file, which are unicode (py2) or string (py3)
+        # the results from the file, which are string (py3)
         for j, i in enumerate(sample_data):
-            try:
-                i = i.decode(code)
-            except AttributeError:
-                i = str(i)
+            i = str(i)
             self.assertEqual(i, res[-1][j])
 
     def test_tabview_file_unicode(self):
