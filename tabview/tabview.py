@@ -638,7 +638,7 @@ class Viewer:
         except KeyError:
             return
         for cmd in (['xclip', '-selection', 'clipboard'],
-                    ['xsel', '-i']):
+                    ['xsel', '-i'], ['pbcopy']):
             try:
                 Popen(cmd, stdin=PIPE,
                       universal_newlines=True).communicate(input=s)
