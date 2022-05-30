@@ -318,6 +318,11 @@ class Viewer:
         TextBox(self.scr, data=s, title=self.location_string(yp, xp))()
         self.resize()
 
+    def delete_cell(self):
+        yp = self.y + self.win_y
+        xp = self.x + self.win_x
+        self.data[yp][xp] = ''
+
     def show_info(self):
         """Display data information in a pop-up window
 
@@ -689,6 +694,7 @@ class Viewer:
                      '}': self.skip_to_col_change,
                      '{': self.skip_to_col_change_reverse,
                      '?': self.help,
+                     'd': self.delete_cell,
                      curses.KEY_F1: self.help,
                      curses.KEY_UP: self.up,
                      curses.KEY_DOWN: self.down,
