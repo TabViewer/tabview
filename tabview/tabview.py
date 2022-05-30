@@ -418,7 +418,8 @@ class Viewer:
             else:
                 # Skip back to the top if at the end of the data
                 yp = xp = 0
-        search_order = [self._search_cur_line_r,
+        search_order = [self._search_header,
+                        self._search_cur_line_r,
                         self._search_next_line_to_end,
                         self._search_next_line_from_beg,
                         self._search_cur_line_l]
@@ -446,6 +447,16 @@ class Viewer:
             i.reverse()
             data[idx] = i
         return data, yp, xp
+
+    def _search_header(self, data, yp, xp):
+        """ Headers line first, from yp,xp to the right """
+        res = False
+        for x, item in enumerate(self.header):
+            if self.search_str in item.lower():
+                xp = x
+                res = True
+                break
+        return yp, xp, res
 
     def _search_cur_line_r(self, data, yp, xp):
         """ Current line first, from yp,xp to the right """
