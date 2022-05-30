@@ -105,6 +105,8 @@ class Viewer:
         self.max_y, self.max_x = 0, 0
         self.num_columns = 0
         self.vis_columns = 0
+        self.undo_buffer = []
+        self.redo_buffer = []
         self.init_search = self.search_str = kwargs.get('search_str')
         self._search_win_open = 0
         self.modifier = str()
@@ -318,6 +320,10 @@ class Viewer:
     def delete_cell(self):
         yp = self.y + self.win_y
         xp = self.x + self.win_x
+
+        undo_op = (yp, xp, self.data[yp][xp])
+        if not self.undo_buffer or self.undo_buffer[0] != undo_op:
+            self.undo_buffer.insert(0, undo_op)
         self.data[yp][xp] = ''
 
     def _edit_validator(self, ch):
@@ -351,12 +357,27 @@ class Viewer:
 
         textpad = Textbox(scr3, insert_mode=True)
 
+        self.undo_buffer.insert(0, (yp, xp, self.data[yp][xp]))
         self.data[yp][xp] = textpad.edit(self._edit_validator)[:-1]
 
         try:
             curses.curs_set(0)
         except _curses.error:
             pass
+
+    def undo_redo(self, undo=True):
+        if undo:
+            from_buffer = self.undo_buffer
+            to_buffer = self.redo_buffer
+        else:
+            from_buffer = self.redo_buffer
+            to_buffer = self.undo_buffer
+
+        if len(from_buffer):
+            yp, xp, value = from_buffer.pop(0)
+            to_buffer.insert(0, (yp, xp, self.data[yp][xp]))
+
+            self.data[yp][xp] = value
 
     def duplicate_row(self):
         yp = self.y + self.win_y
@@ -736,7 +757,7 @@ class Viewer:
                      's': self.sort_by_column,
                      'S': self.sort_by_column_reverse,
                      'y': self.yank_cell,
-                     'r': self.reload,
+                     'R': self.reload,
                      'c': self.toggle_column_width,
                      'C': self.set_current_column_width,
                      ']': self.skip_to_row_change,
@@ -747,6 +768,8 @@ class Viewer:
                      'd': self.delete_cell,
                      'e': self.edit_cell,
                      'D': self.duplicate_row,
+                     'u': self.undo_redo,
+                     'r': lambda: self.undo_redo(False),
                      curses.KEY_F1: self.help,
                      curses.KEY_UP: self.up,
                      curses.KEY_DOWN: self.down,
