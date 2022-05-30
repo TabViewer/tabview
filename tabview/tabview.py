@@ -164,7 +164,9 @@ class Viewer:
         w = max(0, min(self.max_x - xp, self.column_width[self.win_x + x]))
         return xp, w
 
-    def quit(self):
+    def quit(self, save=False):
+        if save:
+            self.save()
         raise QuitException
 
     def reload(self):
@@ -359,7 +361,7 @@ class Viewer:
         textpad = Textbox(scr3, insert_mode=True)
 
         self.undo_buffer.insert(0, (yp, xp, self.data[yp][xp]))
-        self.data[yp][xp] = textpad.edit(self._edit_validator)[:-1]
+        self.data[yp][xp] = textpad.edit(self._edit_validator)[:-1].strip()
 
         try:
             curses.curs_set(0)
@@ -733,7 +735,7 @@ class Viewer:
                      "'": self.goto_mark,
                      'L': self.page_right,
                      'H': self.page_left,
-                     'q': self.quit,
+                     'q': lambda: self.quit(True),
                      'Q': self.quit,
                      '$': self.line_end,
                      '^': self.line_home,
