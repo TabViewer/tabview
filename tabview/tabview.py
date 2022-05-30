@@ -74,6 +74,7 @@ class Viewer:
         # http://bugs.python.org/issue2675
         os.unsetenv('LINES')
         os.unsetenv('COLUMNS')
+        self.filename = kwargs.get('filename')
         self.scr = args[0]
         self.data = [[str(j) for j in i] for i in args[1]]
         self.info = kwargs.get('info')
@@ -786,7 +787,15 @@ class Viewer:
                      KEY_CTRL('e'): self.line_end,
                      KEY_CTRL('l'): self.scr.redrawwin,
                      KEY_CTRL('g'): self.show_info,
+                     KEY_CTRL('s'): self.save,
                      }
+
+    def save(self):
+        with open(self.filename, 'w') as csvfile:
+            writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
+            writer.writerow(self.header)
+            for row in self.data:
+                writer.writerow(row)
 
     def run(self):
         # Clear the screen and display the menu of keys
@@ -1408,7 +1417,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                                column_widths=column_widths,
                                search_str=search_str,
                                double_width=double_width,
-                               info=info)
+                               info=info,
+                               filename=data)
             except (QuitException, KeyboardInterrupt):
                 return 0
             except ReloadException as e:
