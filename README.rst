@@ -128,7 +128,7 @@ Keybindings:
                              if num not given
 **Ctrl-g**                   Show file/data information
 **Insert or m**              Memorize this position
-**Delete or '**              Return to memorized position (if any)
+'**                          Return to memorized position (if any)
 **Enter**                    View full cell contents in pop-up window.
 **/**                        Search
 **n**                        Next search result
