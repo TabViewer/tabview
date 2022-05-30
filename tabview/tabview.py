@@ -337,6 +337,10 @@ class Viewer:
         """
         if ch == curses.ascii.NL:  # Enter
             return curses.ascii.BEL
+        elif ch == curses.KEY_HOME:
+            return self.textpad.do_command(KEY_CTRL('a'))
+        elif ch == curses.KEY_END:
+            return self.textpad.do_command(KEY_CTRL('e'))
         return ch
 
     def edit_cell(self):
@@ -358,10 +362,10 @@ class Viewer:
         scr2.refresh()
         curses.curs_set(1)
 
-        textpad = Textbox(scr3, insert_mode=True)
+        self.textpad = Textbox(scr3, insert_mode=True)
 
         self.undo_buffer.insert(0, (yp, xp, self.data[yp][xp]))
-        self.data[yp][xp] = textpad.edit(self._edit_validator)[:-1].strip()
+        self.data[yp][xp] = self.textpad.edit(self._edit_validator)[:-1].strip()
 
         try:
             curses.curs_set(0)
