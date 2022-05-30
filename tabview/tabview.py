@@ -312,9 +312,6 @@ class Viewer:
         yp = self.y + self.win_y
         xp = self.x + self.win_x
         s = "\n" + self.data[yp][xp]
-        if not s:
-            # Only display pop-up if cells have contents
-            return
         TextBox(self.scr, data=s, title=self.location_string(yp, xp))()
         self.resize()
 
@@ -322,6 +319,48 @@ class Viewer:
         yp = self.y + self.win_y
         xp = self.x + self.win_x
         self.data[yp][xp] = ''
+
+    def _edit_validator(self, ch):
+        """Fix Enter and backspace for textbox.
+
+        Used as an aux function for the textpad.edit method
+
+        """
+        if ch == curses.ascii.NL:  # Enter
+            return curses.ascii.BEL
+        return ch
+
+    def edit_cell(self):
+        yp = self.y + self.win_y
+        xp = self.x + self.win_x
+        self.box_height = self.max_y - int(self.max_y / 2)
+        box_height = int(self.box_height / 4)
+
+        prompt = "Edit: "
+        scr2 = curses.newwin(box_height+1, self.max_x, self.max_y-box_height-1, 0)
+        scr3 = scr2.derwin(1, self.max_x-len(prompt)-3, 1, len(prompt)+1)
+
+        scr2.box()
+        scr2.move(1, 1)
+
+        addstr(scr2, prompt)
+        addstr(scr3, self.data[yp][xp])
+
+        scr2.refresh()
+        curses.curs_set(1)
+
+        textpad = Textbox(scr3, insert_mode=True)
+
+        self.data[yp][xp] = textpad.edit(self._edit_validator)[:-1]
+
+        try:
+            curses.curs_set(0)
+        except _curses.error:
+            pass
+
+    def duplicate_row(self):
+        yp = self.y + self.win_y
+        self.data.insert(yp+1, self.data[yp].copy())
 
     def show_info(self):
         """Display data information in a pop-up window
@@ -706,6 +745,8 @@ class Viewer:
                      '{': self.skip_to_col_change_reverse,
                      '?': self.help,
                      'd': self.delete_cell,
+                     'e': self.edit_cell,
+                     'D': self.duplicate_row,
                      curses.KEY_F1: self.help,
                      curses.KEY_UP: self.up,
                      curses.KEY_DOWN: self.down,
