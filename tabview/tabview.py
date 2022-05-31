@@ -341,6 +341,9 @@ class Viewer:
             return self.textpad.do_command(KEY_CTRL('a'))
         elif ch == curses.KEY_END:
             return self.textpad.do_command(KEY_CTRL('e'))
+        elif ch == curses.ascii.ESC:
+            self.textpad.insert_mode = False
+            return curses.ascii.BEL
         return ch
 
     def edit_cell(self):
@@ -364,8 +367,10 @@ class Viewer:
 
         self.textpad = Textbox(scr3, insert_mode=True)
 
-        self.undo_buffer.insert(0, (yp, xp, self.data[yp][xp]))
-        self.data[yp][xp] = self.textpad.edit(self._edit_validator)[:-1].strip()
+        result = self.textpad.edit(self._edit_validator)[:-1].strip()
+        if self.textpad.insert_mode:  # False if escape pressed (discard)
+            self.undo_buffer.insert(0, (yp, xp, self.data[yp][xp]))
+            self.data[yp][xp] = result
 
         try:
             curses.curs_set(0)
@@ -1414,6 +1419,9 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 else:
                     # cannot read the file
                     return 1
+
+                # https://stackoverflow.com/a/28020568
+                os.environ.setdefault('ESCDELAY', '50')
 
                 curses.wrapper(main, buf,
                                start_pos=start_pos,
