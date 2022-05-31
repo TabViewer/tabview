@@ -110,6 +110,7 @@ class Viewer:
         self.redo_buffer = []
         self.init_search = self.search_str = kwargs.get('search_str')
         self._search_win_open = 0
+        self.modified = False
         self.modifier = str()
         self.define_keys()
         self.resize()
@@ -123,6 +124,12 @@ class Viewer:
             self.goto_x(kwargs.get('start_pos')[1])
         except (IndexError, TypeError):
             pass
+        self.set_term_title()
+
+    def set_term_title(self, modified=False):
+        # https://stackoverflow.com/a/47262154
+        print(f"\x1b]2;{self.filename}{'*'if modified else''}\x07", end='', flush=True)
+        self.modified = modified
 
     def _is_num(self, cell):
         try:
@@ -324,10 +331,12 @@ class Viewer:
         yp = self.y + self.win_y
         xp = self.x + self.win_x
 
-        undo_op = (yp, xp, self.data[yp][xp])
-        if not self.undo_buffer or self.undo_buffer[0] != undo_op:
-            self.undo_buffer.insert(0, undo_op)
-        self.data[yp][xp] = ''
+        if self.data[yp][xp]:
+            undo_op = (yp, xp, self.data[yp][xp])
+            if not self.undo_buffer or self.undo_buffer[0] != undo_op:
+                self.undo_buffer.insert(0, undo_op)
+            self.data[yp][xp] = ''
+            self.set_term_title(True)
 
     def _edit_validator(self, ch):
         """Fix Enter and backspace for textbox.
@@ -371,6 +380,7 @@ class Viewer:
         if self.textpad.insert_mode:  # False if escape pressed (discard)
             self.undo_buffer.insert(0, (yp, xp, self.data[yp][xp]))
             self.data[yp][xp] = result
+            self.set_term_title(True)
 
         try:
             curses.curs_set(0)
@@ -390,10 +400,12 @@ class Viewer:
             to_buffer.insert(0, (yp, xp, self.data[yp][xp]))
 
             self.data[yp][xp] = value
+            self.set_term_title(True)
 
     def duplicate_row(self):
         yp = self.y + self.win_y
         self.data.insert(yp+1, self.data[yp].copy())
+        self.set_term_title(True)
 
     def show_info(self):
         """Display data information in a pop-up window
@@ -802,11 +814,13 @@ class Viewer:
                      }
 
     def save(self):
-        with open(self.filename, 'w') as csvfile:
-            writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
-            writer.writerow(self.header)
-            for row in self.data:
-                writer.writerow(row)
+        if self.modified:
+            with open(self.filename, 'w') as csvfile:
+                writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(self.header)
+                for row in self.data:
+                    writer.writerow(row)
+            self.set_term_title()
 
     def run(self):
         # Clear the screen and display the menu of keys
