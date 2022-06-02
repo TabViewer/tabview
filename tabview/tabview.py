@@ -355,7 +355,7 @@ class Viewer:
             return curses.ascii.BEL
         return ch
 
-    def edit_cell(self):
+    def edit_cell(self, edit_existing=True):
         yp = self.y + self.win_y
         xp = self.x + self.win_x
         self.box_height = self.max_y - int(self.max_y / 2)
@@ -369,7 +369,8 @@ class Viewer:
         scr2.move(1, 1)
 
         addstr(scr2, prompt)
-        addstr(scr3, self.data[yp][xp])
+        if edit_existing:
+            addstr(scr3, self.data[yp][xp])
 
         scr2.refresh()
         curses.curs_set(1)
@@ -791,6 +792,7 @@ class Viewer:
                      '?': self.help,
                      'd': self.delete_cell,
                      'e': self.edit_cell,
+                     'E': lambda: self.edit_cell(False),
                      'D': self.duplicate_row,
                      'u': self.undo_redo,
                      'r': lambda: self.undo_redo(False),
