@@ -44,6 +44,19 @@ def insstr(*args):
     return scr.insstr(*args)
 
 
+# https://github.com/jacklam718/cursesDialog/blob/master/cursDialog.py#L188
+def rectangle(win, begin_y, begin_x, height, width, attr):
+    win.vline(begin_y,        begin_x,       curses.ACS_VLINE,    height, attr)
+    win.hline(begin_y,        begin_x,       curses.ACS_HLINE,    width,  attr)
+    win.hline(height+begin_y, begin_x,       curses.ACS_HLINE,    width,  attr)
+    win.vline(begin_y,        begin_x+width, curses.ACS_VLINE,    height, attr)
+    win.addch(begin_y,        begin_x,       curses.ACS_ULCORNER,         attr)
+    win.addch(begin_y,        begin_x+width, curses.ACS_URCORNER,         attr)
+    win.addch(height+begin_y, begin_x,       curses.ACS_LLCORNER,         attr)
+    win.addch(begin_y+height, begin_x+width, curses.ACS_LRCORNER,         attr)
+    win.refresh()
+
+
 class ReloadException(Exception):
     def __init__(self, start_pos, column_width, column_gap, column_widths,
                  search_str):
@@ -172,9 +185,51 @@ class Viewer:
         return xp, w
 
     def quit(self, save=False):
-        if save:
-            self.save()
+        if save and self.modified:
+            resp = self.ask_save()
+            if resp == 'Cancel':
+                # Prevent quitting
+                return
+            elif resp == 'Yes':
+                # Ask Y/N
+                self.save()
         raise QuitException
+
+    def ask_save(self):
+        focus = 0
+        title = 'Save?'
+        options = ((4, '  Yes  '), (25, '  No  '), (46, 'Cancel'))  # x-pos, text
+        y, x = (10, 56)  # height, width
+
+        win = curses.newwin(y, x, int((self.max_y/2)-y/2), int((self.max_x/2)-x/2))
+        win.box()
+        win.keypad(1)
+
+        curses.curs_set(0)
+        curses.noecho()
+        curses.cbreak()
+
+        win.addstr(0, int(x/2-len(title)/2), title, curses.A_BOLD | curses.A_STANDOUT)
+
+        # Draws button outlines
+        for x_pos, text in options:
+            rectangle(win, int(y/1.5), x_pos-1, 2, len(text)+1, curses.A_BOLD)
+
+        while True:
+            # Draw button text and highlight selected button (rect)
+            for idx, option in enumerate(options):
+                style = curses.A_BOLD
+                if idx == focus:
+                    style |= curses.A_STANDOUT
+                win.addstr(int(y/1.5)+1, option[0], option[1], style)
+                rectangle(win, int(y/1.5), option[0]-1, 2, len(option[1])+1, style)
+
+            win.refresh()
+            key = win.getch()
+            if key in [curses.KEY_LEFT, curses.KEY_RIGHT]:
+                focus = max(0, focus-1) if key == curses.KEY_LEFT else min(2, focus+1)
+            elif key == ord('\n'):
+                return options[focus][1].strip()  # Return stripped option text
 
     def reload(self):
         start_pos = (self.y + self.win_y + 1, self.x + self.win_x + 1)
