@@ -338,6 +338,15 @@ class Viewer:
             self.data[yp][xp] = ''
             self.set_term_title(True)
 
+    def delete_row(self):
+        yp = self.y + self.win_y
+
+        undo_op = (yp, True, self.data.pop(yp))
+        if not self.undo_buffer or self.undo_buffer[0] != undo_op:
+            self.undo_buffer.insert(0, undo_op)
+
+        self.set_term_title(True)
+
     def _edit_validator(self, ch):
         """Fix Enter and backspace for textbox.
 
@@ -398,9 +407,19 @@ class Viewer:
 
         if len(from_buffer):
             yp, xp, value = from_buffer.pop(0)
-            to_buffer.insert(0, (yp, xp, self.data[yp][xp]))
-
-            self.data[yp][xp] = value
+            # FIXME: Undo/redo for row deletion is unstable (deleting multiple rows)
+            if xp is True:
+                # Row deletion - undo by reinserting row
+                insert_index = min(yp, len(self.data))
+                self.data.insert(insert_index, value)
+                to_buffer.insert(0, (insert_index, False, value))
+            elif xp is False:
+                # Row insertion - undo by deleting row
+                to_buffer.insert(0, (yp, True, value))
+                self.data.pop(yp)
+            else:
+                to_buffer.insert(0, (yp, xp, self.data[yp][xp]))
+                self.data[yp][xp] = value
             self.set_term_title(True)
 
     def duplicate_row(self):
@@ -807,7 +826,7 @@ class Viewer:
                      curses.KEY_NPAGE: self.page_down,
                      curses.KEY_IC: self.mark,
                      curses.KEY_ENTER: self.show_cell,
-                     curses.KEY_DC: self.delete_cell,
+                     curses.KEY_DC: self.delete_row,
                      KEY_CTRL('a'): self.line_home,
                      KEY_CTRL('e'): self.line_end,
                      KEY_CTRL('l'): self.scr.redrawwin,
