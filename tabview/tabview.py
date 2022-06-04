@@ -199,6 +199,7 @@ class Viewer:
         focus = 0
         title = 'Save?'
         options = ((4, '  Yes  '), (25, '  No  '), (46, 'Cancel'))  # x-pos, text
+        option_hotkeys = (ord('y'), ord('n'), curses.ascii.ESC)
         y, x = (10, 56)  # height, width
 
         win = curses.newwin(y, x, int((self.max_y/2)-y/2), int((self.max_x/2)-x/2))
@@ -228,6 +229,8 @@ class Viewer:
             key = win.getch()
             if key in [curses.KEY_LEFT, curses.KEY_RIGHT]:
                 focus = max(0, focus-1) if key == curses.KEY_LEFT else min(2, focus+1)
+            elif key in option_hotkeys:
+                focus = option_hotkeys.index(key)
             elif key == ord('\n'):
                 return options[focus][1].strip()  # Return stripped option text
 
