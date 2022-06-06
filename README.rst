@@ -33,6 +33,7 @@ Posted by Scott Hansen <firecat4153@gmail.com>
 
 Other Contributors:
 
+    + Abdurrahmaan Iqbal
     + Matus Gura <matus.gura@gmail.com>
     + Nathan Typanski <ntypanski@gmail.com>
     + Sébastien Celles <s.celles@gmail.com>
@@ -44,7 +45,7 @@ it are shown the contents of that cell.
 Features:
 ---------
 * Python 3.4+
-* Spreadsheet-like view for easily visualizing tabular data
+* Spreadsheet-like view for easily visualizing and editing tabular data
 * Vim-like navigation (h,j,k,l, g(top), G(bottom), 12G goto line 12, m - mark,
   ' - goto mark, etc.) 
 * Toggle persistent header row
@@ -128,8 +129,14 @@ Keybindings:
                              if num not given
 **Ctrl-g**                   Show file/data information
 **Insert or m**              Memorize this position
-'**                          Return to memorized position (if any)
+**'**                        Return to memorized position (if any)
 **Enter**                    View full cell contents in pop-up window.
+**d**                        (Editing) Delete cell content
+**Delete**                   (Editing) Delete entire row
+**e/E**                      (Editing) Edit cell - `e` edits current content, `E` does not.
+**D**                        (Editing) Duplicate row
+**u/r**                      (Editing) Undo/redo (NOTE: naïve implementation)
+**CTRL+S**                   (Editing) Save file
 **/**                        Search
 **n**                        Next search result
 **p**                        Previous search result
@@ -143,7 +150,7 @@ Keybindings:
 **A**                        'Natural Sort' the table (descending)
 **#**                        Sort numerically by the current column (ascending)
 **@**                        Sort numerically by the current column (descending)
-**r**                        Reload file/data. Also resets sort order
+**R**                        Reload file/data. Also resets sort order
 **y**                        Yank cell contents to the clipboard
                              (requires xsel or xclip)
 **[num]c**                   Toggle variable column width mode (mode/max),
