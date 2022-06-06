@@ -5,6 +5,8 @@
   Based on code contributed by A.M. Kuchling <amk at amk dot ca>
 
 """
+from editor.editor import Editor
+
 import csv
 import _curses
 import curses
@@ -405,47 +407,22 @@ class Viewer:
 
         self.set_term_title(True)
 
-    def _edit_validator(self, ch):
-        """Fix Enter and backspace for textbox.
-
-        Used as an aux function for the textpad.edit method
-
-        """
-        if ch == curses.ascii.NL:  # Enter
-            return curses.ascii.BEL
-        elif ch == curses.KEY_HOME:
-            return self.textpad.do_command(KEY_CTRL('a'))
-        elif ch == curses.KEY_END:
-            return self.textpad.do_command(KEY_CTRL('e'))
-        elif ch == curses.ascii.ESC:
-            self.textpad.insert_mode = False
-            return curses.ascii.BEL
-        return ch
-
     def edit_cell(self, edit_existing=True):
         yp = self.y + self.win_y
         xp = self.x + self.win_x
-        self.box_height = self.max_y - int(self.max_y / 2)
-        box_height = int(self.box_height / 4)
+        box_height = int((self.max_y - int(self.max_y / 2)) / 4)
+        data = self.data[yp][xp] if edit_existing else ""
 
         prompt = "Edit: "
-        scr2 = curses.newwin(box_height+1, self.max_x, self.max_y-box_height-1, 0)
-        scr3 = scr2.derwin(1, self.max_x-len(prompt)-3, 1, len(prompt)+1)
+        editor = Editor(
+            self.scr, title=prompt, inittext=data, max_paragraphs=1,
+            win_size=(box_height+1, self.max_x),
+            win_location=(self.max_y-box_height-1, 0),
+        )
+        editor.end()  # Move to end of text for easier editing
 
-        scr2.box()
-        scr2.move(1, 1)
-
-        addstr(scr2, prompt)
-        if edit_existing:
-            addstr(scr3, self.data[yp][xp])
-
-        scr2.refresh()
-        curses.curs_set(1)
-
-        self.textpad = Textbox(scr3, insert_mode=True)
-
-        result = self.textpad.edit(self._edit_validator)[:-1].strip()
-        if self.textpad.insert_mode:  # False if escape pressed (discard)
+        result = editor().strip()
+        if result != self.data[yp][xp]:
             self.undo_buffer.insert(0, (yp, xp, self.data[yp][xp]))
             self.data[yp][xp] = result
             self.set_term_title(True)
