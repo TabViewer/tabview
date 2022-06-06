@@ -649,7 +649,12 @@ class Viewer:
         idx = help_txt.index('Keybindings:\n')
         help_txt = [i.replace('**', '') for i in help_txt[idx:]
                     if '===' not in i]
-        TextBox(self.scr, data="".join(help_txt), title="Help")()
+        box_height = self.max_y - int(self.max_y / 2)
+        Editor(
+            self.scr, title="Help", inittext="".join(help_txt), edit=False,
+            win_size=(box_height+1, self.max_x),
+            win_location=(self.max_y-box_height-1, 0),
+        )()
         self.resize()
 
     def toggle_header(self):
