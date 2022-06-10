@@ -422,7 +422,7 @@ class Viewer:
         editor.end()  # Move to end of text for easier editing
 
         result = editor().strip()
-        if result != self.data[yp][xp]:
+        if editor.edit and result != self.data[yp][xp]:
             self.undo_buffer.insert(0, (yp, xp, self.data[yp][xp]))
             self.data[yp][xp] = result
             self.set_term_title(True)
