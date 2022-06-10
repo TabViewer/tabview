@@ -151,7 +151,7 @@ Keybindings:
 **#**                        Sort numerically by the current column (ascending)
 **@**                        Sort numerically by the current column (descending)
 **R**                        Reload file/data. Also resets sort order
-**y**                        Yank cell contents to the clipboard
+**y/P**                      Yank cell contents to the clipboard (P pastes last yank)
                              (requires xsel or xclip)
 **[num]c**                   Toggle variable column width mode (mode/max),
                              or set width to [num]

@@ -127,6 +127,7 @@ class Viewer:
         self._search_win_open = 0
         self.modified = False
         self.modifier = str()
+        self.yank_buffer = None
         self.define_keys()
         self.resize()
         self.display()
@@ -431,6 +432,14 @@ class Viewer:
             curses.curs_set(0)
         except _curses.error:
             pass
+
+    def paste_cell(self):
+        yp = self.y + self.win_y
+        xp = self.x + self.win_x
+        if self.yank_buffer:
+            self.undo_buffer.insert(0, (yp, xp, self.data[yp][xp]))
+            self.data[yp][xp] = self.yank_buffer
+            self.set_term_title(True)
 
     def undo_redo(self, undo=True):
         if undo:
@@ -791,7 +800,7 @@ class Viewer:
     def yank_cell(self):
         yp = self.y + self.win_y
         xp = self.x + self.win_x
-        s = self.data[yp][xp]
+        self.yank_buffer = self.data[yp][xp]
         # Bail out if not running in X
         try:
             os.environ['DISPLAY']
@@ -801,7 +810,7 @@ class Viewer:
                     ['xsel', '-i']):
             try:
                 Popen(cmd, stdin=PIPE,
-                      universal_newlines=True).communicate(input=s)
+                      universal_newlines=True).communicate(input=self.yank_buffer)
             except IOError:
                 pass
 
@@ -841,6 +850,7 @@ class Viewer:
                      's': self.sort_by_column,
                      'S': self.sort_by_column_reverse,
                      'y': self.yank_cell,
+                     'P': self.paste_cell,
                      'R': self.reload,
                      'c': self.toggle_column_width,
                      'C': self.set_current_column_width,
