@@ -1,4 +1,4 @@
-Scott Hansen <firecat four one five three at gmail dot com>
+Scott Hansen <tech at firecat53 dot net>
 
 Based on code contributed by A.M. Kuchling <amk at amk dot ca>
 

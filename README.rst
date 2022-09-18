@@ -25,7 +25,7 @@ limited. For a more fully featured CSV viewer/spreadsheet app check out the**
 
 View a CSV file in a spreadsheet-like display.
 
-Posted by Scott Hansen <firecat4153@gmail.com>
+Posted by Scott Hansen <tech@firecat53.net>
 
     Original code forked from: http://www.amk.ca/files/simple/tabview.txt
 
