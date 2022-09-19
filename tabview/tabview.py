@@ -5,6 +5,8 @@
   Based on code contributed by A.M. Kuchling <amk at amk dot ca>
 
 """
+from editor.editor import Editor
+
 import csv
 import _curses
 import curses
@@ -44,6 +46,19 @@ def insstr(*args):
     return scr.insstr(*args)
 
 
+# https://github.com/jacklam718/cursesDialog/blob/master/cursDialog.py#L188
+def rectangle(win, begin_y, begin_x, height, width, attr):
+    win.vline(begin_y,        begin_x,       curses.ACS_VLINE,    height, attr)
+    win.hline(begin_y,        begin_x,       curses.ACS_HLINE,    width,  attr)
+    win.hline(height+begin_y, begin_x,       curses.ACS_HLINE,    width,  attr)
+    win.vline(begin_y,        begin_x+width, curses.ACS_VLINE,    height, attr)
+    win.addch(begin_y,        begin_x,       curses.ACS_ULCORNER,         attr)
+    win.addch(begin_y,        begin_x+width, curses.ACS_URCORNER,         attr)
+    win.addch(height+begin_y, begin_x,       curses.ACS_LLCORNER,         attr)
+    win.addch(begin_y+height, begin_x+width, curses.ACS_LRCORNER,         attr)
+    win.refresh()
+
+
 class ReloadException(Exception):
     def __init__(self, start_pos, column_width, column_gap, column_widths,
                  search_str):
@@ -74,6 +89,7 @@ class Viewer:
         # http://bugs.python.org/issue2675
         os.unsetenv('LINES')
         os.unsetenv('COLUMNS')
+        self.filename = kwargs.get('filename')
         self.scr = args[0]
         self.data = [[str(j) for j in i] for i in args[1]]
         self.info = kwargs.get('info')
@@ -105,9 +121,13 @@ class Viewer:
         self.max_y, self.max_x = 0, 0
         self.num_columns = 0
         self.vis_columns = 0
+        self.undo_buffer = []
+        self.redo_buffer = []
         self.init_search = self.search_str = kwargs.get('search_str')
         self._search_win_open = 0
+        self.modified = False
         self.modifier = str()
+        self.yank_buffer = None
         self.define_keys()
         self.resize()
         self.display()
@@ -120,6 +140,12 @@ class Viewer:
             self.goto_x(kwargs.get('start_pos')[1])
         except (IndexError, TypeError):
             pass
+        self.set_term_title()
+
+    def set_term_title(self, modified=False):
+        # https://stackoverflow.com/a/47262154
+        print(f"\x1b]2;{self.filename}{'*'if modified else''}\x07", end='', flush=True)
+        self.modified = modified
 
     def _is_num(self, cell):
         try:
@@ -161,8 +187,55 @@ class Viewer:
         w = max(0, min(self.max_x - xp, self.column_width[self.win_x + x]))
         return xp, w
 
-    def quit(self):
+    def quit(self, save=False):
+        if save and self.modified:
+            resp = self.ask_save()
+            if resp == 'Cancel':
+                # Prevent quitting
+                return
+            elif resp == 'Yes':
+                # Ask Y/N
+                self.save()
         raise QuitException
+
+    def ask_save(self):
+        focus = 0
+        title = 'Save?'
+        options = ((4, '  Yes  '), (25, '  No  '), (46, 'Cancel'))  # x-pos, text
+        option_hotkeys = (ord('y'), ord('n'), curses.ascii.ESC)
+        y, x = (10, 56)  # height, width
+
+        win = curses.newwin(y, x, int((self.max_y/2)-y/2), int((self.max_x/2)-x/2))
+        win.box()
+        win.keypad(1)
+
+        curses.curs_set(0)
+        curses.noecho()
+        curses.cbreak()
+
+        win.addstr(0, int(x/2-len(title)/2), title, curses.A_BOLD | curses.A_STANDOUT)
+
+        # Draws button outlines
+        for x_pos, text in options:
+            rectangle(win, int(y/1.5), x_pos-1, 2, len(text)+1, curses.A_BOLD)
+
+        while True:
+            # Draw button text and highlight selected button (rect)
+            for idx, option in enumerate(options):
+                style = curses.A_BOLD
+                if idx == focus:
+                    style |= curses.A_STANDOUT
+                win.addstr(int(y/1.5)+1, option[0], option[1], style)
+                rectangle(win, int(y/1.5), option[0]-1, 2, len(option[1])+1, style)
+
+            win.refresh()
+            key = win.getch()
+            if key in [curses.KEY_LEFT, curses.KEY_RIGHT]:
+                focus = max(0, focus-1) if key == curses.KEY_LEFT else min(2, focus+1)
+            elif key in option_hotkeys:
+                focus = option_hotkeys.index(key)
+            elif key == ord('\n'):
+                return options[focus][1].strip()  # Return stripped option text
 
     def reload(self):
         start_pos = (self.y + self.win_y + 1, self.x + self.win_x + 1)
@@ -312,11 +385,91 @@ class Viewer:
         yp = self.y + self.win_y
         xp = self.x + self.win_x
         s = "\n" + self.data[yp][xp]
-        if not s:
-            # Only display pop-up if cells have contents
-            return
         TextBox(self.scr, data=s, title=self.location_string(yp, xp))()
         self.resize()
+
+    def delete_cell(self):
+        yp = self.y + self.win_y
+        xp = self.x + self.win_x
+
+        if self.data[yp][xp]:
+            undo_op = (yp, xp, self.data[yp][xp])
+            if not self.undo_buffer or self.undo_buffer[0] != undo_op:
+                self.undo_buffer.insert(0, undo_op)
+            self.data[yp][xp] = ''
+            self.set_term_title(True)
+
+    def delete_row(self):
+        yp = self.y + self.win_y
+
+        undo_op = (yp, True, self.data.pop(yp))
+        if not self.undo_buffer or self.undo_buffer[0] != undo_op:
+            self.undo_buffer.insert(0, undo_op)
+
+        self.set_term_title(True)
+
+    def edit_cell(self, edit_existing=True):
+        yp = self.y + self.win_y
+        xp = self.x + self.win_x
+        box_height = int((self.max_y - int(self.max_y / 2)) / 4)
+        data = self.data[yp][xp] if edit_existing else ""
+
+        prompt = "Edit: "
+        editor = Editor(
+            self.scr, title=prompt, inittext=data, max_paragraphs=1,
+            win_size=(box_height+1, self.max_x),
+            win_location=(self.max_y-box_height-1, 0),
+        )
+        editor.end()  # Move to end of text for easier editing
+
+        result = editor().strip()
+        if editor.edit and result != self.data[yp][xp]:
+            self.undo_buffer.insert(0, (yp, xp, self.data[yp][xp]))
+            self.data[yp][xp] = result
+            self.set_term_title(True)
+
+        try:
+            curses.curs_set(0)
+        except _curses.error:
+            pass
+
+    def paste_cell(self):
+        yp = self.y + self.win_y
+        xp = self.x + self.win_x
+        if self.yank_buffer:
+            self.undo_buffer.insert(0, (yp, xp, self.data[yp][xp]))
+            self.data[yp][xp] = self.yank_buffer
+            self.set_term_title(True)
+
+    def undo_redo(self, undo=True):
+        if undo:
+            from_buffer = self.undo_buffer
+            to_buffer = self.redo_buffer
+        else:
+            from_buffer = self.redo_buffer
+            to_buffer = self.undo_buffer
+
+        if len(from_buffer):
+            yp, xp, value = from_buffer.pop(0)
+            # FIXME: Undo/redo for row deletion is unstable (deleting multiple rows)
+            if xp is True:
+                # Row deletion - undo by reinserting row
+                insert_index = min(yp, len(self.data))
+                self.data.insert(insert_index, value)
+                to_buffer.insert(0, (insert_index, False, value))
+            elif xp is False:
+                # Row insertion - undo by deleting row
+                to_buffer.insert(0, (yp, True, value))
+                self.data.pop(yp)
+            else:
+                to_buffer.insert(0, (yp, xp, self.data[yp][xp]))
+                self.data[yp][xp] = value
+            self.set_term_title(True)
+
+    def duplicate_row(self):
+        yp = self.y + self.win_y
+        self.data.insert(yp+1, self.data[yp].copy())
+        self.set_term_title(True)
 
     def show_info(self):
         """Display data information in a pop-up window
@@ -413,7 +566,8 @@ class Viewer:
             else:
                 # Skip back to the top if at the end of the data
                 yp = xp = 0
-        search_order = [self._search_cur_line_r,
+        search_order = [self._search_header,
+                        self._search_cur_line_r,
                         self._search_next_line_to_end,
                         self._search_next_line_from_beg,
                         self._search_cur_line_l]
@@ -441,6 +595,16 @@ class Viewer:
             i.reverse()
             data[idx] = i
         return data, yp, xp
+
+    def _search_header(self, data, yp, xp):
+        """ Headers line first, from yp,xp to the right """
+        res = False
+        for x, item in enumerate(self.header):
+            if self.search_str in item.lower():
+                xp = x
+                res = True
+                break
+        return yp, xp, res
 
     def _search_cur_line_r(self, data, yp, xp):
         """ Current line first, from yp,xp to the right """
@@ -494,7 +658,12 @@ class Viewer:
         idx = help_txt.index('Keybindings:\n')
         help_txt = [i.replace('**', '') for i in help_txt[idx:]
                     if '===' not in i]
-        TextBox(self.scr, data="".join(help_txt), title="Help")()
+        box_height = self.max_y - int(self.max_y / 2)
+        Editor(
+            self.scr, title="Help", inittext="".join(help_txt), edit=False,
+            win_size=(box_height+1, self.max_x),
+            win_location=(self.max_y-box_height-1, 0),
+        )()
         self.resize()
 
     def toggle_header(self):
@@ -631,7 +800,7 @@ class Viewer:
     def yank_cell(self):
         yp = self.y + self.win_y
         xp = self.x + self.win_x
-        s = self.data[yp][xp]
+        self.yank_buffer = self.data[yp][xp]
         # Bail out if not running in X
         try:
             os.environ['DISPLAY']
@@ -641,7 +810,7 @@ class Viewer:
                     ['xsel', '-i'], ['pbcopy']):
             try:
                 Popen(cmd, stdin=PIPE,
-                      universal_newlines=True).communicate(input=s)
+                      universal_newlines=True).communicate(input=self.yank_buffer)
             except IOError:
                 pass
 
@@ -656,7 +825,7 @@ class Viewer:
                      "'": self.goto_mark,
                      'L': self.page_right,
                      'H': self.page_left,
-                     'q': self.quit,
+                     'q': lambda: self.quit(True),
                      'Q': self.quit,
                      '$': self.line_end,
                      '^': self.line_home,
@@ -681,7 +850,8 @@ class Viewer:
                      's': self.sort_by_column,
                      'S': self.sort_by_column_reverse,
                      'y': self.yank_cell,
-                     'r': self.reload,
+                     'P': self.paste_cell,
+                     'R': self.reload,
                      'c': self.toggle_column_width,
                      'C': self.set_current_column_width,
                      ']': self.skip_to_row_change,
@@ -689,6 +859,12 @@ class Viewer:
                      '}': self.skip_to_col_change,
                      '{': self.skip_to_col_change_reverse,
                      '?': self.help,
+                     'd': self.delete_cell,
+                     'e': self.edit_cell,
+                     'E': lambda: self.edit_cell(False),
+                     'D': self.duplicate_row,
+                     'u': self.undo_redo,
+                     'r': lambda: self.undo_redo(False),
                      curses.KEY_F1: self.help,
                      curses.KEY_UP: self.up,
                      curses.KEY_DOWN: self.down,
@@ -699,13 +875,23 @@ class Viewer:
                      curses.KEY_PPAGE: self.page_up,
                      curses.KEY_NPAGE: self.page_down,
                      curses.KEY_IC: self.mark,
-                     curses.KEY_DC: self.goto_mark,
                      curses.KEY_ENTER: self.show_cell,
+                     curses.KEY_DC: self.delete_row,
                      KEY_CTRL('a'): self.line_home,
                      KEY_CTRL('e'): self.line_end,
                      KEY_CTRL('l'): self.scr.redrawwin,
                      KEY_CTRL('g'): self.show_info,
+                     KEY_CTRL('s'): self.save,
                      }
+
+    def save(self):
+        if self.modified:
+            with open(self.filename, 'w') as csvfile:
+                writer = csv.writer(csvfile, quoting=csv.QUOTE_MINIMAL)
+                writer.writerow(self.header)
+                for row in self.data:
+                    writer.writerow(row)
+            self.set_term_title()
 
     def run(self):
         # Clear the screen and display the menu of keys
@@ -1319,6 +1505,9 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                     # cannot read the file
                     return 1
 
+                # https://stackoverflow.com/a/28020568
+                os.environ.setdefault('ESCDELAY', '50')
+
                 curses.wrapper(main, buf,
                                start_pos=start_pos,
                                column_width=column_width,
@@ -1327,7 +1516,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                                column_widths=column_widths,
                                search_str=search_str,
                                double_width=double_width,
-                               info=info)
+                               info=info,
+                               filename=data)
             except (QuitException, KeyboardInterrupt):
                 return 0
             except ReloadException as e:
