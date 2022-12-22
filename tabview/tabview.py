@@ -756,7 +756,11 @@ class Viewer:
             curses.is_term_resized(self.max_y, self.max_x)
         if resize is True:
             self.recalculate_layout()
-            curses.resizeterm(self.max_y, self.max_x)
+            try:
+                resizeterm = curses.resizeterm
+            except AttributeError:
+                resizeterm = curses.resize_term
+            resizeterm(self.max_y, self.max_x)
 
     def num_columns_fwd(self, x):
         """Count number of fully visible columns starting at x,
