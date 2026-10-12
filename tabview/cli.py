@@ -20,6 +20,22 @@ import sys
 from .tabview import view
 
 
+def char_arg(value):
+    """argparse type for a single character. Accepts backslash escapes such as
+    '\\t' or '\\x01', since those are hard to type literally.
+
+    """
+    try:
+        value = value.encode('latin-1', 'backslashreplace').decode(
+            'unicode_escape')
+    except UnicodeDecodeError:
+        value = ''
+    if len(value) != 1:
+        raise argparse.ArgumentTypeError(
+            "must be a single character (escapes like '\\t' are allowed)")
+    return value
+
+
 def arg_parse():
     """Parse filename and show help."""
     parser = argparse.ArgumentParser(description="View a tab-delimited file "
@@ -33,9 +49,10 @@ def arg_parse():
                         "other common encodings, it should be detected "
                         "automatically. If not, you can pass "
                         "'CP720', or 'iso8859-2', for example.")
-    parser.add_argument('--delimiter', '-d', default=None,
+    parser.add_argument('--delimiter', '-d', default=None, type=char_arg,
                         help="CSV delimiter. Not typically necessary since "
-                        "automatic delimiter sniffing is used.")
+                        "automatic delimiter sniffing is used. Escapes like "
+                        "'\\t' or '\\x01' are accepted.")
     parser.add_argument('--quoting', default=None,
                         choices=[i for i in dir(csv) if i.startswith("QUOTE")],
                         help="CSV quoting style. Not typically required.")
@@ -53,7 +70,7 @@ def arg_parse():
     parser.add_argument('--double_width', action='store_true', default=False,
                         help="Force full handling of double-width characters "
                         "for large files (with a performance penalty)")
-    parser.add_argument('--quote-char', '-q', default='"',
+    parser.add_argument('--quote-char', '-q', default='"', type=char_arg,
                         help="Quote character. Not typically necessary.")
     return parser.parse_known_args()
 

@@ -1,6 +1,10 @@
+import argparse
 import curses
+import io
+import pathlib
 import unittest
 from unittest import mock
+import tabview.cli as cli
 import tabview.tabview as t
 
 res1 = ["Yugoslavia (Latin)", "Djordje Balasevic", "Jugoslavija",
@@ -29,7 +33,9 @@ res3 = [["A", "B", "C", "D"],
         "+40.9029683683568948"]]
 
 data_1 = ('sample/unicode-example-utf8.txt', 'utf-8', res1)
-data_2 = ('sample/test_latin-1.csv', 'latin-1', res2)
+# Windows-1252 is tried before Latin-1; it decodes Latin-1 text identically
+# apart from the (rarely used) C1 control characters
+data_2 = ('sample/test_latin-1.csv', 'cp1252', res2)
 data_3 = ('sample/commented_annotated_numeric.txt', 'utf-8', res3[1])
 
 list_1 = [['a', 'b', 'c'], ['d', 'e', 'f'], [1, 2, 3]]
@@ -116,6 +122,14 @@ class TestTabviewUnits(unittest.TestCase):
         path = t.parse_path('test.csv')
         self.assertEqual(path, 'test.csv')
 
+        # Plain filenames may contain URL special characters
+        for fn in ('data#1.csv', 'what?.csv', 'a;b.csv', '100%.csv'):
+            self.assertEqual(t.parse_path(fn), fn)
+
+        # Percent escapes in URIs are decoded
+        path = t.parse_path('file:///tmp/a%20b.csv')
+        self.assertEqual(path, '/tmp/a b.csv')
+
     def test_clipboard_commands(self):
         with mock.patch.dict('os.environ', clear=True), \
                 mock.patch('sys.platform', 'linux'):
@@ -129,6 +143,103 @@ class TestTabviewUnits(unittest.TestCase):
         with mock.patch.dict('os.environ', clear=True), \
                 mock.patch('sys.platform', 'darwin'):
             self.assertEqual(t.clipboard_commands(), [['pbcopy']])
+
+
+class TestTabviewInput(unittest.TestCase):
+    """Parsing of file data into rows"""
+
+    def test_sniff_single_column(self):
+        self.assertEqual(t.process_data([b'Name\n', b'Bob\n', b'Mary\n']),
+                         [['Name'], ['Bob'], ['Mary']])
+
+    def test_sniff_uses_several_lines(self):
+        self.assertEqual(t.csv_sniff('Full Name,Age\nBob Smith,3\n'), ',')
+
+    def test_sniff_blank_first_line(self):
+        self.assertEqual(t.process_data(b'\na,b\n1,2\n')[1:],
+                         [['a', 'b'], ['1', '2']])
+
+    def test_sniff_control_char_delimiter(self):
+        self.assertEqual(t.process_data(b'a\x01b c\n1\x012\n'),
+                         [['a', 'b c'], ['1', '2']])
+
+    def test_sniff_fallback(self):
+        self.assertEqual(t.csv_sniff(''), ',')
+        self.assertEqual(t.csv_sniff('a\tb\n'), '\t')
+
+    def test_space_delim_quotes(self):
+        res = t.process_data(b'name city\n"John Smith" NYC\nit\'s  LA\n')
+        self.assertEqual(res, [['name', 'city'], ['John Smith', 'NYC'],
+                               ["it's", 'LA']])
+
+    def test_cr_newlines(self):
+        self.assertEqual(t.process_data(b'a,b\r1,2\r'),
+                         [['a', 'b'], ['1', '2']])
+
+    def test_bom(self):
+        self.assertEqual(t.detect_encoding(b'\xef\xbb\xbfa,b\n'),
+                         'utf-8-sig')
+        self.assertEqual(t.process_data(b'\xef\xbb\xbfa,b\n1,2\n'),
+                         [['a', 'b'], ['1', '2']])
+        # BOM is also removed when the encoding is given explicitly
+        self.assertEqual(t.process_data(b'\xef\xbb\xbfa,b\n', enc='utf-8'),
+                         [['a', 'b']])
+
+    def test_utf16(self):
+        data = 'a,é\n1,2\n'.encode('utf-16')
+        self.assertEqual(t.detect_encoding(data), 'utf-16')
+        self.assertEqual(t.process_data(data), [['a', 'é'], ['1', '2']])
+
+    def test_cp1252(self):
+        self.assertEqual(t.process_data('“q”,b\n'.encode('cp1252')),
+                         [['“q”', 'b']])
+
+    def test_input_types(self):
+        expected = [['a', 'b'], ['1', '2']]
+        self.assertEqual(t.process_data('a,b\n1,2\n'), expected)
+        self.assertEqual(t.process_data(['a,b\n', '1,2\n']), expected)
+        self.assertEqual(t.process_data(io.StringIO('a,b\n1,2\n').read()),
+                         expected)
+
+    def test_ragged_tuples(self):
+        self.assertEqual(t.pad_data((('a', 'b'), ('c',))),
+                         [['a', 'b'], ['c', '']])
+
+    def test_empty(self):
+        for data in ([], b'', '', b'\n\n', [[]]):
+            self.assertFalse(t.has_data(t.process_data(data)), data)
+        self.assertTrue(t.has_data(t.process_data(b'a\n')))
+
+    def test_view_no_data(self):
+        with mock.patch('sys.stderr', new_callable=io.StringIO) as err:
+            self.assertEqual(t.view([[]]), 1)
+            self.assertEqual(t.view(io.BytesIO(b'\n\n')), 1)
+        self.assertIn('no data', err.getvalue())
+
+    def test_view_path_types(self):
+        # Opening and parsing happen before curses starts; stop there
+        with mock.patch('curses.wrapper', side_effect=t.QuitException) as w:
+            fn = data_1[0]
+            for data in (fn, pathlib.Path(fn),
+                         pathlib.Path(fn).resolve().as_uri()):
+                self.assertEqual(t.view(data), 0)
+                self.assertEqual(w.call_args.args[1][-1], res1)
+                self.assertEqual(w.call_args.kwargs['info'], str(data))
+            with open(fn, encoding='utf-8') as f:
+                t.view(f)
+            self.assertEqual(w.call_args.args[1][-1], res1)
+
+
+class TestTabviewCli(unittest.TestCase):
+
+    def test_char_arg(self):
+        self.assertEqual(cli.char_arg('\\t'), '\t')
+        self.assertEqual(cli.char_arg('\\x01'), '\x01')
+        self.assertEqual(cli.char_arg(';'), ';')
+        self.assertEqual(cli.char_arg('é'), 'é')
+        for bad in ('', 'ab', '\\'):
+            with self.assertRaises(argparse.ArgumentTypeError):
+                cli.char_arg(bad)
 
 
 class TestTabviewIntegration(unittest.TestCase):

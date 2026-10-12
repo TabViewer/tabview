@@ -4,6 +4,7 @@
   Based on code contributed by A.M. Kuchling <amk at amk dot ca>
 
 """
+import codecs
 import csv
 import curses
 import curses.ascii
@@ -20,7 +21,7 @@ from subprocess import run, CalledProcessError, DEVNULL
 from textwrap import wrap
 import unicodedata
 from urllib.parse import urlparse
-import shlex
+from urllib.request import url2pathname
 
 
 def KEY_CTRL(key):
@@ -1086,81 +1087,91 @@ class TextBox:
         self.win.refresh()
 
 
-def csv_sniff(data, enc):
-    """Given a list, sniff the dialect of the data and return it.
+# Characters considered when sniffing the delimiter. Without this list the
+# sniffer happily picks letters, e.g. 'm' for a single "Name" column.
+SNIFF_DELIMITERS = ',\t;| :\x01\x1f'
+
+
+def csv_sniff(text):
+    """Guess the delimiter of CSV text.
+
+    Sniff the first lines together, then the first line alone (aligned,
+    space-delimited data with a commented header isn't consistent across
+    lines), then fall back to tab or comma.
 
     Args:
-        data - list like ["col1,col2,col3"]
-        enc - python encoding value ('utf_8','latin-1','cp870', etc)
+        text - decoded file contents
     Returns:
-        csv.dialect.delimiter
+        delimiter character
 
     """
-    data = data.decode(enc)
-    dialect = csv.Sniffer().sniff(data)
-    return dialect.delimiter
+    lines = [i for i in re.split(r'\r\n|\r|\n', text, maxsplit=50)[:50]
+             if i.strip()]
+    sniffer = csv.Sniffer()
+    for sample in ('\n'.join(lines), lines[0] if lines else ''):
+        try:
+            return sniffer.sniff(sample, delimiters=SNIFF_DELIMITERS).delimiter
+        except csv.Error:
+            continue
+    return '\t' if '\t' in text else ','
 
 
-def fix_newlines(data):
-    """If there are windows \r newlines in the input data, split the string on
-    the \r characters. I can't figure another way to enable universal newlines
-    without messing up Unicode support.
-
-    """
-    if len(data) == 1 and b'\r' in data[0]:
-        data = data[0].split(b'\r')
-    return data
-
-
-def adjust_space_delim(data, enc):
-    """Take data that is space deliminated and clean it to be a *single* space
+def clean_space_delim(lines):
+    """Prepare space delimited lines for csv.reader: strip leading and
+    trailing whitespace so alignment padding doesn't create empty cells.
 
     Additionally, if (and only if) the first line begins with '#' or '%',
     strip that off. Common pattern in Matlab and Numpy
 
     """
-    if data[0].decode(enc)[0] in '%#':
-        data[0] = data[0][1:]
-
-    # Split at the white space preserving quotes (if applicable) and
-    # trailing \n
-    return [(' '.join(shlex.split(d.decode(enc))) + '\n').encode(enc)
-            for d in data]
+    if lines and lines[0][:1] in ('#', '%'):
+        lines[0] = lines[0][1:]
+    return [i.strip() for i in lines]
 
 
 def process_data(data, enc=None, delim=None, quoting=None, quote_char='"'):
-    """Given a list of lists, check for the encoding, quoting and delimiter and
+    """Given the data, check for the encoding, quoting and delimiter and
     return a list of CSV rows (normalized to a single length)
 
+    Args:
+        data - bytes or str file contents, a list of bytes or str lines (e.g.
+               from readlines()), or a list of rows (list of lists)
+
     """
-    data = fix_newlines(data)
-    if data_list_or_file(data) == 'list':
+    if isinstance(data, (bytes, str)):
+        text = data
+    elif not data:
+        return []
+    elif data_list_or_file(data) == 'list':
         # If data is from an object (list of lists) instead of a file
         return pad_data(data)
-    if enc is None:
-        enc = detect_encoding(data)
-    if delim is None:
-        delim = csv_sniff(data[0], enc)
-        if ' ' in delim:
-            data = adjust_space_delim(data, enc)
-    if quoting is not None:
-        quoting = getattr(csv, quoting)
     else:
-        quoting = csv.QUOTE_MINIMAL
-    csv_data = []
-    data = [i.decode(enc) for i in data]
-    csv_obj = csv.reader(data, delimiter=delim, quoting=quoting,
-                         quotechar=quote_char)
-    for row in csv_obj:
-        csv_data.append(row)
-    return pad_data(csv_data)
+        text = data[0][:0].join(data)
+    if isinstance(text, bytes):
+        text = text.decode(enc or detect_encoding(text))
+    # A UTF-8 BOM survives decoding when the encoding was passed in
+    text = text.removeprefix('﻿')
+    if delim is None:
+        delim = csv_sniff(text)
+    quoting = getattr(csv, quoting) if quoting else csv.QUOTE_MINIMAL
+    # newline='' splits lines on \n, \r\n and \r without translating them,
+    # which is what csv.reader expects
+    lines = io.StringIO(text, newline='').readlines()
+    if delim == ' ':
+        lines = clean_space_delim(lines)
+        csv_obj = csv.reader(lines, delimiter=delim, quoting=quoting,
+                             quotechar=quote_char, skipinitialspace=True)
+    else:
+        csv_obj = csv.reader(lines, delimiter=delim, quoting=quoting,
+                             quotechar=quote_char)
+    return pad_data(list(csv_obj))
 
 
 def data_list_or_file(data):
     """Determine if 'data' is a list of lists or list of strings/bytes
 
-    Python 3 - reading a file returns a list of byte strings
-    Both - list of lists is just a list
+    Reading a file returns a list of byte strings, while a list of lists
+    is just a list
 
     Returns: 'file' if data was from a file, 'list' if from a python list/tuple
 
@@ -1172,15 +1183,19 @@ def data_list_or_file(data):
 def pad_data(d):
     """Pad data rows to the length of the longest row.
 
-        Args: d - list of lists
+        Args: d - list of lists (or other sequences)
 
     """
-    max_len = {len(i) for i in d}
-    if len(max_len) == 1:
+    lens = {len(i) for i in d}
+    if len(lens) <= 1:
         return d
-    else:
-        max_len = max(max_len)
-        return [i + [""] * (max_len - len(i)) for i in d]
+    max_len = max(lens)
+    return [list(i) + [""] * (max_len - len(i)) for i in d]
+
+
+def has_data(d):
+    """True if there is at least one row with at least one column"""
+    return bool(d) and any(len(i) for i in d)
 
 
 def clipboard_commands():
@@ -1208,31 +1223,44 @@ def readme():
 
 
 def detect_encoding(data=None):
-    """Return the default system encoding. If data is passed, try
-    to decode the data with the default system encoding or from a short
-    list of encoding types to test.
+    """Return the locale encoding. If data is passed, guess its encoding: a
+    byte order mark if present, otherwise the first of UTF-8, the locale
+    encoding and Windows-1252 that decodes it, falling back to Latin-1 (which
+    decodes anything).
 
     Args:
-        data - list of lists
+        data - bytes, or a list of bytes lines
     Returns:
-        enc - system encoding
+        enc - encoding name
 
     """
-    enc_list = ['utf-8', 'latin-1', 'iso8859-1', 'iso8859-2',
-                'utf-16', 'cp720']
     code = locale.getencoding()
     if data is None:
         return code
-    if code.lower() not in enc_list:
-        enc_list.insert(0, code.lower())
-    for c in enc_list:
+    if not isinstance(data, bytes):
+        data = b''.join(data)
+    for bom, enc in ((codecs.BOM_UTF32_LE, 'utf-32'),
+                     (codecs.BOM_UTF32_BE, 'utf-32'),
+                     (codecs.BOM_UTF8, 'utf-8-sig'),
+                     (codecs.BOM_UTF16_LE, 'utf-16'),
+                     (codecs.BOM_UTF16_BE, 'utf-16')):
+        if data.startswith(bom):
+            return enc
+    tried = set()
+    for enc in ('utf-8', code, 'cp1252'):
         try:
-            for line in data:
-                line.decode(c)
-        except (UnicodeDecodeError, UnicodeError):
+            name = codecs.lookup(enc).name
+        except LookupError:
             continue
-        return c
-    print("Encoding not detected. Please pass encoding value manually")
+        if name in tried:
+            continue
+        tried.add(name)
+        try:
+            data.decode(enc)
+        except UnicodeDecodeError:
+            continue
+        return enc
+    return 'latin-1'
 
 
 def main(stdscr, *args, **kwargs):
@@ -1257,7 +1285,8 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
     exceptions.
 
     Args:
-        data: data (filename, file, list of lists or tuple of tuples).
+        data: data (filename, path-like, file:// URI, binary or text file
+              object, list of lists or tuple of tuples).
               Should be normalized to equal row lengths
         enc: encoding for file/data
         start_pos: initial file position. Either a single integer for just y
@@ -1291,25 +1320,25 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
     buf = None
     while True:
         try:
-            if isinstance(data, str):
-                parsed_path = parse_path(data)
-                with open(parsed_path, 'rb') as fd:
-                    new_data = fd.readlines()
-                    if info == "":
-                        info = data
-            elif isinstance(data, io.IOBase):
-                new_data = data.readlines()
+            if isinstance(data, (str, os.PathLike)):
+                path = os.fspath(data)
+                with open(parse_path(path), 'rb') as fd:
+                    new_data = fd.read()
+                if info == "":
+                    info = path
+            elif hasattr(data, 'read'):
+                new_data = data.read()
             else:
                 new_data = data
 
-            if new_data:
-                buf = process_data(new_data, enc, delimiter, quoting, quote_char)
-            elif buf:
-                # cannot reload the file
-                pass
-            else:
-                # cannot read the file
+            new_buf = process_data(new_data, enc, delimiter, quoting,
+                                   quote_char)
+            if has_data(new_buf):
+                buf = new_buf
+            elif buf is None:
+                print("tabview: no data to display", file=sys.stderr)
                 return 1
+            # else: the reloaded data is empty, keep showing the old data
 
             curses.wrapper(main, buf,
                            start_pos=start_pos,
@@ -1332,5 +1361,10 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
 
 
 def parse_path(path):
-    parse_result = urlparse(path)
-    return parse_result.path
+    """Convert a file:// URI to a local path. Anything else is returned
+    unchanged, so plain filenames may contain '#', '?', etc.
+
+    """
+    if path.startswith('file://'):
+        return url2pathname(urlparse(path).path)
+    return path

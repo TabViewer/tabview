@@ -9,6 +9,22 @@
   - Use the locale encoding (not UTF-8 mode) as the first encoding guess
   - Yank: add wl-copy (Wayland) support, fix pbcopy on macOS (it was skipped
     when DISPLAY was unset) and stop at the first clipboard tool that works
+  - Input fixes:
+
+    - Sniff the delimiter from several lines and only consider real delimiter
+      characters (single-column files were split on letters); fall back
+      instead of crashing when sniffing fails
+    - Handle UTF-8/UTF-16/UTF-32 byte order marks; try Windows-1252 before
+      Latin-1
+    - Handle CR-only line endings without an extra blank row
+    - Space-delimited files: keep quoted fields together and don't crash on
+      apostrophes
+    - Filenames containing '#', '?' or ';' can be opened; file:// URIs are
+      unquoted
+    - Print a message instead of crashing (or exiting silently) on empty input
+    - view() accepts path-like objects, text file objects and ragged tuples
+    - ``--delimiter`` and ``--quote-char`` accept escapes like ``\t`` and
+      ``\x01`` and must be a single character
 
 *Version 1.4.4 2020/01/09*
 
