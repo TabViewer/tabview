@@ -1,0 +1,180 @@
+name: main
+
+on:
+  push:
+    branches: [main, develop]
+    tags: ['*']
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+      - name: Install flake8
+        run: python -m pip install flake8
+      - name: Lint
+        run: flake8 --extend-ignore E501 tabview test
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
+      - name: Build and install the wheel
+        run: |
+          python -m pip install build
+          python -m build
+          python -m pip install dist/*.whl
+      - name: Test
+        # The integration tests need a terminal, so run them under a pty
+        env:
+          TERM: xterm
+        run: script -qec "python -W error -m unittest discover -v" /dev/null
+      - name: Smoke test the installed package
+        # Run outside the checkout so the installed copy is imported
+        working-directory: ${{ runner.temp }}
+        run: |
+          tabview --help
+          python -m tabview --help
+          python -c "import tabview.tabview as t; assert 'site-packages' in t.__file__; assert 'Keybindings:' in ''.join(t.readme())"
+
+  # Build the distributions to publish: dev builds for TestPyPI on pushes to
+  # main, releases for PyPI on tags.
+  build:
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+
+      # The version is hardcoded in tabview/__init__.py, so a tag can disagree
+      # with it. Fail here rather than publishing the wrong version to PyPI.
+      - name: Verify tag matches __version__
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          version=$(grep -Po '^__version__ = "\K[^"]+' tabview/__init__.py)
+          if [ "$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match __version__ $version"
+            exit 1
+          fi
+
+      # TestPyPI rejects duplicate versions. Give each dev build a unique .devN
+      # suffix.
+      - name: Set dev version for TestPyPI
+        if: "!startsWith(github.ref, 'refs/tags/')"
+        run: |
+          python - <<'PY'
+          import os, pathlib, re
+          init = pathlib.Path("tabview/__init__.py")
+          text = init.read_text()
+          current = re.search(r'^__version__ = "(.+)"$', text, re.M).group(1)
+          major, minor, patch = (int(p) for p in current.split("."))
+          dev = f'{major}.{minor}.{patch + 1}.dev{os.environ["GITHUB_RUN_NUMBER"]}'
+          init.write_text(text.replace(f'__version__ = "{current}"',
+                                       f'__version__ = "{dev}"', 1))
+          print(f"building {dev}")
+          PY
+
+      - name: Build package
+        run: |
+          python -m pip install build
+          python -m build
+
+      - name: Store the distribution packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: tabview
+          path: dist/
+
+  publish-to-testpypi:
+    name: Publish to TestPyPI
+    if: "!startsWith(github.ref, 'refs/tags/')"
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/tabview
+    permissions:
+      id-token: write  # mandatory for trusted publishing
+    steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v8
+        with:
+          name: tabview
+          path: dist/
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  publish-to-pypi:
+    name: Publish to PyPI
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/tabview
+    permissions:
+      id-token: write  # mandatory for trusted publishing
+    steps:
+      - name: Download all the dists
+        uses: actions/download-artifact@v8
+        with:
+          name: tabview
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    name: Sign with Sigstore and upload to GitHub Release
+    needs: [publish-to-pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # mandatory for making GitHub Releases
+      id-token: write  # mandatory for sigstore
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      # checkout leaves the tag as a lightweight ref, which drops the
+      # annotation `make release` wrote. Re-fetch to restore the tag objects.
+      - name: Restore annotated tags
+        run: git fetch --force --tags
+      - name: Download all the dists
+        uses: actions/download-artifact@v8
+        with:
+          name: tabview
+          path: dist/
+      - name: Sign the dists with Sigstore
+        uses: sigstore/gh-action-sigstore-python@v3.5.0
+        with:
+          inputs: >-
+            ./dist/*.tar.gz
+            ./dist/*.whl
+      # The release notes are the tag message body: %(contents:body) skips the
+      # subject line (just the version) and any GPG signature. dist/ contains
+      # the built packages plus the sigstore signatures and certificates.
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git for-each-ref --format='%(contents:body)' "refs/tags/$GITHUB_REF_NAME" \
+            | gh release create "$GITHUB_REF_NAME" dist/* \
+                --title "$GITHUB_REF_NAME" \
+                --verify-tag \
+                --notes-file -

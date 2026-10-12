@@ -8,6 +8,9 @@
     smoke-tests the installed package
   - Add a Makefile (venv, test, lint, version, release); the version now lives
     in ``tabview/__init__.py``
+  - Add a Nix flake (dev shell and package)
+  - Publish to PyPI from CI on tags (dev builds go to TestPyPI on pushes to
+    main) and create a signed GitHub release from the tag notes
   - Remove Python 2 compatibility shims
   - Use the locale encoding (not UTF-8 mode) as the first encoding guess
   - Yank: add wl-copy (Wayland) support, fix pbcopy on macOS (it was skipped
