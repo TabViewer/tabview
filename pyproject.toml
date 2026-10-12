@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "tabview"
 dynamic = ["version"]
 description = "A curses command-line CSV and list (tabular data) viewer"
-readme = "README.rst"
+readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 license-files = ["LICENSE.txt"]
@@ -34,7 +34,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/Tabviewer/tabview"
-Changelog = "https://github.com/Tabviewer/tabview/blob/main/CHANGELOG.rst"
+Changelog = "https://github.com/Tabviewer/tabview/blob/main/CHANGELOG.md"
 
 [project.scripts]
 tabview = "tabview.cli:main"
@@ -46,7 +46,7 @@ packages = ["tabview"]
 version = { attr = "tabview.__version__" }
 
 [tool.setuptools.package-data]
-tabview = ["README.rst"]
+tabview = ["README.md"]
 
 [tool.ruff]
 line-length = 80

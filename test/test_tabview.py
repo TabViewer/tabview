@@ -153,6 +153,13 @@ class TestTabviewUnits(unittest.TestCase):
         self.assertEqual(t.Viewer.strpad(v, '日本語', 5), '日本>')
         self.assertEqual(t.Viewer.strpad(v, 'ab', 0), '')
 
+    def test_help_text(self):
+        text = t.help_text()
+        self.assertIn('Show this list of keybindings', text)
+        self.assertIn('[num]}', text)
+        self.assertNotIn('```', text)
+        self.assertNotIn('## ', text)
+
     def test_char_width(self):
         self.assertEqual(t.char_width('a'), 1)
         self.assertEqual(t.char_width('日'), 2)

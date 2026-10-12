@@ -424,11 +424,7 @@ class Viewer:
             yield divmod((start + step * i) % total, cols)
 
     def help(self):
-        help_txt = readme()
-        idx = help_txt.index('Keybindings:\n')
-        help_txt = [i.replace('**', '') for i in help_txt[idx:]
-                    if '===' not in i]
-        TextBox(self.scr, data="".join(help_txt), title="Help")()
+        TextBox(self.scr, data=help_text(), title="Keybindings")()
         self.resize()
 
     def toggle_header(self):
@@ -1185,9 +1181,19 @@ def clipboard_commands():
 
 def readme():
     """Return the lines of the README shipped with the package"""
-    text = resources.files(__package__).joinpath('README.rst').read_text(
+    text = resources.files(__package__).joinpath('README.md').read_text(
         encoding='utf-8')
     return text.splitlines(keepends=True)
+
+
+def help_text():
+    """Return the README's keybindings section (a fenced plain text block)
+    for the help screen
+
+    """
+    lines = readme()
+    start = lines.index('## Keybindings\n') + 1
+    return ''.join(i for i in lines[start:] if not i.startswith('```'))
 
 
 def detect_encoding(data=None):
