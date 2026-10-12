@@ -144,6 +144,19 @@ class TestTabviewUnits(unittest.TestCase):
                 mock.patch('sys.platform', 'darwin'):
             self.assertEqual(t.clipboard_commands(), [['pbcopy']])
 
+    def test_strpad(self):
+        v = mock.Mock(trunc_char='>')
+        self.assertEqual(t.Viewer.strpad(v, 'a\tb\x00c', 9), 'a\\tb\\x00c')
+        self.assertEqual(t.Viewer.strpad(v, 'a\nb', 6), 'a\\nb  ')
+        # Double width characters take two cells: 2 + 2 + '>'
+        self.assertEqual(t.Viewer.strpad(v, '日本語', 5), '日本>')
+        self.assertEqual(t.Viewer.strpad(v, 'ab', 0), '')
+
+    def test_char_width(self):
+        self.assertEqual(t.char_width('a'), 1)
+        self.assertEqual(t.char_width('日'), 2)
+        self.assertEqual(t.char_width('Ａ'), 2)  # fullwidth
+
 
 class TestTabviewInput(unittest.TestCase):
     """Parsing of file data into rows"""
@@ -260,6 +273,7 @@ class TestTabviewIntegration(unittest.TestCase):
                            '#', '@', 'y', curses.KEY_F1, curses.KEY_ENTER,
                            t.KEY_CTRL('g')):
                 v.keys[key]()
+                v.display()
             elif key in ('q', 'Q', 'r'):
                 self.assertRaises((t.ReloadException, t.QuitException),
                                   v.keys[key])
@@ -288,6 +302,32 @@ class TestTabviewIntegration(unittest.TestCase):
         curses.wrapper(self.main, t.process_data(self.data(win_newlines)),
                        start_pos=(0, 1), column_width='mode', column_gap=5,
                        column_widths=None, trunc_char='…', search_str=None)
+
+    def keys(self, stdscr, data, keys):
+        """Press keys (digits are modifiers) and redraw after each"""
+        v = t.Viewer(stdscr, data, start_pos=(0, 0), column_width='mode',
+                     column_gap=2, column_widths=None, trunc_char='…',
+                     search_str=None)
+        v.display()
+        for key in keys:
+            if key.isdigit():
+                v.handle_modifier(key)
+            else:
+                v.keys[key]()
+                v.display()
+        return v
+
+    def test_control_chars(self):
+        data = [['a\x00', 'b'], ['x\x00y', 'z\tq\tq\tq\tq\tq\tq\tq\tq\r\x1b']]
+        curses.wrapper(self.main, data, start_pos=(0, 0),
+                       column_width='mode', column_gap=2, column_widths=None,
+                       trunc_char='…', search_str=None)
+
+    def test_column_width_min(self):
+        data = t.process_data(self.data(data_2[0]))
+        for keys in (',' * 30 + 'l' * 30 + ',' * 30, '++0cLLLHHH', '0CLL'):
+            v = curses.wrapper(self.keys, data, keys)
+            self.assertGreaterEqual(min(v.column_width), 1, keys)
 
     def test_tabview_annotated_comment(self):
         curses.wrapper(self.main, t.process_data(self.data(data_3[0])),

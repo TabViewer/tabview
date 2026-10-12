@@ -24,8 +24,25 @@ from urllib.parse import urlparse
 from urllib.request import url2pathname
 
 
+# Minimum terminal size for the main view
+MIN_ROWS, MIN_COLS = 6, 20
+
+# Control characters can't be drawn by curses (NUL raises ValueError, tabs and
+# others move the cursor), so display them as Python-style escapes.
+CONTROL_ESCAPES = {c: repr(chr(c))[1:-1]
+                   for c in (*range(0x20), *range(0x7f, 0xa0))}
+# Same, but keep newlines for multi-line pop-ups
+CONTROL_ESCAPES_ML = {c: v for c, v in CONTROL_ESCAPES.items()
+                      if c != ord('\n')}
+
+
 def KEY_CTRL(key):
     return curses.ascii.ctrl(key)
+
+
+def char_width(c):
+    """Number of terminal cells used by character c"""
+    return 2 if unicodedata.east_asian_width(c) in ('W', 'F') else 1
 
 
 class ReloadException(Exception):
@@ -54,10 +71,6 @@ class Viewer:
 
     """
     def __init__(self, *args, **kwargs):
-        # Fix for python curses resize bug:
-        # http://bugs.python.org/issue2675
-        os.unsetenv('LINES')
-        os.unsetenv('COLUMNS')
         self.scr = args[0]
         self.data = [[str(j) for j in i] for i in args[1]]
         self.info = kwargs.get('info')
@@ -295,11 +308,12 @@ class Viewer:
         "Display current cell in a pop-up window"
         yp = self.y + self.win_y
         xp = self.x + self.win_x
-        s = "\n" + self.data[yp][xp]
+        s = self.data[yp][xp]
         if not s:
             # Only display pop-up if cells have contents
             return
-        TextBox(self.scr, data=s, title=self.location_string(yp, xp))()
+        TextBox(self.scr, data="\n" + s,
+                title=self.location_string(yp, xp))()
         self.resize()
 
     def show_info(self):
@@ -350,6 +364,8 @@ class Viewer:
 
     def search(self):
         """Open search window, get input and set the search string."""
+        if self.max_y < MIN_ROWS or self.max_x < MIN_COLS:
+            return
         scr2 = curses.newwin(3, self.max_x, self.max_y - 3, 0)
         scr3 = scr2.derwin(1, self.max_x - 12, 1, 9)
         scr2.box()
@@ -522,7 +538,8 @@ class Viewer:
 
     def column_width_down(self):
         xp = self.x + self.win_x
-        self.column_width[xp] -= max(1, int(self.column_width[xp] * 0.2))
+        self.column_width[xp] = max(1, self.column_width[xp] - max(
+            1, int(self.column_width[xp] * 0.2)))
         self.recalculate_layout()
 
     def column_width_up(self):
@@ -588,7 +605,8 @@ class Viewer:
 
         """
         try:
-            self.column_width_mode = min(int(self.modifier), self.max_x)
+            self.column_width_mode = max(1, min(int(self.modifier),
+                                                self.max_x))
             self.modifier = ''
         except ValueError:
             if self.column_width_mode == 'mode':
@@ -601,7 +619,7 @@ class Viewer:
     def set_current_column_width(self):
         xs = self.win_x + self.x
         if len(self.modifier):
-            width = int(self.modifier)
+            width = max(1, int(self.modifier))
             self.modifier = ''
         else:
             width = 0
@@ -791,7 +809,8 @@ class Viewer:
             label = ""
             max_width = min(int(self.max_x * .3), len(max_yx))
         else:
-            label = label_str.format('-', self.header[xp])
+            label = label_str.format(
+                '-', self.header[xp].translate(CONTROL_ESCAPES))
             max_width = min(int(self.max_x * .3), len(max_yx + max_label))
         yx = yx_str.format(yp + 1, xp + 1)
         pad = " " * (max_width - len(yx) - len(label))
@@ -802,6 +821,14 @@ class Viewer:
 
     def display(self):
         """Refresh the current display"""
+        if self.max_y < MIN_ROWS or self.max_x < MIN_COLS:
+            self.scr.erase()
+            try:
+                self.scr.addstr(0, 0, "Terminal too small"[:self.max_x - 1])
+            except curses.error:
+                pass
+            self.scr.refresh()
+            return
         yp = self.y + self.win_y
         xp = self.x + self.win_x
 
@@ -825,6 +852,8 @@ class Viewer:
             self.scr.clrtoeol()
             for x in range(0, self.vis_columns):
                 xc, wc = self.column_xw(x)
+                if wc < 1:
+                    continue
                 s = self.hdrstr(x + self.win_x, wc)
                 self.scr.addstr(self.header_offset - 1, xc, s, curses.A_BOLD)
 
@@ -840,6 +869,8 @@ class Viewer:
                 else:
                     attr = curses.A_NORMAL
                 xc, wc = self.column_xw(x)
+                if wc < 1:
+                    continue
                 s = self.cellstr(y + self.win_y, x + self.win_x, wc)
                 if yc == self.max_y - 1 and x == self.vis_columns - 1:
                     # Prevents a curses error when filling in the bottom right
@@ -853,14 +884,13 @@ class Viewer:
     def strpad(self, s, width):
         if width < 1:
             return ''
-        if '\n' in s:
-            s = s.replace('\n', '\\n')
+        s = s.translate(CONTROL_ESCAPES)
 
         # take into account double-width characters
         buf = ''
         buf_width = 0
         for c in s:
-            w = 2 if unicodedata.east_asian_width(c) == 'W' else 1
+            w = char_width(c)
             if buf_width + w > width:
                 break
             buf_width += w
@@ -869,8 +899,7 @@ class Viewer:
         if len(buf) < len(s):
             # truncation occurred
             while buf_width + len(self.trunc_char) > width:
-                c = buf[-1]
-                w = 2 if unicodedata.east_asian_width(c) == 'W' else 1
+                w = char_width(buf[-1])
                 buf = buf[0:-1]
                 buf_width -= w
             buf += ' ' * (width - buf_width - len(self.trunc_char))
@@ -910,7 +939,7 @@ class Viewer:
             self.column_width = self._get_column_widths_mode(self.data)
         else:
             try:
-                width = int(width)
+                width = max(1, int(width))
             except (TypeError, ValueError):
                 width = 25
             self.column_width = [width for i in
@@ -922,11 +951,7 @@ class Viewer:
         (double-width aware). Defined as self._cell_len in __init__
 
         """
-        len = 0
-        for c in s:
-            w = 2 if unicodedata.east_asian_width(c) == 'W' else 1
-            len += w
-        return len
+        return sum(char_width(c) for c in s)
 
     def _mode_len(self, x):
         """Compute arithmetic mode (most common value) of the length of each item
@@ -1009,8 +1034,8 @@ class TextBox:
     def __init__(self, scr, data='', title=""):
         self._running = False
         self.scr = scr
-        self.data = data
-        self.title = title
+        self.data = data.translate(CONTROL_ESCAPES_ML)
+        self.title = title.translate(CONTROL_ESCAPES)
         self.tdata = []    # transformed data
         self.hid_rows = 0  # number of hidden rows from the beginning
         self.setup_handlers()
@@ -1078,12 +1103,16 @@ class TextBox:
 
     def display(self):
         self.win.erase()
-        self.win.addstr(1, 1, self.title[:self.term_cols - 3],
-                        curses.A_STANDOUT)
         visible_rows = self.tdata[self.hid_rows:self.hid_rows +
                                   self.nlines]
-        self.win.addstr(2, 1, '\n '.join(visible_rows))
-        self.win.box()
+        try:
+            self.win.addstr(1, 1, self.title[:self.term_cols - 3],
+                            curses.A_STANDOUT)
+            self.win.addstr(2, 1, '\n '.join(visible_rows))
+            self.win.box()
+        except curses.error:
+            # Terminal too small for the pop-up
+            pass
         self.win.refresh()
 
 
@@ -1317,6 +1346,10 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
     """
     if info is None:
         info = ""
+    # curses uses LINES/COLUMNS over the real terminal size if they are set
+    # (https://bugs.python.org/issue2675), so drop them before initscr
+    os.environ.pop('LINES', None)
+    os.environ.pop('COLUMNS', None)
     buf = None
     while True:
         try:

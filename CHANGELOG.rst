@@ -25,6 +25,17 @@
     - view() accepts path-like objects, text file objects and ragged tuples
     - ``--delimiter`` and ``--quote-char`` accept escapes like ``\t`` and
       ``\x01`` and must be a single character
+  - Display fixes:
+
+    - Show control characters (tabs, NUL, escape, ...) in cells as escapes
+      instead of crashing
+    - Column widths can no longer shrink to zero or below (``,``, ``0c``,
+      ``0C``), which crashed the display
+    - Show "Terminal too small" instead of crashing on tiny terminals
+    - Fullwidth characters count as double width
+    - LINES/COLUMNS environment variables no longer override the real
+      terminal size on the first screen
+    - Enter no longer opens a pop-up for empty cells
 
 *Version 1.4.4 2020/01/09*
 
