@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import curses
 import unittest
 import tabview.tabview as t
@@ -79,11 +78,8 @@ class TestTabviewUnits(unittest.TestCase):
         # Check that process_file returns a list of lists
         self.assertEqual(type(res), list)
         self.assertEqual(type(res[0]), list)
-        # Have to decode res1 and res2 from utf-8 so they can be compared to
-        # the results from the file, which are string (py3)
         for j, i in enumerate(sample_data):
-            i = str(i)
-            self.assertEqual(i, res[-1][j])
+            self.assertEqual(str(i), res[-1][j])
 
     def test_tabview_file_unicode(self):
         self.tabview_file(data_1)
@@ -97,10 +93,6 @@ class TestTabviewUnits(unittest.TestCase):
         sample_data = res3[0]
         res = t.process_data(self.data(data_3[0]))
         for j, i in enumerate(sample_data):
-            try:
-                i = i.decode('utf-8')
-            except AttributeError:
-                i = str(i)
             self.assertEqual(i, res[0][j])
 
     def test_tabview_uri_parse(self):

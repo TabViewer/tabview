@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """ tabview.py -- View a tab-delimited file in a spreadsheet-like display.
 
   Scott Hansen <firecat four one five three at gmail dot com>
@@ -6,7 +5,6 @@
 
 """
 import csv
-import _curses
 import curses
 import curses.ascii
 import locale
@@ -25,23 +23,8 @@ from urllib.parse import urlparse
 import shlex
 
 
-basestring = str
-file = io.FileIO
-
-
-# Python 3 wrappers
 def KEY_CTRL(key):
     return curses.ascii.ctrl(key)
-
-
-def addstr(*args):
-    scr, args = args[0], args[1:]
-    return scr.addstr(*args)
-
-
-def insstr(*args):
-    scr, args = args[0], args[1:]
-    return scr.insstr(*args)
 
 
 class ReloadException(Exception):
@@ -107,7 +90,7 @@ class Viewer:
         self.vis_columns = 0
         self.init_search = self.search_str = kwargs.get('search_str')
         self._search_win_open = 0
-        self.modifier = str()
+        self.modifier = ''
         self.define_keys()
         self.resize()
         self.display()
@@ -172,7 +155,7 @@ class Viewer:
 
     def consume_modifier(self, default=1):
         m = int(self.modifier) if len(self.modifier) else default
-        self.modifier = str()
+        self.modifier = ''
         return m
 
     def down(self):
@@ -330,17 +313,16 @@ class Viewer:
         def sizeof_fmt(num, suffix='B'):
             for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
                 if abs(num) < 1024.0:
-                    return "{:3.1f}{}{}".format(num, unit, suffix)
+                    return f"{num:3.1f}{unit}{suffix}"
                 num /= 1024.0
-            return "{:.1f}{}{}".format(num, 'Yi', suffix)
+            return f"{num:.1f}Yi{suffix}"
         size = sizeof_fmt(sys.getsizeof(self.data))
         rows_cols = str((len(self.data), self.num_data_columns))
         info = [("Filename/Data Info:", fn),
                 ("Current Location:", location),
                 ("Total Rows/Columns:", rows_cols),
                 ("Data Size:", size)]
-        display = "\n\n".join(["{:<20}{:<}".format(i, j)
-                               for i, j in info])
+        display = "\n\n".join(f"{i:<20}{j}" for i, j in info)
         TextBox(self.scr, data=display)()
         self.resize()
 
@@ -371,7 +353,7 @@ class Viewer:
         scr3 = scr2.derwin(1, self.max_x - 12, 1, 9)
         scr2.box()
         scr2.move(1, 1)
-        addstr(scr2, "Search: ")
+        scr2.addstr("Search: ")
         scr2.refresh()
         curses.curs_set(1)
         self._search_win_open = 3
@@ -380,7 +362,7 @@ class Viewer:
         self.search_str = self.search_str.lower().strip()
         try:
             curses.curs_set(0)
-        except _curses.error:
+        except curses.error:
             pass
         if self.search_str:
             self.init_search = None
@@ -606,7 +588,7 @@ class Viewer:
         """
         try:
             self.column_width_mode = min(int(self.modifier), self.max_x)
-            self.modifier = str()
+            self.modifier = ''
         except ValueError:
             if self.column_width_mode == 'mode':
                 self.column_width_mode = 'max'
@@ -619,7 +601,7 @@ class Viewer:
         xs = self.win_x + self.x
         if len(self.modifier):
             width = int(self.modifier)
-            self.modifier = str()
+            self.modifier = ''
         else:
             width = 0
             for y in range(0, len(self.data)):
@@ -633,16 +615,14 @@ class Viewer:
         xp = self.x + self.win_x
         s = self.data[yp][xp]
         # Bail out if not running in X
-        try:
-            os.environ['DISPLAY']
-        except KeyError:
+        if 'DISPLAY' not in os.environ:
             return
         for cmd in (['xclip', '-selection', 'clipboard'],
                     ['xsel', '-i'], ['pbcopy']):
             try:
                 Popen(cmd, stdin=PIPE,
                       universal_newlines=True).communicate(input=s)
-            except IOError:
+            except OSError:
                 pass
 
     def define_keys(self):
@@ -736,7 +716,7 @@ class Viewer:
         elif c in self.keys:
             self.keys[c]()
         else:
-            self.modifier = str()
+            self.modifier = ''
 
     def handle_modifier(self, mod):
         """Append digits as a key modifier, clear the modifier if not
@@ -747,7 +727,7 @@ class Viewer:
         """
         self.modifier += mod
         if not self.modifier.isdigit():
-            self.modifier = str()
+            self.modifier = ''
 
     def resize(self):
         """Handle terminal resizing"""
@@ -816,10 +796,10 @@ class Viewer:
             max_width = min(int(self.max_x * .3), len(max_yx + max_label))
         yx = yx_str.format(yp + 1, xp + 1)
         pad = " " * (max_width - len(yx) - len(label))
-        all = "{}{}{}".format(yx, label, pad)
-        if len(all) > max_width:
-            all = all[:max_width - 1] + self.trunc_char
-        return all
+        loc = f"{yx}{label}{pad}"
+        if len(loc) > max_width:
+            loc = loc[:max_width - 1] + self.trunc_char
+        return loc
 
     def display(self):
         """Refresh the current display"""
@@ -829,13 +809,13 @@ class Viewer:
         # Print the current cursor cell in the top left corner
         self.scr.move(0, 0)
         self.scr.clrtoeol()
-        info = " {}".format(self.location_string(yp, xp))
-        addstr(self.scr, info, curses.A_REVERSE)
+        info = f" {self.location_string(yp, xp)}"
+        self.scr.addstr(info, curses.A_REVERSE)
 
         # Adds the current cell content after the 'current cell' display
         wc = self.max_x - len(info) - 2
         s = self.cellstr(yp, xp, wc)
-        addstr(self.scr, "  " + s, curses.A_NORMAL)
+        self.scr.addstr("  " + s, curses.A_NORMAL)
 
         # Print a divider line
         self.scr.hline(1, 0, curses.ACS_HLINE, self.max_x)
@@ -847,7 +827,7 @@ class Viewer:
             for x in range(0, self.vis_columns):
                 xc, wc = self.column_xw(x)
                 s = self.hdrstr(x + self.win_x, wc)
-                addstr(self.scr, self.header_offset - 1, xc, s, curses.A_BOLD)
+                self.scr.addstr(self.header_offset - 1, xc, s, curses.A_BOLD)
 
         # Print the table data
         for y in range(0, self.max_y - self.header_offset -
@@ -865,20 +845,20 @@ class Viewer:
                 if yc == self.max_y - 1 and x == self.vis_columns - 1:
                     # Prevents a curses error when filling in the bottom right
                     # character
-                    insstr(self.scr, yc, xc, s, attr)
+                    self.scr.insstr(yc, xc, s, attr)
                 else:
-                    addstr(self.scr, yc, xc, s, attr)
+                    self.scr.addstr(yc, xc, s, attr)
 
         self.scr.refresh()
 
     def strpad(self, s, width):
         if width < 1:
-            return str()
+            return ''
         if '\n' in s:
             s = s.replace('\n', '\\n')
 
         # take into account double-width characters
-        buf = str()
+        buf = ''
         buf_width = 0
         for c in s:
             w = 2 if unicodedata.east_asian_width(c) == 'W' else 1
@@ -992,7 +972,7 @@ class Viewer:
 
         """
         d = zip(*d)
-        return [max(1, min(250, max(set(self._cell_len(j) for j in i))))
+        return [max(1, min(250, max(self._cell_len(j) for j in i)))
                 for i in d]
 
     def _skip_to_value_change(self, x_inc, y_inc):
@@ -1059,7 +1039,7 @@ class TextBox:
                                  self.term_cols, self.box_height, 0)
         try:
             curses.curs_set(False)
-        except _curses.error:
+        except curses.error:
             pass
         # transform raw data into list of lines ready to be printed
         s = self.data.splitlines()
@@ -1099,11 +1079,11 @@ class TextBox:
 
     def display(self):
         self.win.erase()
-        addstr(self.win, 1, 1, self.title[:self.term_cols - 3],
-               curses.A_STANDOUT)
+        self.win.addstr(1, 1, self.title[:self.term_cols - 3],
+                        curses.A_STANDOUT)
         visible_rows = self.tdata[self.hid_rows:self.hid_rows +
                                   self.nlines]
-        addstr(self.win, 2, 1, '\n '.join(visible_rows))
+        self.win.addstr(2, 1, '\n '.join(visible_rows))
         self.win.box()
         self.win.refresh()
 
@@ -1150,7 +1130,7 @@ def adjust_space_delim(data, enc):
             for d in data]
 
 
-def process_data(data, enc=None, delim=None, quoting=None, quote_char=str('"')):
+def process_data(data, enc=None, delim=None, quoting=None, quote_char='"'):
     """Given a list of lists, check for the encoding, quoting and delimiter and
     return a list of CSV rows (normalized to a single length)
 
@@ -1187,7 +1167,7 @@ def data_list_or_file(data):
     Returns: 'file' if data was from a file, 'list' if from a python list/tuple
 
     """
-    f = isinstance(data[0], (basestring, bytes))
+    f = isinstance(data[0], (str, bytes))
     return 'file' if f is True else 'list'
 
 
@@ -1197,7 +1177,7 @@ def pad_data(d):
         Args: d - list of lists
 
     """
-    max_len = set((len(i) for i in d))
+    max_len = {len(i) for i in d}
     if len(max_len) == 1:
         return d
     else:
@@ -1226,7 +1206,7 @@ def detect_encoding(data=None):
     """
     enc_list = ['utf-8', 'latin-1', 'iso8859-1', 'iso8859-2',
                 'utf-16', 'cp720']
-    code = locale.getpreferredencoding(False)
+    code = locale.getencoding()
     if data is None:
         return code
     if code.lower() not in enc_list:
@@ -1244,11 +1224,11 @@ def detect_encoding(data=None):
 def main(stdscr, *args, **kwargs):
     try:
         curses.use_default_colors()
-    except (AttributeError, _curses.error):
+    except (AttributeError, curses.error):
         pass
     try:
         curses.curs_set(False)
-    except (AttributeError, _curses.error):
+    except (AttributeError, curses.error):
         pass
     Viewer(stdscr, *args, **kwargs).run()
 
@@ -1256,7 +1236,7 @@ def main(stdscr, *args, **kwargs):
 def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
          trunc_char='…', column_widths=None, search_str=None,
          double_width=False, delimiter=None, quoting=None, info=None,
-         quote_char=str('"')):
+         quote_char='"'):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -1292,54 +1272,49 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
               or "" if input was not from a file
 
     """
-    lc_all = None
     if info is None:
         info = ""
-    try:
-        buf = None
-        while True:
-            try:
-                if isinstance(data, basestring):
-                    parsed_path = parse_path(data)
-                    with open(parsed_path, 'rb') as fd:
-                        new_data = fd.readlines()
-                        if info == "":
-                            info = data
-                elif isinstance(data, (io.IOBase, file)):
-                    new_data = data.readlines()
-                else:
-                    new_data = data
+    buf = None
+    while True:
+        try:
+            if isinstance(data, str):
+                parsed_path = parse_path(data)
+                with open(parsed_path, 'rb') as fd:
+                    new_data = fd.readlines()
+                    if info == "":
+                        info = data
+            elif isinstance(data, io.IOBase):
+                new_data = data.readlines()
+            else:
+                new_data = data
 
-                if new_data:
-                    buf = process_data(new_data, enc, delimiter, quoting, quote_char)
-                elif buf:
-                    # cannot reload the file
-                    pass
-                else:
-                    # cannot read the file
-                    return 1
+            if new_data:
+                buf = process_data(new_data, enc, delimiter, quoting, quote_char)
+            elif buf:
+                # cannot reload the file
+                pass
+            else:
+                # cannot read the file
+                return 1
 
-                curses.wrapper(main, buf,
-                               start_pos=start_pos,
-                               column_width=column_width,
-                               column_gap=column_gap,
-                               trunc_char=trunc_char,
-                               column_widths=column_widths,
-                               search_str=search_str,
-                               double_width=double_width,
-                               info=info)
-            except (QuitException, KeyboardInterrupt):
-                return 0
-            except ReloadException as e:
-                start_pos = e.start_pos
-                column_width = e.column_width_mode
-                column_gap = e.column_gap
-                column_widths = e.column_widths
-                search_str = e.search_str
-                continue
-    finally:
-        if lc_all is not None:
-            locale.setlocale(locale.LC_ALL, lc_all)
+            curses.wrapper(main, buf,
+                           start_pos=start_pos,
+                           column_width=column_width,
+                           column_gap=column_gap,
+                           trunc_char=trunc_char,
+                           column_widths=column_widths,
+                           search_str=search_str,
+                           double_width=double_width,
+                           info=info)
+        except (QuitException, KeyboardInterrupt):
+            return 0
+        except ReloadException as e:
+            start_pos = e.start_pos
+            column_width = e.column_width_mode
+            column_gap = e.column_gap
+            column_widths = e.column_widths
+            search_str = e.search_str
+            continue
 
 
 def parse_path(path):
