@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 """ tabview -- View a tab-delimited file in a spreadsheet-like display.
   Scott Hansen <firecat four one five three at gmail dot com>
   Based on code contributed by A.M. Kuchling <amk at amk dot ca>
@@ -8,20 +5,19 @@
   Usage:
       From command line:  tabview <filename>
       From python command line to view an object:
-          import tabview.tabview as t
+          import tabview as t
           a = [["a","b","c"], ["d","e","f"]]
           t.view(a)
       From python command line to view a file:
-          import tabview.tabview as t
-          t.view(fn=<filename>[, enc=<encoding>])
+          import tabview as t
+          t.view(<filename>[, enc=<encoding>])
 
 """
-from __future__ import print_function, unicode_literals
 import argparse
 import csv
 import os
 import sys
-from tabview.tabview import view
+from .tabview import view
 
 
 def arg_parse():
@@ -57,7 +53,7 @@ def arg_parse():
     parser.add_argument('--double_width', action='store_true', default=False,
                         help="Force full handling of double-width characters "
                         "for large files (with a performance penalty)")
-    parser.add_argument('--quote-char', '-q', default=str('"'),
+    parser.add_argument('--quote-char', '-q', default='"',
                         help="Quote character. Not typically necessary.")
     return parser.parse_known_args()
 
@@ -97,7 +93,7 @@ def fixup_stdin():
     return data
 
 
-if __name__ == '__main__':
+def main():
     args, extra = arg_parse()
     pos_plus = [i for i in extra if i.startswith('+')]
     start_pos = start_position(args.start_pos, pos_plus)
@@ -105,6 +101,7 @@ if __name__ == '__main__':
         data = args.filename
     else:
         data = fixup_stdin()
-    view(data, enc=args.encoding, start_pos=start_pos,
-         column_width=args.width, double_width=args.double_width,
-         delimiter=args.delimiter, quoting=args.quoting, quote_char=args.quote_char)
+    return view(data, enc=args.encoding, start_pos=start_pos,
+                column_width=args.width, double_width=args.double_width,
+                delimiter=args.delimiter, quoting=args.quoting,
+                quote_char=args.quote_char)

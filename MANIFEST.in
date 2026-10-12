@@ -1,1 +1,3 @@
+include CHANGELOG.rst
 include sample/*
+graft test

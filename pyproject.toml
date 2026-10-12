@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tabview"
+version = "1.4.4"
+description = "A curses command-line CSV and list (tabular data) viewer"
+readme = "README.rst"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE.txt"]
+authors = [{ name = "Scott Hansen", email = "tech@firecat53.net" }]
+keywords = ["data", "spreadsheet", "view", "viewer", "console", "curses",
+            "csv", "comma", "separated", "values"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Environment :: Console :: Curses",
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Office/Business :: Financial :: Spreadsheet",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: Utilities",
+]
+
+[project.urls]
+Homepage = "https://github.com/Tabviewer/tabview"
+Changelog = "https://github.com/Tabviewer/tabview/blob/main/CHANGELOG.rst"
+
+[project.scripts]
+tabview = "tabview.cli:main"
+
+[tool.setuptools]
+packages = ["tabview"]
+
+[tool.setuptools.package-data]
+tabview = ["README.rst"]

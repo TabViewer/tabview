@@ -43,7 +43,7 @@ it are shown the contents of that cell.
 
 Features:
 ---------
-* Python 3.4+
+* Python 3.11+
 * Spreadsheet-like view for easily visualizing tabular data
 * Vim-like navigation (h,j,k,l, g(top), G(bottom), 12G goto line 12, m - mark,
   ' - goto mark, etc.) 
@@ -62,15 +62,15 @@ Features:
 Requires: 
 ---------
 
-* Python 3.4+
+* Python 3.11+
 * Xsel or xclip (Optional - only required for 'yank' to clipboard)
 
 Installation:
 -------------
 
+* ``pipx install tabview`` OR
 * ``pip install tabview`` OR
-* ``# python setup.py install``  OR
-* ``$ python setup.py install --user``  OR
+* ``pip install .`` (from a source checkout) OR
 * `Archlinux AUR package <https://aur.archlinux.org/packages/tabview-git/>`_
 
 Usage:
@@ -108,7 +108,7 @@ Usage:
 Tests:
 ------
 
-* ``python tests/test_tabview.py``
+* ``python -m unittest discover`` (the integration tests need a terminal)
 
 Keybindings:
 ---------------
