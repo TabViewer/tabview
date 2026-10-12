@@ -398,97 +398,31 @@ class Viewer:
         if not self.search_str and not self.init_search:
             return
         self.search_str = self.search_str or self.init_search
+        needle = self.search_str.lower()
         yp, xp = self.y + self.win_y, self.x + self.win_x
-        if rev is True:
-            data, yp, xp = self._reverse_data(self.data, yp, xp)
-        else:
-            data = self.data
-        if look_in_cur is False:
-            # Skip ahead/back one cell
-            if xp < len(data[0]) - 1:
-                xp += 1
-            elif xp >= len(data[0]) - 1 and yp < len(data) - 1:
-                # Skip ahead a line if at the end of the current line
-                yp += 1
-                xp = 0
-            else:
-                # Skip back to the top if at the end of the data
-                yp = xp = 0
-        search_order = [self._search_cur_line_r,
-                        self._search_next_line_to_end,
-                        self._search_next_line_from_beg,
-                        self._search_cur_line_l]
-        for search in search_order:
-            y, x, res = search(data, yp, xp)
-            if res is True:
-                yp, xp = y, x
-                break
-        if rev is True:
-            self.data, yp, xp = self._reverse_data(data, yp, xp)
-        if res is True:
-            self.goto_yx(yp + 1, xp + 1)
+        for y, x in self._cell_positions(yp, xp, rev, look_in_cur):
+            row = self.data[y]
+            if x < len(row) and needle in row[x].lower():
+                self.goto_yx(y + 1, x + 1)
+                return
 
     def search_results_prev(self, rev=False, look_in_cur=False):
         """Search backwards"""
         self.search_results(rev=True, look_in_cur=look_in_cur)
 
-    def _reverse_yp_xp(self, data, yp, xp):
-        return len(data) - 1 - yp, len(data[0]) - 1 - xp
+    def _cell_positions(self, yp, xp, rev=False, look_in_cur=False):
+        """Yield every (y, x) cell position once, in reading order (or
+        reverse), starting after (or at, with look_in_cur) cell yp, xp and
+        wrapping around. Without look_in_cur, the current cell comes last.
 
-    def _reverse_data(self, data, yp, xp):
-        yp, xp = self._reverse_yp_xp(data, yp, xp)
-        data.reverse()
-        for idx, i in enumerate(data):
-            i.reverse()
-            data[idx] = i
-        return data, yp, xp
-
-    def _search_cur_line_r(self, data, yp, xp):
-        """ Current line first, from yp,xp to the right """
-        res = False
-        for x, item in enumerate(data[yp][xp:]):
-            if self.search_str in item.lower():
-                xp += x
-                res = True
-                break
-        return yp, xp, res
-
-    def _search_cur_line_l(self, data, yp, xp):
-        """Last, search from beginning of current line to current position """
-        res = x = False
-        for x, item in enumerate(data[yp][:xp]):
-            if self.search_str in item.lower():
-                res = True
-                break
-        return yp, x, res
-
-    def _search_next_line_to_end(self, data, yp, xp):
-        """ Search from next line to the end """
-        res = done = False
-        for y, line in enumerate(data[yp + 1:]):
-            for x, item in enumerate(line):
-                if self.search_str in item.lower():
-                    done = True
-                    break
-            if done is True:
-                res = True
-                yp, xp = yp + 1 + y, x
-                break
-        return yp, xp, res
-
-    def _search_next_line_from_beg(self, data, yp, xp):
-        """Search from beginning to line before current."""
-        res = done = y = x = False
-        for y, line in enumerate(data[:yp]):
-            for x, item in enumerate(line):
-                if self.search_str in item.lower():
-                    done = True
-                    break
-            if done is True:
-                res = True
-                yp, xp = y, x
-                break
-        return yp, xp, res
+        """
+        cols = self.num_data_columns
+        total = len(self.data) * cols
+        start = yp * cols + xp
+        step = -1 if rev else 1
+        first = 0 if look_in_cur else 1
+        for i in range(first, first + total):
+            yield divmod((start + step * i) % total, cols)
 
     def help(self):
         help_txt = readme()

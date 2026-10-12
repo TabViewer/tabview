@@ -43,6 +43,8 @@
     unknown options or encodings, missing files and missing /dev/tty; partial
     start positions like ``+5:`` work
   - Ctrl-C exits with status 130
+  - Reverse search no longer reverses all the data in place (much faster on
+    large files); an initial search string with capitals now matches
   - Fix ``--width`` help, which said the default was 'mode' (it is 20)
 
 *Version 1.4.4 2020/01/09*

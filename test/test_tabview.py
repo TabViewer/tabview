@@ -284,6 +284,18 @@ class TestTabviewSearch(unittest.TestCase):
         self.assertEqual(self.press(v, 'n'), [(2, 1)])
         self.assertEqual(v.search_str, 'kiwi')
 
+    def test_init_search_case(self):
+        # The initial search string isn't lowercased by the search box
+        v = self.viewer(search=None)
+        v.init_search = 'KIWI'
+        self.assertEqual(self.press(v, 'n'), [(2, 1)])
+
+    def test_ragged_rows(self):
+        data = [['a', 'b', 'c'], ['d'], ['e', 'f', 'x']]
+        v = self.viewer(search='x', data=data)
+        self.assertEqual(self.press(v, 'n'), [(2, 2)])
+        self.assertEqual(self.press(v, 'p'), [(2, 2)])
+
     def test_look_in_current(self):
         v = self.viewer(pos=(1, 1))
         v.search_results(look_in_cur=True)
