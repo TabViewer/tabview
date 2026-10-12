@@ -1,5 +1,6 @@
 import curses
 import unittest
+from unittest import mock
 import tabview.tabview as t
 
 res1 = ["Yugoslavia (Latin)", "Djordje Balasevic", "Jugoslavija",
@@ -114,6 +115,20 @@ class TestTabviewUnits(unittest.TestCase):
 
         path = t.parse_path('test.csv')
         self.assertEqual(path, 'test.csv')
+
+    def test_clipboard_commands(self):
+        with mock.patch.dict('os.environ', clear=True), \
+                mock.patch('sys.platform', 'linux'):
+            self.assertEqual(t.clipboard_commands(), [])
+        with mock.patch.dict('os.environ', {'WAYLAND_DISPLAY': 'wayland-0',
+                                            'DISPLAY': ':0'}, clear=True), \
+                mock.patch('sys.platform', 'linux'):
+            cmds = t.clipboard_commands()
+            self.assertEqual(cmds[0], ['wl-copy'])
+            self.assertIn(['xclip', '-selection', 'clipboard'], cmds)
+        with mock.patch.dict('os.environ', clear=True), \
+                mock.patch('sys.platform', 'darwin'):
+            self.assertEqual(t.clipboard_commands(), [['pbcopy']])
 
 
 class TestTabviewIntegration(unittest.TestCase):

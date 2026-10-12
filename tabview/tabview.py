@@ -16,7 +16,7 @@ import sys
 from collections import Counter
 from curses.textpad import Textbox
 from operator import itemgetter
-from subprocess import Popen, PIPE
+from subprocess import run, CalledProcessError, DEVNULL
 from textwrap import wrap
 import unicodedata
 from urllib.parse import urlparse
@@ -614,16 +614,14 @@ class Viewer:
         yp = self.y + self.win_y
         xp = self.x + self.win_x
         s = self.data[yp][xp]
-        # Bail out if not running in X
-        if 'DISPLAY' not in os.environ:
-            return
-        for cmd in (['xclip', '-selection', 'clipboard'],
-                    ['xsel', '-i'], ['pbcopy']):
+        # Use the first clipboard tool that works
+        for cmd in clipboard_commands():
             try:
-                Popen(cmd, stdin=PIPE,
-                      universal_newlines=True).communicate(input=s)
-            except OSError:
-                pass
+                run(cmd, input=s, text=True, check=True,
+                    stdout=DEVNULL, stderr=DEVNULL)
+                return
+            except (OSError, CalledProcessError):
+                continue
 
     def define_keys(self):
         self.keys = {'j': self.down,
@@ -1183,6 +1181,22 @@ def pad_data(d):
     else:
         max_len = max(max_len)
         return [i + [""] * (max_len - len(i)) for i in d]
+
+
+def clipboard_commands():
+    """Return the clipboard copy commands to try, in order of preference, for
+    the current platform and display server.
+
+    """
+    cmds = []
+    if sys.platform == 'darwin':
+        cmds.append(['pbcopy'])
+    if os.environ.get('WAYLAND_DISPLAY'):
+        cmds.append(['wl-copy'])
+    if os.environ.get('DISPLAY'):
+        cmds.extend([['xclip', '-selection', 'clipboard'],
+                     ['xsel', '--input', '--clipboard']])
+    return cmds
 
 
 def readme():

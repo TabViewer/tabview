@@ -63,7 +63,8 @@ Requires:
 ---------
 
 * Python 3.11+
-* Xsel or xclip (Optional - only required for 'yank' to clipboard)
+* wl-copy (Wayland), xclip or xsel (X11), or pbcopy (macOS) (Optional - only
+  required for 'yank' to clipboard)
 
 Installation:
 -------------
@@ -145,7 +146,7 @@ Keybindings:
 **@**                        Sort numerically by the current column (descending)
 **r**                        Reload file/data. Also resets sort order
 **y**                        Yank cell contents to the clipboard
-                             (requires xsel or xclip)
+                             (requires wl-copy, xclip, xsel or pbcopy)
 **[num]c**                   Toggle variable column width mode (mode/max),
                              or set width to [num]
 **[num]C**                   Maximize current column, or set width to [num]
