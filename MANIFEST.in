@@ -1,6 +1,0 @@
-# Files for the sdist beyond the package and README/LICENSE: the changelog,
-# and the tests with the sample data they read.
-include CHANGELOG.md
-include sample/*
-include test/*.py
-global-exclude *.py[cod]

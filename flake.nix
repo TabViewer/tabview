@@ -37,7 +37,7 @@
           (builtins.readFile ./tabview/__init__.py));
         pyproject = true;
         src = ./.;
-        build-system = [pkgs.python3Packages.setuptools];
+        build-system = [pkgs.python3Packages.hatchling];
         # Run the test suite as part of the build. The integration tests use
         # curses, so they run under script(1) for a pty.
         nativeCheckInputs = [pkgs.util-linux];

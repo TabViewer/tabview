@@ -3,7 +3,8 @@
 ## Unreleased
 
 - Require Python 3.11+; test against Python 3.11 through 3.15
-- Replace setup.py (distutils was removed in Python 3.12) with pyproject.toml
+- Replace setup.py (distutils was removed in Python 3.12) with pyproject.toml,
+  built with hatchling
 - Install the `tabview` command as a console script entry point and add
   `python -m tabview` support
 - Replace Travis CI with GitHub Actions; CI also builds the wheel and

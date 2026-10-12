@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=77"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
 name = "tabview"
@@ -39,14 +39,26 @@ Changelog = "https://github.com/Tabviewer/tabview/blob/main/CHANGELOG.md"
 [project.scripts]
 tabview = "tabview.cli:main"
 
-[tool.setuptools]
-packages = ["tabview"]
+[tool.hatch.version]
+path = "tabview/__init__.py"
 
-[tool.setuptools.dynamic]
-version = { attr = "tabview.__version__" }
+[tool.hatch.build.targets.wheel]
+packages = ["/tabview"]
 
-[tool.setuptools.package-data]
-tabview = ["README.md"]
+[tool.hatch.build.targets.wheel.shared-data]
+"LICENSE.txt" = "share/doc/tabview/LICENSE.txt"
+"README.md" = "share/doc/tabview/README.md"
+"CHANGELOG.md" = "share/doc/tabview/CHANGELOG.md"
+
+# README.md, LICENSE.txt and pyproject.toml are always included. The tests
+# and the sample data they read are included so they can run from the sdist.
+[tool.hatch.build.targets.sdist]
+include = [
+    "/tabview",
+    "/test",
+    "/sample",
+    "/CHANGELOG.md",
+]
 
 [tool.ruff]
 line-length = 80
