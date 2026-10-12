@@ -14,6 +14,7 @@
 
 """
 import argparse
+import codecs
 import csv
 import os
 import sys
@@ -36,8 +37,8 @@ def char_arg(value):
     return value
 
 
-def arg_parse():
-    """Parse filename and show help."""
+def build_parser():
+    """Build the command line parser."""
     parser = argparse.ArgumentParser(description="View a tab-delimited file "
                                      "in a spreadsheet-like display. "
                                      "Press F1 or '?' while running for a "
@@ -64,46 +65,46 @@ def arg_parse():
                         "classic +y:[x] format without the --start_pos label. "
                         "Like 'tabview <fn> +5:10'")
     parser.add_argument('--width', '-w', default=20,
-                        help="Specify column width. 'max' or 'mode' (default) "
+                        help="Specify column width. 'max' or 'mode' "
                         "for variable widths, or an integer value for "
-                        "fixed column width.")
+                        "fixed column width (default: %(default)s).")
     parser.add_argument('--double_width', action='store_true', default=False,
                         help="Force full handling of double-width characters "
                         "for large files (with a performance penalty)")
     parser.add_argument('--quote-char', '-q', default='"', type=char_arg,
                         help="Quote character. Not typically necessary.")
-    return parser.parse_known_args()
+    return parser
 
 
 def start_position(start_norm, start_classic):
-    """Given a string "[y, x, ...]" or a string "+[y]:[x]", return a tuple (y, x)
-    for the start position
+    """Given a string "[y, x, ...]" or a list of strings starting with
+    "+[y]:[x]", return a tuple (y, x) for the start position. Missing values
+    are 0.
 
     Args: start_norm - string [y,x, ...]
-          start_classic - string "+[y]:[x]"
+          start_classic - list of strings "+[y]:[x]"
 
     Returns: tuple (y, x)
+    Raises: ValueError if a value isn't an integer
 
     """
     if start_norm is not None:
-        start_pos = start_norm.split(',')[:2]
-        if not start_pos[0]:
-            start_pos[0] = 0
-        start_pos = [int(i) for i in start_pos]
+        parts = start_norm.split(',')
     elif start_classic:
-        sp = start_classic[0].strip('+').split(':')
-        if not sp[0]:
-            sp[0] = 0
-        try:
-            start_pos = (int(sp[0]), int(sp[1]))
-        except IndexError:
-            start_pos = (int(sp[0]), 0)
+        parts = start_classic[0].removeprefix('+').split(':')
     else:
-        start_pos = (0, 0)
-    return start_pos
+        parts = []
+    y, x = ([int(i) if i.strip() else 0 for i in parts[:2]] + [0, 0])[:2]
+    return y, x
 
 
 def fixup_stdin():
+    """Return stdin as a binary file and reopen the terminal as stdin, so
+    curses can read keys.
+
+    Raises: OSError if there is no terminal
+
+    """
     print("tabview: Reading from stdin...", file=sys.stderr)
     data = os.fdopen(os.dup(0), 'rb')
     os.dup2(os.open("/dev/tty", os.O_RDONLY), 0)
@@ -111,14 +112,36 @@ def fixup_stdin():
 
 
 def main():
-    args, extra = arg_parse()
+    parser = build_parser()
+    args, extra = parser.parse_known_args()
     pos_plus = [i for i in extra if i.startswith('+')]
-    start_pos = start_position(args.start_pos, pos_plus)
+    unknown = [i for i in extra if not i.startswith('+')]
+    if unknown:
+        parser.error(f"unrecognized arguments: {' '.join(unknown)}")
+    try:
+        start_pos = start_position(args.start_pos, pos_plus)
+    except ValueError:
+        parser.error("start position must be integers, like '+5:10' or "
+                     "'--start_pos 5,10'")
+    if args.encoding is not None:
+        try:
+            codecs.lookup(args.encoding)
+        except LookupError:
+            parser.error(f"unknown encoding: {args.encoding}")
     if args.filename != '-':
         data = args.filename
     else:
-        data = fixup_stdin()
-    return view(data, enc=args.encoding, start_pos=start_pos,
-                column_width=args.width, double_width=args.double_width,
-                delimiter=args.delimiter, quoting=args.quoting,
-                quote_char=args.quote_char)
+        try:
+            data = fixup_stdin()
+        except OSError as e:
+            print(f"tabview: can't open the terminal for input: {e}",
+                  file=sys.stderr)
+            return 1
+    try:
+        return view(data, enc=args.encoding, start_pos=start_pos,
+                    column_width=args.width, double_width=args.double_width,
+                    delimiter=args.delimiter, quoting=args.quoting,
+                    quote_char=args.quote_char)
+    except OSError as e:
+        print(f"tabview: {e}", file=sys.stderr)
+        return 1

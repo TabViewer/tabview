@@ -1326,7 +1326,7 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
             (row) position, or tuple/list (y,x)
         column_width: 'max' (max width for the column),
                       'mode' (uses arithmetic mode to compute width), or
-                      int x (x characters wide). Default is 'mode'
+                      int x (x characters wide). Default is 20
         column_gap: gap between columns
         column_widths: list of widths for each column [len1, len2, lenxxx...]
         trunc_char: character to indicate continuation of too-long columns
@@ -1386,8 +1386,10 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                            search_str=search_str,
                            double_width=double_width,
                            info=info)
-        except (QuitException, KeyboardInterrupt):
+        except QuitException:
             return 0
+        except KeyboardInterrupt:
+            return 130
         except ReloadException as e:
             start_pos = e.start_pos
             column_width = e.column_width_mode

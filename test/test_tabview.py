@@ -285,6 +285,54 @@ class TestTabviewCli(unittest.TestCase):
             with self.assertRaises(argparse.ArgumentTypeError):
                 cli.char_arg(bad)
 
+    def test_start_position(self):
+        sp = cli.start_position
+        self.assertEqual(sp(None, []), (0, 0))
+        self.assertEqual(sp('5,3', []), (5, 3))
+        self.assertEqual(sp('5,', []), (5, 0))
+        self.assertEqual(sp(',3', []), (0, 3))
+        self.assertEqual(sp('5', []), (5, 0))
+        self.assertEqual(sp(None, ['+6:5']), (6, 5))
+        self.assertEqual(sp(None, ['+5:']), (5, 0))
+        self.assertEqual(sp(None, ['+:4']), (0, 4))
+        self.assertEqual(sp(None, ['+7']), (7, 0))
+        with self.assertRaises(ValueError):
+            sp('a', [])
+
+    def run_main(self, *argv):
+        with mock.patch('sys.argv', ['tabview', *argv]), \
+                mock.patch.object(cli, 'view', return_value=0) as view, \
+                mock.patch('sys.stderr', new_callable=io.StringIO) as err:
+            try:
+                res = cli.main()
+            except SystemExit as e:
+                res = e.code
+        return res, view, err.getvalue()
+
+    def test_main(self):
+        res, view, _ = self.run_main('f.csv', '+6:5', '-d', '\\t')
+        self.assertEqual(res, 0)
+        self.assertEqual(view.call_args.args, ('f.csv',))
+        self.assertEqual(view.call_args.kwargs['start_pos'], (6, 5))
+        self.assertEqual(view.call_args.kwargs['delimiter'], '\t')
+        self.assertEqual(view.call_args.kwargs['column_width'], 20)
+
+    def test_main_errors(self):
+        for argv, msg in ((('f.csv', '--widht', '5'), 'unrecognized'),
+                          (('f.csv', '+a'), 'start position'),
+                          (('f.csv', '-e', 'bogus'), 'unknown encoding'),
+                          (('f.csv', '-q', ''), 'single character')):
+            res, view, err = self.run_main(*argv)
+            self.assertEqual(res, 2, argv)
+            self.assertIn(msg, err)
+            view.assert_not_called()
+
+    def test_main_missing_file(self):
+        with mock.patch('sys.argv', ['tabview', 'no/such/file.csv']), \
+                mock.patch('sys.stderr', new_callable=io.StringIO) as err:
+            self.assertEqual(cli.main(), 1)
+        self.assertIn('No such file', err.getvalue())
+
 
 class TestTabviewIntegration(unittest.TestCase):
     """Integration tests for tabview. Run through the curses routines and some

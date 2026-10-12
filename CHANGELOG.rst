@@ -38,6 +38,11 @@
     - Enter no longer opens a pop-up for empty cells
   - Natural sort no longer crashes on cells like '²'; numeric sort puts NaN
     after the other numbers instead of scrambling the order
+  - CLI: clear error messages instead of tracebacks for bad start positions,
+    unknown options or encodings, missing files and missing /dev/tty; partial
+    start positions like ``+5:`` work
+  - Ctrl-C exits with status 130
+  - Fix ``--width`` help, which said the default was 'mode' (it is 20)
 
 *Version 1.4.4 2020/01/09*
 
