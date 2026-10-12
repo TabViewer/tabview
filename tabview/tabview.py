@@ -17,6 +17,7 @@ import string
 import sys
 from collections import Counter
 from curses.textpad import Textbox
+from importlib import resources
 from operator import itemgetter
 from subprocess import run, CalledProcessError, DEVNULL
 from textwrap import wrap
@@ -1248,11 +1249,10 @@ def clipboard_commands():
 
 
 def readme():
-    path = os.path.dirname(os.path.realpath(__file__))
-    fn = os.path.join(path, "README.rst")
-    with open(fn, 'rb') as f:
-        h = f.readlines()
-        return [i.decode('utf-8') for i in h]
+    """Return the lines of the README shipped with the package"""
+    text = resources.files(__package__).joinpath('README.rst').read_text(
+        encoding='utf-8')
+    return text.splitlines(keepends=True)
 
 
 def detect_encoding(data=None):
