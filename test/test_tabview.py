@@ -4,6 +4,7 @@ import io
 import pathlib
 import unittest
 from unittest import mock
+
 import tabview.cli as cli
 import tabview.tabview as t
 
@@ -317,7 +318,7 @@ class TestTabviewSearch(unittest.TestCase):
         self.press(v, 'p', 3)
         self.press(v, 'n', 3)
         self.assertEqual(v.data, self.grid)
-        self.assertTrue(all(a is b for a, b in zip(v.data, rows)))
+        self.assertTrue(all(a is b for a, b in zip(v.data, rows, strict=True)))
 
 
 class TestTabviewInput(unittest.TestCase):

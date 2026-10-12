@@ -8,23 +8,22 @@ import codecs
 import csv
 import curses
 import curses.ascii
+import io
 import locale
 import math
-import io
 import os
 import re
 import string
 import sys
+import unicodedata
 from collections import Counter
 from curses.textpad import Textbox
 from importlib import resources
 from operator import itemgetter
-from subprocess import run, CalledProcessError, DEVNULL
+from subprocess import DEVNULL, CalledProcessError, run
 from textwrap import wrap
-import unicodedata
 from urllib.parse import urlparse
 from urllib.request import url2pathname
-
 
 # Minimum terminal size for the main view
 MIN_ROWS, MIN_COLS = 6, 20
@@ -923,7 +922,8 @@ class Viewer:
         Returns: list of ints [len_1, len_2...len_x]
 
         """
-        d = zip(*d)
+        # Rows are padded to the same length by process_data
+        d = zip(*d, strict=True)
         return [self._mode_len(i) for i in d]
 
     def _get_column_widths_max(self, d):
@@ -934,7 +934,8 @@ class Viewer:
         Returns: list of ints [len_1, len_2...len_x]
 
         """
-        d = zip(*d)
+        # Rows are padded to the same length by process_data
+        d = zip(*d, strict=True)
         return [max(1, min(250, max(self._cell_len(j) for j in i)))
                 for i in d]
 

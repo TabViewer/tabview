@@ -9,6 +9,8 @@
   - Add a Makefile (venv, test, lint, version, release); the version now lives
     in ``tabview/__init__.py``
   - Add a Nix flake (dev shell and package)
+  - Lint with ruff (pycodestyle, pyflakes, bugbear, isort and pyupgrade
+    rules) instead of flake8
   - Publish to PyPI from CI on tags (dev builds go to TestPyPI on pushes to
     main) and create a signed GitHub release from the tag notes
   - Remove Python 2 compatibility shims

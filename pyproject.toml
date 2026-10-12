@@ -47,3 +47,11 @@ version = { attr = "tabview.__version__" }
 
 [tool.setuptools.package-data]
 tabview = ["README.rst"]
+
+[tool.ruff]
+line-length = 80
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "B", "I", "UP"]
+# Long lines are allowed (help text, test data)
+ignore = ["E501"]

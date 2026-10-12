@@ -10,7 +10,7 @@ $(VENV)/bin/activate: pyproject.toml
 	python3 -m venv $(VENV)
 	$(PIP) install -U pip
 	# Editable, so `make test` tests the tree rather than a snapshot of it
-	$(PIP) install -e . flake8
+	$(PIP) install -e . ruff
 
 venv: $(VENV)/bin/activate
 
@@ -27,8 +27,9 @@ clean:
 test: venv
 	$(PYTHON) -W error -m unittest discover $(TEST_ARGS)
 
+# Rules are configured in pyproject.toml ([tool.ruff])
 lint: venv
-	$(VENV)/bin/flake8 --extend-ignore E501 tabview test
+	$(VENV)/bin/ruff check tabview test
 
 # Print the version recorded in tabview/__init__.py
 version:

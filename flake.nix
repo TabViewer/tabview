@@ -18,15 +18,11 @@
   in {
     devShells = forAllSystems ({pkgs}: {
       default = pkgs.mkShell {
-        packages =
-          [pkgs.gnumake]
-          ++ builtins.attrValues {
-            inherit
-              (pkgs.python3Packages)
-              python
-              flake8
-              ;
-          };
+        packages = [
+          pkgs.gnumake
+          pkgs.python3Packages.python
+          pkgs.ruff
+        ];
         shellHook = ''
           alias tabview="python -m tabview"
           export PYTHONPATH="$PYTHONPATH:$PWD"
