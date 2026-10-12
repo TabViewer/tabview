@@ -37,6 +37,27 @@ CONTROL_ESCAPES_ML = {c: v for c, v in CONTROL_ESCAPES.items()
                       if c != ord('\n')}
 
 
+def wrap_cells(text, width, indent=' '):
+    """Wrap text to lines of at most width terminal cells, counting double
+    width characters as two. Continuation lines are indented with indent.
+
+    """
+    width = max(width, len(indent) + 2)
+    lines = []
+    for line in wrap(text, width, subsequent_indent=indent) or ['']:
+        # textwrap counts characters, so split lines with double width
+        # characters (which often have no spaces to break at) further
+        while sum(char_width(c) for c in line) > width:
+            cut = used = 0
+            while used + char_width(line[cut]) <= width:
+                used += char_width(line[cut])
+                cut += 1
+            lines.append(line[:cut])
+            line = indent + line[cut:]
+        lines.append(line)
+    return lines
+
+
 def KEY_CTRL(key):
     return curses.ascii.ctrl(key)
 
@@ -994,16 +1015,17 @@ class TextBox:
         """Setup popup window and format data. """
         self.scr.touchwin()
         self.term_rows, self.term_cols = self.scr.getmaxyx()
-        self.box_height = self.term_rows - int(self.term_rows / 2)
-        self.win = curses.newwin(int(self.term_rows / 2),
-                                 self.term_cols, self.box_height, 0)
+        # The window is the bottom half of the screen
+        self.box_height = self.term_rows // 2
+        self.win = curses.newwin(self.box_height, self.term_cols,
+                                 self.term_rows - self.box_height, 0)
         try:
             curses.curs_set(False)
         except curses.error:
             pass
         # transform raw data into list of lines ready to be printed
         s = self.data.splitlines()
-        s = [wrap(i, self.term_cols - 3, subsequent_indent=" ") or [""] for i in s]
+        s = [wrap_cells(i, self.term_cols - 3) for i in s]
         self.tdata = [i for j in s for i in j]
         # -3 -- 2 for the box lines and 1 for the title row
         self.nlines = min(len(self.tdata), self.box_height - 3)

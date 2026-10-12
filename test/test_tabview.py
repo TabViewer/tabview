@@ -160,6 +160,17 @@ class TestTabviewUnits(unittest.TestCase):
         self.assertNotIn('```', text)
         self.assertNotIn('## ', text)
 
+    def test_wrap_cells(self):
+        def cells(line):
+            return sum(t.char_width(c) for c in line)
+        text = 'Camera摄影机早早就在美式战斗机的机枪枪管上方安扎下来，用于捕捉目标' * 3
+        lines = t.wrap_cells(text, 20)
+        self.assertTrue(all(cells(i) <= 20 for i in lines))
+        self.assertEqual(''.join(i.removeprefix(' ') for i in lines), text)
+        # Plain text wraps at spaces like textwrap
+        self.assertEqual(t.wrap_cells('aaa bbb ccc', 8), ['aaa bbb', ' ccc'])
+        self.assertEqual(t.wrap_cells('', 8), [''])
+
     def test_char_width(self):
         self.assertEqual(t.char_width('a'), 1)
         self.assertEqual(t.char_width('日'), 2)
