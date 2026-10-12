@@ -1,8 +1,6 @@
 [![Latest Version](https://img.shields.io/github/release/tabviewer/tabview.svg)](https://pypi.python.org/pypi/tabview/)
 [![Supported Python versions](https://img.shields.io/pypi/pyversions/tabview.svg)](https://pypi.python.org/pypi/tabview/)
 [![License](https://img.shields.io/pypi/l/tabview.svg)](https://pypi.python.org/pypi/tabview/)
-[![Tests](https://github.com/TabViewer/tabview/actions/workflows/main.yml/badge.svg)](https://github.com/TabViewer/tabview/actions/workflows/main.yml)
-[![Sourcegraph](https://sourcegraph.com/github.com/TabViewer/tabview/-/badge.svg)](https://sourcegraph.com/github.com/Tabviewer/tabview)
 
 # Tabview
 
