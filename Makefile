@@ -35,9 +35,9 @@ lint: venv
 version:
 	@grep -Po '^__version__ = "\K[^"]+' tabview/__init__.py
 
-# Bump __version__, turn the CHANGELOG's "## Unreleased" heading into the
-# version and date, commit, and create an annotated tag. $EDITOR prefilled
-# with version and commits since the last tag.
+# Bump __version__, commit, and create an annotated tag. $EDITOR prefilled
+# with version and commits since the last tag; the tag message becomes the
+# GitHub release notes.
 # Usage: make release VERSION=1.5.0
 release:
 	@test -n "$(VERSION)" || { echo "Usage: make release VERSION=x.y.z"; exit 1; }
@@ -47,14 +47,10 @@ release:
 		{ echo "Tracked files have uncommitted changes; commit or stash first"; exit 1; }
 	@git rev-parse -q --verify refs/tags/$(VERSION) >/dev/null && \
 		{ echo "Tag $(VERSION) already exists"; exit 1; } || true
-	@grep -q '^## Unreleased$$' CHANGELOG.md || \
-		{ echo "CHANGELOG.md has no '## Unreleased' section to release"; exit 1; }
 	sed -i 's/^__version__ = ".*"$$/__version__ = "$(VERSION)"/' tabview/__init__.py
-	sed -i "s|^## Unreleased$$|## Version $(VERSION) $$(date '+%Y/%m/%d')|" \
-		CHANGELOG.md
 	@test "$$($(MAKE) -s version)" = "$(VERSION)" || \
 		{ echo "Failed to set version"; exit 1; }
-	git commit -m "Bump version to $(VERSION)" tabview/__init__.py CHANGELOG.md
+	git commit -m "Bump version to $(VERSION)" tabview/__init__.py
 	# Open the tag message prefilled with the version as the subject and one
 	# bullet per commit since the last tag.
 	@notes=$$(mktemp); \

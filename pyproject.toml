@@ -34,7 +34,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/Tabviewer/tabview"
-Changelog = "https://github.com/Tabviewer/tabview/blob/main/CHANGELOG.md"
+Changelog = "https://github.com/TabViewer/tabview/releases"
 
 [project.scripts]
 tabview = "tabview.cli:main"
@@ -48,7 +48,6 @@ packages = ["/tabview"]
 [tool.hatch.build.targets.wheel.shared-data]
 "LICENSE.txt" = "share/doc/tabview/LICENSE.txt"
 "README.md" = "share/doc/tabview/README.md"
-"CHANGELOG.md" = "share/doc/tabview/CHANGELOG.md"
 
 # README.md, LICENSE.txt and pyproject.toml are always included. The tests
 # and the sample data they read are included so they can run from the sdist.
@@ -57,7 +56,6 @@ include = [
     "/tabview",
     "/test",
     "/sample",
-    "/CHANGELOG.md",
 ]
 
 [tool.ruff]
