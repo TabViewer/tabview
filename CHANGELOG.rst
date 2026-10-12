@@ -1,3 +1,15 @@
+*Unreleased*
+
+  - Require Python 3.11+; test against Python 3.11 through 3.15
+  - Replace setup.py (distutils was removed in Python 3.12) with pyproject.toml
+  - Install the ``tabview`` command as a console script entry point and add
+    ``python -m tabview`` support
+  - Replace Travis CI with GitHub Actions
+  - Remove Python 2 compatibility shims
+  - Use the locale encoding (not UTF-8 mode) as the first encoding guess
+  - Yank: add wl-copy (Wayland) support, fix pbcopy on macOS (it was skipped
+    when DISPLAY was unset) and stop at the first clipboard tool that works
+
 *Version 1.4.4 2020/01/09*
 
   - Remove Python 2.x support
