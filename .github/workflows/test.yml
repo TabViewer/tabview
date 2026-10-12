@@ -2,10 +2,22 @@ name: Tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, develop]
   pull_request:
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.x"
+      - name: Install flake8
+        run: python -m pip install flake8
+      - name: Lint
+        run: flake8 --extend-ignore E501 tabview test
+
   test:
     runs-on: ubuntu-latest
     strategy:
@@ -13,17 +25,25 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
-      - name: Install
-        run: python -m pip install . flake8
-      - name: Lint
-        run: flake8 --extend-ignore E501 tabview test
+      - name: Build and install the wheel
+        run: |
+          python -m pip install build
+          python -m build
+          python -m pip install dist/*.whl
       - name: Test
         # The integration tests need a terminal, so run them under a pty
         env:
           TERM: xterm
-        run: script -qec "python -m unittest discover -v" /dev/null
+        run: script -qec "python -W error -m unittest discover -v" /dev/null
+      - name: Smoke test the installed package
+        # Run outside the checkout so the installed copy is imported
+        working-directory: ${{ runner.temp }}
+        run: |
+          tabview --help
+          python -m tabview --help
+          python -c "import tabview.tabview as t; assert 'site-packages' in t.__file__; assert 'Keybindings:' in ''.join(t.readme())"
