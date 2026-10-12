@@ -6,6 +6,8 @@
     ``python -m tabview`` support
   - Replace Travis CI with GitHub Actions; CI also builds the wheel and
     smoke-tests the installed package
+  - Add a Makefile (venv, test, lint, version, release); the version now lives
+    in ``tabview/__init__.py``
   - Remove Python 2 compatibility shims
   - Use the locale encoding (not UTF-8 mode) as the first encoding guess
   - Yank: add wl-copy (Wayland) support, fix pbcopy on macOS (it was skipped

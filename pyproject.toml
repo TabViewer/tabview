@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tabview"
-version = "1.4.4"
+dynamic = ["version"]
 description = "A curses command-line CSV and list (tabular data) viewer"
 readme = "README.rst"
 requires-python = ">=3.11"
@@ -41,6 +41,9 @@ tabview = "tabview.cli:main"
 
 [tool.setuptools]
 packages = ["tabview"]
+
+[tool.setuptools.dynamic]
+version = { attr = "tabview.__version__" }
 
 [tool.setuptools.package-data]
 tabview = ["README.rst"]

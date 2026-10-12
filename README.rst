@@ -109,7 +109,8 @@ Usage:
 Tests:
 ------
 
-* ``python -m unittest discover`` (the integration tests need a terminal)
+* ``make test`` (creates a ``.venv``), or ``python -m unittest discover``.
+  The integration tests need a terminal.
 
 Keybindings:
 ---------------
