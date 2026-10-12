@@ -36,6 +36,8 @@
     - LINES/COLUMNS environment variables no longer override the real
       terminal size on the first screen
     - Enter no longer opens a pop-up for empty cells
+  - Natural sort no longer crashes on cells like '²'; numeric sort puts NaN
+    after the other numbers instead of scrambling the order
 
 *Version 1.4.4 2020/01/09*
 

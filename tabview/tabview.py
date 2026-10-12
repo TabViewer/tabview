@@ -9,6 +9,7 @@ import csv
 import curses
 import curses.ascii
 import locale
+import math
 import io
 import os
 import re
@@ -580,24 +581,27 @@ class Viewer:
         From StackOverflow: http://goo.gl/nGBUrQ
 
         """
-        def convert(text):
-            return int(text) if text.isdigit() else text
-
         def alphanum_key(item):
-            return [convert(c) for c in re.split('([0-9]+)', key(item))]
+            # Odd items are the ASCII digit runs. str.isdigit() would also
+            # accept characters like '²' that int() rejects.
+            return [int(c) if i % 2 else c
+                    for i, c in enumerate(re.split('([0-9]+)', key(item)))]
 
         return sorted(ls, key=alphanum_key, reverse=rev)
 
     def float_string_key(self, value):
         """Sort by data type first and by floating point value second,
-        if possible. Used for numeric sorting
+        if possible. NaN sorts after the other numbers, since it doesn't
+        compare. Used for numeric sorting
 
         """
         try:
             value = float(value)
         except ValueError:
-            pass
-        return repr(type(value)), value
+            return 'str', False, value
+        if math.isnan(value):
+            return 'float', True, 0.0
+        return 'float', False, value
 
     def toggle_column_width(self):
         """Toggle column width mode between 'mode' and 'max' or set fixed

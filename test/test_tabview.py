@@ -158,6 +158,37 @@ class TestTabviewUnits(unittest.TestCase):
         self.assertEqual(t.char_width('Ａ'), 2)  # fullwidth
 
 
+class TestTabviewSort(unittest.TestCase):
+
+    def sort(self, method, column):
+        v = mock.Mock(data=[[i] for i in column], x=0, win_x=0)
+        v.sorted_nicely = lambda *a, **k: t.Viewer.sorted_nicely(v, *a, **k)
+        v.float_string_key = lambda i: t.Viewer.float_string_key(v, i)
+        getattr(t.Viewer, method)(v)
+        return [i[0] for i in v.data]
+
+    def test_natural(self):
+        col = ['a10', 'a2', 'b1', 'a1', '²', '٣', '']
+        self.assertEqual(self.sort('sort_by_column_natural', col),
+                         ['', 'a1', 'a2', 'a10', 'b1', '²', '٣'])
+        self.assertEqual(self.sort('sort_by_column_natural_reverse', col),
+                         ['٣', '²', 'b1', 'a10', 'a2', 'a1', ''])
+
+    def test_numeric(self):
+        col = ['0', 'nan', '-1', 'NaN', '1e3', 'abc', '2.5']
+        self.assertEqual(self.sort('sort_by_column_numeric', col),
+                         ['-1', '0', '2.5', '1e3', 'nan', 'NaN', 'abc'])
+        self.assertEqual(self.sort('sort_by_column_numeric_reverse', col),
+                         ['abc', 'nan', 'NaN', '1e3', '2.5', '0', '-1'])
+
+    def test_plain(self):
+        col = ['b', 'a', 'B', '10', '9']
+        self.assertEqual(self.sort('sort_by_column', col),
+                         ['10', '9', 'B', 'a', 'b'])
+        self.assertEqual(self.sort('sort_by_column_reverse', col),
+                         ['b', 'a', 'B', '9', '10'])
+
+
 class TestTabviewInput(unittest.TestCase):
     """Parsing of file data into rows"""
 
@@ -269,9 +300,8 @@ class TestTabviewIntegration(unittest.TestCase):
         v = t.Viewer(stdscr, *args, **kwargs)
         v.display()
         for key in v.keys:
-            if key not in ('q', 'Q', 'r', '?', '/', '\n', 'a', 'A', 's', 'S',
-                           '#', '@', 'y', curses.KEY_F1, curses.KEY_ENTER,
-                           t.KEY_CTRL('g')):
+            if key not in ('q', 'Q', 'r', '?', '/', '\n', 'y', curses.KEY_F1,
+                           curses.KEY_ENTER, t.KEY_CTRL('g')):
                 v.keys[key]()
                 v.display()
             elif key in ('q', 'Q', 'r'):
