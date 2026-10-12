@@ -189,6 +189,125 @@ class TestTabviewSort(unittest.TestCase):
                          ['b', 'a', 'B', '9', '10'])
 
 
+class TestTabviewSearch(unittest.TestCase):
+    """search_results() on a Viewer built without curses. Positions are
+    0-based (y, x) data coordinates.
+
+    """
+    grid = [['apple', 'banana', 'cherry'],
+            ['date', 'Apple pie', 'fig'],
+            ['grape', 'kiwi', 'crabapple']]
+
+    def viewer(self, pos=(0, 0), search='apple', data=None, win=(0, 0)):
+        v = t.Viewer.__new__(t.Viewer)
+        v.data = [list(i) for i in (data or self.grid)]
+        v.num_data_columns = len(v.data[0])
+        v.win_y, v.win_x = win
+        v.y, v.x = pos[0] - win[0], pos[1] - win[1]
+        v.search_str = search
+        v.init_search = None
+
+        def goto_yx(y, x):
+            v.y, v.x = y - 1 - v.win_y, x - 1 - v.win_x
+        v.goto_yx = goto_yx
+        return v
+
+    def pos(self, v):
+        return v.y + v.win_y, v.x + v.win_x
+
+    def press(self, v, key, times=1):
+        res = []
+        for _ in range(times):
+            if key == 'n':
+                v.search_results()
+            else:
+                v.search_results_prev()
+            res.append(self.pos(v))
+        return res
+
+    def test_next(self):
+        v = self.viewer()
+        self.assertEqual(self.press(v, 'n', 4),
+                         [(1, 1), (2, 2), (0, 0), (1, 1)])
+
+    def test_prev(self):
+        v = self.viewer()
+        self.assertEqual(self.press(v, 'p', 4),
+                         [(2, 2), (1, 1), (0, 0), (2, 2)])
+
+    def test_next_then_prev(self):
+        v = self.viewer()
+        self.assertEqual(self.press(v, 'n', 2), [(1, 1), (2, 2)])
+        self.assertEqual(self.press(v, 'p', 2), [(1, 1), (0, 0)])
+
+    def test_same_row(self):
+        # Matches later in the current row come first, earlier ones last
+        data = [['x', 'a', 'x', 'a'], ['x', 'x', 'x', 'x']]
+        v = self.viewer(pos=(0, 2), search='a', data=data)
+        self.assertEqual(self.press(v, 'n', 2), [(0, 3), (0, 1)])
+        v = self.viewer(pos=(0, 2), search='a', data=data)
+        self.assertEqual(self.press(v, 'p', 2), [(0, 1), (0, 3)])
+
+    def test_wraps_from_end(self):
+        v = self.viewer(pos=(2, 2), search='banana')
+        self.assertEqual(self.press(v, 'n'), [(0, 1)])
+        v = self.viewer(pos=(0, 0), search='fig')
+        self.assertEqual(self.press(v, 'p'), [(1, 2)])
+
+    def test_end_of_row(self):
+        v = self.viewer(pos=(0, 2), search='date')
+        self.assertEqual(self.press(v, 'n'), [(1, 0)])
+        v = self.viewer(pos=(1, 0), search='cherry')
+        self.assertEqual(self.press(v, 'p'), [(0, 2)])
+
+    def test_only_match_is_current_cell(self):
+        v = self.viewer(pos=(1, 2), search='fig')
+        self.assertEqual(self.press(v, 'n'), [(1, 2)])
+        self.assertEqual(self.press(v, 'p'), [(1, 2)])
+
+    def test_no_match(self):
+        v = self.viewer(pos=(1, 1), search='zzz')
+        v.goto_yx = mock.Mock()
+        v.search_results()
+        v.search_results_prev()
+        v.goto_yx.assert_not_called()
+
+    def test_no_search_string(self):
+        v = self.viewer(search='')
+        v.goto_yx = mock.Mock()
+        v.search_results()
+        v.goto_yx.assert_not_called()
+
+    def test_init_search(self):
+        v = self.viewer(search=None)
+        v.init_search = 'kiwi'
+        self.assertEqual(self.press(v, 'n'), [(2, 1)])
+        self.assertEqual(v.search_str, 'kiwi')
+
+    def test_look_in_current(self):
+        v = self.viewer(pos=(1, 1))
+        v.search_results(look_in_cur=True)
+        self.assertEqual(self.pos(v), (1, 1))
+        v = self.viewer(pos=(1, 2))
+        v.search_results(look_in_cur=True)
+        self.assertEqual(self.pos(v), (2, 2))
+
+    def test_scrolled_window(self):
+        # Cursor position is win + offset within the window
+        v = self.viewer(pos=(1, 1), win=(1, 1))
+        self.assertEqual(self.press(v, 'n'), [(2, 2)])
+        v = self.viewer(pos=(1, 1), win=(1, 1))
+        self.assertEqual(self.press(v, 'p'), [(0, 0)])
+
+    def test_data_unchanged(self):
+        v = self.viewer()
+        rows = list(v.data)
+        self.press(v, 'p', 3)
+        self.press(v, 'n', 3)
+        self.assertEqual(v.data, self.grid)
+        self.assertTrue(all(a is b for a, b in zip(v.data, rows)))
+
+
 class TestTabviewInput(unittest.TestCase):
     """Parsing of file data into rows"""
 
