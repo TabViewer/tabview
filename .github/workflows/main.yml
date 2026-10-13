@@ -19,6 +19,8 @@ jobs:
       # Rules are configured in pyproject.toml ([tool.ruff])
       - name: Lint
         run: ruff check --output-format=github tabview test
+      - name: Check formatting
+        run: ruff format --check --output-format=github tabview test
 
   test:
     runs-on: ubuntu-latest

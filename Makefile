@@ -30,6 +30,7 @@ test: venv
 # Rules are configured in pyproject.toml ([tool.ruff])
 lint: venv
 	$(VENV)/bin/ruff check tabview test
+	$(VENV)/bin/ruff format --check tabview test
 
 # Print the version recorded in tabview/__init__.py
 version:
