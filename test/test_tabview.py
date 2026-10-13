@@ -680,6 +680,41 @@ class TestTabviewIntegration(unittest.TestCase):
             v = curses.wrapper(self.keys, data, keys)
             self.assertGreaterEqual(min(v.column_width), 1, keys)
 
+    def type_search(self, stdscr, data, keys):
+        """Open the search box and type keys (str or curses key codes)"""
+        v = t.Viewer(
+            stdscr,
+            data,
+            start_pos=(0, 0),
+            column_width="mode",
+            column_gap=2,
+            column_widths=None,
+            trunc_char="…",
+            search_str=None,
+        )
+        v.display()
+        # ungetch() pushes onto a stack, so queue the keys in reverse
+        for key in reversed([*keys, "\n"]):
+            curses.ungetch(key)
+        v.search()
+        return v
+
+    def test_search_with_spaces(self):
+        # Issue #114: typed spaces were dropped from the search box
+        data = t.process_data(self.data(data_2[0]))
+        v = curses.wrapper(self.type_search, data, "white - m")
+        self.assertEqual(v.search_str, "white - m")
+        self.assertEqual((v.y + v.win_y, v.x + v.win_x), (1, 2))
+
+    def test_search_editing(self):
+        data = t.process_data(self.data(data_2[0]))
+        left = [curses.KEY_LEFT] * 6
+        keys = ["w", "h", "t", "e", " ", "-", " ", "x", curses.KEY_BACKSPACE]
+        keys += ["l", *left, "i"]
+        v = curses.wrapper(self.type_search, data, keys)
+        self.assertEqual(v.search_str, "white - l")
+        self.assertEqual((v.y + v.win_y, v.x + v.win_x), (2, 2))
+
     def test_tabview_annotated_comment(self):
         curses.wrapper(
             self.main,

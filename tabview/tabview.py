@@ -382,26 +382,42 @@ class Viewer:
         TextBox(self.scr, data=display)()
         self.resize()
 
-    def _search_validator(self, ch):
-        """Fix Enter and backspace for textbox.
+    def _search_box_text(self):
+        """Return the search box text before and after the cursor.
 
-        Used as an aux function for the textpad.edit method
+        Textbox.gather() can't be used while editing: it strips trailing
+        spaces and leaves the cursor at the end of the stripped text, so a
+        typed space was lost and the next character inserted before it.
+
+        """
+        win = self.textpad.win
+        y, x = win.getyx()
+        width = win.getmaxyx()[1]
+        line = "".join(
+            chr(win.inch(0, i) & curses.A_CHARTEXT) for i in range(width)
+        )
+        win.move(y, x)  # inch() moves the cursor
+        return line[:x], line[x:].rstrip()
+
+    def _search_validator(self, ch):
+        """Fix Enter and backspace for textbox, and search as you type.
+
+        Used as an aux function for the textpad.edit method, which calls it
+        before handling each key.
 
         """
         if ch == curses.ascii.NL:  # Enter
             return curses.ascii.BEL
-        elif ch == 127:  # Backspace
-            self.search_str = self.textpad.gather().strip().lower()[:-1]
-            return 8
-        else:
-            if 0 < ch < 256:
-                c = chr(ch)
-                if c in string.printable:
-                    res = self.textpad.gather().strip().lower()
-                    self.search_str = res + chr(ch)
-                    self.search_results(look_in_cur=True)
-                    self.display()
-            return ch
+        if ch in (curses.ascii.DEL, curses.KEY_BACKSPACE, curses.ascii.BS):
+            before, after = self._search_box_text()
+            self.search_str = (before[:-1] + after).lower()
+            return curses.ascii.BS
+        if 0 < ch < 256 and chr(ch) in string.printable:
+            before, after = self._search_box_text()
+            self.search_str = (before + chr(ch) + after).lower()
+            self.search_results(look_in_cur=True)
+            self.display()
+        return ch
 
     def search(self):
         """Open search window, get input and set the search string."""
