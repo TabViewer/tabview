@@ -48,7 +48,7 @@ jobs:
         run: |
           tabview --help
           python -m tabview --help
-          python -c "import tabview.tabview as t; assert 'site-packages' in t.__file__; assert 'Keybindings:' in ''.join(t.readme())"
+          python -c "import tabview.tabview as t; assert 'site-packages' in t.__file__; assert t.help_text()"
 
   # Build the distributions to publish: dev builds for TestPyPI on pushes to
   # main, releases for PyPI on tags.
