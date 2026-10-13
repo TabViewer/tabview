@@ -1200,7 +1200,7 @@ def process_data(data, enc=None, delim=None, quoting=None, quote_char='"'):
     if isinstance(text, bytes):
         text = text.decode(enc or detect_encoding(text))
     # A UTF-8 BOM survives decoding when the encoding was passed in
-    text = text.removeprefix("﻿")
+    text = text.removeprefix("\ufeff")
     if delim is None:
         delim = csv_sniff(text)
     quoting = getattr(csv, quoting) if quoting else csv.QUOTE_MINIMAL
