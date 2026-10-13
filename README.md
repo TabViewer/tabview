@@ -4,10 +4,6 @@
 
 # Tabview
 
-**This project is functional but future development will be sporadic and
-limited. For a more fully featured CSV viewer/spreadsheet app check out the
-[Visidata project](https://github.com/saulpw/visidata).**
-
 View a CSV file in a spreadsheet-like display.
 
 Posted by Scott Hansen <tech@firecat53.net>
