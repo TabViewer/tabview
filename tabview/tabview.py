@@ -1,9 +1,10 @@
-""" tabview.py -- View a tab-delimited file in a spreadsheet-like display.
+"""tabview.py -- View a tab-delimited file in a spreadsheet-like display.
 
-  Scott Hansen <firecat four one five three at gmail dot com>
-  Based on code contributed by A.M. Kuchling <amk at amk dot ca>
+Scott Hansen <firecat four one five three at gmail dot com>
+Based on code contributed by A.M. Kuchling <amk at amk dot ca>
 
 """
+
 import codecs
 import csv
 import curses
@@ -30,21 +31,23 @@ MIN_ROWS, MIN_COLS = 6, 20
 
 # Control characters can't be drawn by curses (NUL raises ValueError, tabs and
 # others move the cursor), so display them as Python-style escapes.
-CONTROL_ESCAPES = {c: repr(chr(c))[1:-1]
-                   for c in (*range(0x20), *range(0x7f, 0xa0))}
+CONTROL_ESCAPES = {
+    c: repr(chr(c))[1:-1] for c in (*range(0x20), *range(0x7F, 0xA0))
+}
 # Same, but keep newlines for multi-line pop-ups
-CONTROL_ESCAPES_ML = {c: v for c, v in CONTROL_ESCAPES.items()
-                      if c != ord('\n')}
+CONTROL_ESCAPES_ML = {
+    c: v for c, v in CONTROL_ESCAPES.items() if c != ord("\n")
+}
 
 
-def wrap_cells(text, width, indent=' '):
+def wrap_cells(text, width, indent=" "):
     """Wrap text to lines of at most width terminal cells, counting double
     width characters as two. Continuation lines are indented with indent.
 
     """
     width = max(width, len(indent) + 2)
     lines = []
-    for line in wrap(text, width, subsequent_indent=indent) or ['']:
+    for line in wrap(text, width, subsequent_indent=indent) or [""]:
         # textwrap counts characters, so split lines with double width
         # characters (which often have no spaces to break at) further
         while sum(char_width(c) for c in line) > width:
@@ -64,12 +67,13 @@ def KEY_CTRL(key):
 
 def char_width(c):
     """Number of terminal cells used by character c"""
-    return 2 if unicodedata.east_asian_width(c) in ('W', 'F') else 1
+    return 2 if unicodedata.east_asian_width(c) in ("W", "F") else 1
 
 
 class ReloadException(Exception):
-    def __init__(self, start_pos, column_width, column_gap, column_widths,
-                 search_str):
+    def __init__(
+        self, start_pos, column_width, column_gap, column_widths, search_str
+    ):
         self.start_pos = start_pos
         self.column_width_mode = column_width
         self.column_gap = column_gap
@@ -92,14 +96,16 @@ class Viewer:
             search_str, double_width
 
     """
+
     def __init__(self, *args, **kwargs):
         self.scr = args[0]
         self.data = [[str(j) for j in i] for i in args[1]]
-        self.info = kwargs.get('info')
+        self.info = kwargs.get("info")
         self.header_offset_orig = 3
         self.header = self.data[0]
-        if len(self.data) > 1 and \
-                not any(self._is_num(cell) for cell in self.header):
+        if len(self.data) > 1 and not any(
+            self._is_num(cell) for cell in self.header
+        ):
             del self.data[0]
             self.header_offset = self.header_offset_orig
         else:
@@ -108,35 +114,36 @@ class Viewer:
             # first line is NOT a header
             self.header_offset = self.header_offset_orig - 1
         self.num_data_columns = len(self.data[0])
-        self._init_double_width(kwargs.get('double_width'))
-        self.column_width_mode = kwargs.get('column_width')
-        self.column_gap = kwargs.get('column_gap')
-        self._init_column_widths(kwargs.get('column_width'),
-                                 kwargs.get('column_widths'))
+        self._init_double_width(kwargs.get("double_width"))
+        self.column_width_mode = kwargs.get("column_width")
+        self.column_gap = kwargs.get("column_gap")
+        self._init_column_widths(
+            kwargs.get("column_width"), kwargs.get("column_widths")
+        )
         try:
-            kwargs.get('trunc_char').encode(sys.stdout.encoding or 'utf-8')
-            self.trunc_char = kwargs.get('trunc_char')
+            kwargs.get("trunc_char").encode(sys.stdout.encoding or "utf-8")
+            self.trunc_char = kwargs.get("trunc_char")
         except (UnicodeDecodeError, UnicodeError):
-            self.trunc_char = '>'
+            self.trunc_char = ">"
 
         self.x, self.y = 0, 0
         self.win_x, self.win_y = 0, 0
         self.max_y, self.max_x = 0, 0
         self.num_columns = 0
         self.vis_columns = 0
-        self.init_search = self.search_str = kwargs.get('search_str')
+        self.init_search = self.search_str = kwargs.get("search_str")
         self._search_win_open = 0
-        self.modifier = ''
+        self.modifier = ""
         self.define_keys()
         self.resize()
         self.display()
         # Handle goto initial position (either (y,x), [y] or y)
         try:
-            self.goto_y(kwargs.get('start_pos')[0])
+            self.goto_y(kwargs.get("start_pos")[0])
         except TypeError:
-            self.goto_y(kwargs.get('start_pos'))
+            self.goto_y(kwargs.get("start_pos"))
         try:
-            self.goto_x(kwargs.get('start_pos')[1])
+            self.goto_x(kwargs.get("start_pos")[1])
         except (IndexError, TypeError):
             pass
 
@@ -175,8 +182,10 @@ class Viewer:
 
     def column_xw(self, x):
         """Return the position and width of the requested column"""
-        xp = sum(self.column_width[self.win_x:self.win_x + x]) \
+        xp = (
+            sum(self.column_width[self.win_x : self.win_x + x])
             + x * self.column_gap
+        )
         w = max(0, min(self.max_x - xp, self.column_width[self.win_x + x]))
         return xp, w
 
@@ -185,13 +194,17 @@ class Viewer:
 
     def reload(self):
         start_pos = (self.y + self.win_y + 1, self.x + self.win_x + 1)
-        raise ReloadException(start_pos, self.column_width_mode,
-                              self.column_gap, self.column_width,
-                              self.search_str)
+        raise ReloadException(
+            start_pos,
+            self.column_width_mode,
+            self.column_gap,
+            self.column_width,
+            self.search_str,
+        )
 
     def consume_modifier(self, default=1):
         m = int(self.modifier) if len(self.modifier) else default
-        self.modifier = ''
+        self.modifier = ""
         return m
 
     def down(self):
@@ -267,7 +280,7 @@ class Viewer:
         self.save_y, self.save_x = self.y + self.win_y, self.x + self.win_x
 
     def goto_mark(self):
-        if hasattr(self, 'save_y'):
+        if hasattr(self, "save_y"):
             self.goto_yx(self.save_y + 1, self.save_x + 1)
 
     def home(self):
@@ -275,8 +288,12 @@ class Viewer:
 
     def goto_y(self, y):
         y = max(min(len(self.data), y), 1)
-        if self.win_y < y <= self.win_y + \
-                (self.max_y - self.header_offset - self._search_win_open):
+        if (
+            self.win_y
+            < y
+            <= self.win_y
+            + (self.max_y - self.header_offset - self._search_win_open)
+        ):
             # same screen, change y appropriately.
             self.y = y - 1 - self.win_y
         elif y <= self.win_y:
@@ -285,10 +302,12 @@ class Viewer:
             self.win_y = y - 1
         else:
             # going forward
-            self.win_y = y - (self.max_y - self.header_offset -
-                              self._search_win_open)
-            self.y = (self.max_y - self.header_offset -
-                      self._search_win_open) - 1
+            self.win_y = y - (
+                self.max_y - self.header_offset - self._search_win_open
+            )
+            self.y = (
+                self.max_y - self.header_offset - self._search_win_open
+            ) - 1
 
     def goto_row(self):
         m = self.consume_modifier(len(self.data))
@@ -334,31 +353,31 @@ class Viewer:
         if not s:
             # Only display pop-up if cells have contents
             return
-        TextBox(self.scr, data="\n" + s,
-                title=self.location_string(yp, xp))()
+        TextBox(self.scr, data="\n" + s, title=self.location_string(yp, xp))()
         self.resize()
 
     def show_info(self):
-        """Display data information in a pop-up window
-
-        """
+        """Display data information in a pop-up window"""
         fn = self.info
         yp = self.y + self.win_y
         xp = self.x + self.win_x
         location = self.location_string(yp, xp)
 
-        def sizeof_fmt(num, suffix='B'):
-            for unit in ['', 'Ki', 'Mi', 'Gi', 'Ti', 'Pi', 'Ei', 'Zi']:
+        def sizeof_fmt(num, suffix="B"):
+            for unit in ["", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"]:
                 if abs(num) < 1024.0:
                     return f"{num:3.1f}{unit}{suffix}"
                 num /= 1024.0
             return f"{num:.1f}Yi{suffix}"
+
         size = sizeof_fmt(sys.getsizeof(self.data))
         rows_cols = str((len(self.data), self.num_data_columns))
-        info = [("Filename/Data Info:", fn),
-                ("Current Location:", location),
-                ("Total Rows/Columns:", rows_cols),
-                ("Data Size:", size)]
+        info = [
+            ("Filename/Data Info:", fn),
+            ("Current Location:", location),
+            ("Total Rows/Columns:", rows_cols),
+            ("Data Size:", size),
+        ]
         display = "\n\n".join(f"{i:<20}{j}" for i, j in info)
         TextBox(self.scr, data=display)()
         self.resize()
@@ -477,21 +496,30 @@ class Viewer:
         self.recalculate_layout()
 
     def column_width_all_down(self):
-        self.column_width = [max(1, self.column_width[i] -
-                                 max(1, int(self.column_width[i] * 0.2)))
-                             for i in range(0, self.num_data_columns)]
+        self.column_width = [
+            max(
+                1,
+                self.column_width[i] - max(1, int(self.column_width[i] * 0.2)),
+            )
+            for i in range(0, self.num_data_columns)
+        ]
         self.recalculate_layout()
 
     def column_width_all_up(self):
-        self.column_width = [max(1, self.column_width[i] +
-                                 max(1, int(self.column_width[i] * 0.2)))
-                             for i in range(0, self.num_data_columns)]
+        self.column_width = [
+            max(
+                1,
+                self.column_width[i] + max(1, int(self.column_width[i] * 0.2)),
+            )
+            for i in range(0, self.num_data_columns)
+        ]
         self.recalculate_layout()
 
     def column_width_down(self):
         xp = self.x + self.win_x
-        self.column_width[xp] = max(1, self.column_width[xp] - max(
-            1, int(self.column_width[xp] * 0.2)))
+        self.column_width[xp] = max(
+            1, self.column_width[xp] - max(1, int(self.column_width[xp] * 0.2))
+        )
         self.recalculate_layout()
 
     def column_width_up(self):
@@ -501,14 +529,17 @@ class Viewer:
 
     def sort_by_column_numeric(self):
         xp = self.x + self.win_x
-        self.data = sorted(self.data, key=lambda x:
-                           self.float_string_key(itemgetter(xp)(x)))
+        self.data = sorted(
+            self.data, key=lambda x: self.float_string_key(itemgetter(xp)(x))
+        )
 
     def sort_by_column_numeric_reverse(self):
         xp = self.x + self.win_x
-        self.data = sorted(self.data, key=lambda x:
-                           self.float_string_key(itemgetter(xp)(x)),
-                           reverse=True)
+        self.data = sorted(
+            self.data,
+            key=lambda x: self.float_string_key(itemgetter(xp)(x)),
+            reverse=True,
+        )
 
     def sort_by_column(self):
         xp = self.x + self.win_x
@@ -527,16 +558,19 @@ class Viewer:
         self.data = self.sorted_nicely(self.data, itemgetter(xp), rev=True)
 
     def sorted_nicely(self, ls, key, rev=False):
-        """ Sort the given iterable in the way that humans expect.
+        """Sort the given iterable in the way that humans expect.
 
         From StackOverflow: http://goo.gl/nGBUrQ
 
         """
+
         def alphanum_key(item):
             # Odd items are the ASCII digit runs. str.isdigit() would also
             # accept characters like '²' that int() rejects.
-            return [int(c) if i % 2 else c
-                    for i, c in enumerate(re.split('([0-9]+)', key(item)))]
+            return [
+                int(c) if i % 2 else c
+                for i, c in enumerate(re.split("([0-9]+)", key(item)))
+            ]
 
         return sorted(ls, key=alphanum_key, reverse=rev)
 
@@ -549,10 +583,10 @@ class Viewer:
         try:
             value = float(value)
         except ValueError:
-            return 'str', False, value
+            return "str", False, value
         if math.isnan(value):
-            return 'float', True, 0.0
-        return 'float', False, value
+            return "float", True, 0.0
+        return "float", False, value
 
     def toggle_column_width(self):
         """Toggle column width mode between 'mode' and 'max' or set fixed
@@ -560,14 +594,13 @@ class Viewer:
 
         """
         try:
-            self.column_width_mode = max(1, min(int(self.modifier),
-                                                self.max_x))
-            self.modifier = ''
+            self.column_width_mode = max(1, min(int(self.modifier), self.max_x))
+            self.modifier = ""
         except ValueError:
-            if self.column_width_mode == 'mode':
-                self.column_width_mode = 'max'
+            if self.column_width_mode == "mode":
+                self.column_width_mode = "max"
             else:
-                self.column_width_mode = 'mode'
+                self.column_width_mode = "mode"
         self._get_column_widths(self.column_width_mode)
         self.recalculate_layout()
 
@@ -575,7 +608,7 @@ class Viewer:
         xs = self.win_x + self.x
         if len(self.modifier):
             width = max(1, int(self.modifier))
-            self.modifier = ''
+            self.modifier = ""
         else:
             width = 0
             for y in range(0, len(self.data)):
@@ -591,73 +624,80 @@ class Viewer:
         # Use the first clipboard tool that works
         for cmd in clipboard_commands():
             try:
-                run(cmd, input=s, text=True, check=True,
-                    stdout=DEVNULL, stderr=DEVNULL)
+                run(
+                    cmd,
+                    input=s,
+                    text=True,
+                    check=True,
+                    stdout=DEVNULL,
+                    stderr=DEVNULL,
+                )
                 return
             except (OSError, CalledProcessError):
                 continue
 
     def define_keys(self):
-        self.keys = {'j': self.down,
-                     'k': self.up,
-                     'h': self.left,
-                     'l': self.right,
-                     'J': self.page_down,
-                     'K': self.page_up,
-                     'm': self.mark,
-                     "'": self.goto_mark,
-                     'L': self.page_right,
-                     'H': self.page_left,
-                     'q': self.quit,
-                     'Q': self.quit,
-                     '$': self.line_end,
-                     '^': self.line_home,
-                     'g': self.home,
-                     'G': self.goto_row,
-                     '|': self.goto_col,
-                     '\n': self.show_cell,
-                     '/': self.search,
-                     'n': self.search_results,
-                     'p': self.search_results_prev,
-                     't': self.toggle_header,
-                     '-': self.column_gap_down,
-                     '+': self.column_gap_up,
-                     '<': self.column_width_all_down,
-                     '>': self.column_width_all_up,
-                     ',': self.column_width_down,
-                     '.': self.column_width_up,
-                     'a': self.sort_by_column_natural,
-                     'A': self.sort_by_column_natural_reverse,
-                     '#': self.sort_by_column_numeric,
-                     '@': self.sort_by_column_numeric_reverse,
-                     's': self.sort_by_column,
-                     'S': self.sort_by_column_reverse,
-                     'y': self.yank_cell,
-                     'r': self.reload,
-                     'c': self.toggle_column_width,
-                     'C': self.set_current_column_width,
-                     ']': self.skip_to_row_change,
-                     '[': self.skip_to_row_change_reverse,
-                     '}': self.skip_to_col_change,
-                     '{': self.skip_to_col_change_reverse,
-                     '?': self.help,
-                     curses.KEY_F1: self.help,
-                     curses.KEY_UP: self.up,
-                     curses.KEY_DOWN: self.down,
-                     curses.KEY_LEFT: self.left,
-                     curses.KEY_RIGHT: self.right,
-                     curses.KEY_HOME: self.line_home,
-                     curses.KEY_END: self.line_end,
-                     curses.KEY_PPAGE: self.page_up,
-                     curses.KEY_NPAGE: self.page_down,
-                     curses.KEY_IC: self.mark,
-                     curses.KEY_DC: self.goto_mark,
-                     curses.KEY_ENTER: self.show_cell,
-                     KEY_CTRL('a'): self.line_home,
-                     KEY_CTRL('e'): self.line_end,
-                     KEY_CTRL('l'): self.scr.redrawwin,
-                     KEY_CTRL('g'): self.show_info,
-                     }
+        self.keys = {
+            "j": self.down,
+            "k": self.up,
+            "h": self.left,
+            "l": self.right,
+            "J": self.page_down,
+            "K": self.page_up,
+            "m": self.mark,
+            "'": self.goto_mark,
+            "L": self.page_right,
+            "H": self.page_left,
+            "q": self.quit,
+            "Q": self.quit,
+            "$": self.line_end,
+            "^": self.line_home,
+            "g": self.home,
+            "G": self.goto_row,
+            "|": self.goto_col,
+            "\n": self.show_cell,
+            "/": self.search,
+            "n": self.search_results,
+            "p": self.search_results_prev,
+            "t": self.toggle_header,
+            "-": self.column_gap_down,
+            "+": self.column_gap_up,
+            "<": self.column_width_all_down,
+            ">": self.column_width_all_up,
+            ",": self.column_width_down,
+            ".": self.column_width_up,
+            "a": self.sort_by_column_natural,
+            "A": self.sort_by_column_natural_reverse,
+            "#": self.sort_by_column_numeric,
+            "@": self.sort_by_column_numeric_reverse,
+            "s": self.sort_by_column,
+            "S": self.sort_by_column_reverse,
+            "y": self.yank_cell,
+            "r": self.reload,
+            "c": self.toggle_column_width,
+            "C": self.set_current_column_width,
+            "]": self.skip_to_row_change,
+            "[": self.skip_to_row_change_reverse,
+            "}": self.skip_to_col_change,
+            "{": self.skip_to_col_change_reverse,
+            "?": self.help,
+            curses.KEY_F1: self.help,
+            curses.KEY_UP: self.up,
+            curses.KEY_DOWN: self.down,
+            curses.KEY_LEFT: self.left,
+            curses.KEY_RIGHT: self.right,
+            curses.KEY_HOME: self.line_home,
+            curses.KEY_END: self.line_end,
+            curses.KEY_PPAGE: self.page_up,
+            curses.KEY_NPAGE: self.page_down,
+            curses.KEY_IC: self.mark,
+            curses.KEY_DC: self.goto_mark,
+            curses.KEY_ENTER: self.show_cell,
+            KEY_CTRL("a"): self.line_home,
+            KEY_CTRL("e"): self.line_end,
+            KEY_CTRL("l"): self.scr.redrawwin,
+            KEY_CTRL("g"): self.show_info,
+        }
 
     def run(self):
         # Clear the screen and display the menu of keys
@@ -667,9 +707,7 @@ class Viewer:
             self.handle_keys()
 
     def handle_keys(self):
-        """Determine what method to call for each keypress.
-
-        """
+        """Determine what method to call for each keypress."""
         c = self.scr.getch()  # Get a keystroke
         if c == curses.KEY_RESIZE:
             self.resize()
@@ -688,7 +726,7 @@ class Viewer:
         elif c in self.keys:
             self.keys[c]()
         else:
-            self.modifier = ''
+            self.modifier = ""
 
     def handle_modifier(self, mod):
         """Append digits as a key modifier, clear the modifier if not
@@ -699,13 +737,14 @@ class Viewer:
         """
         self.modifier += mod
         if not self.modifier.isdigit():
-            self.modifier = ''
+            self.modifier = ""
 
     def resize(self):
         """Handle terminal resizing"""
         # Check if screen was re-sized (True or False)
-        resize = self.max_x == 0 or \
-            curses.is_term_resized(self.max_y, self.max_x)
+        resize = self.max_x == 0 or curses.is_term_resized(
+            self.max_y, self.max_x
+        )
         if resize is True:
             self.recalculate_layout()
             curses.resizeterm(self.max_y, self.max_x)
@@ -716,8 +755,9 @@ class Viewer:
 
         """
         width = cols = 0
-        while (x + cols) < self.num_data_columns \
-                and width + self.column_width[x + cols] <= self.max_x:
+        while (x + cols) < self.num_data_columns and width + self.column_width[
+            x + cols
+        ] <= self.max_x:
             width += self.column_width[x + cols] + self.column_gap
             cols += 1
         return max(1, cols)
@@ -728,8 +768,9 @@ class Viewer:
 
         """
         width = cols = 0
-        while x - cols >= 0 \
-                and width + self.column_width[x - cols] <= self.max_x:
+        while (
+            x - cols >= 0 and width + self.column_width[x - cols] <= self.max_x
+        ):
             width += self.column_width[x - cols] + self.column_gap
             cols += 1
         return max(1, cols)
@@ -758,20 +799,21 @@ class Viewer:
         max_y = str(len(self.data))
         max_x = str(len(self.data[0]))
         max_yx = yx_str.format(max_y, max_x)
-        max_label = label_str.format('-', max(self.header, key=len))
+        max_label = label_str.format("-", max(self.header, key=len))
         if self.header_offset != self.header_offset_orig:
             # Hide column labels if header row disabled
             label = ""
-            max_width = min(int(self.max_x * .3), len(max_yx))
+            max_width = min(int(self.max_x * 0.3), len(max_yx))
         else:
             label = label_str.format(
-                '-', self.header[xp].translate(CONTROL_ESCAPES))
-            max_width = min(int(self.max_x * .3), len(max_yx + max_label))
+                "-", self.header[xp].translate(CONTROL_ESCAPES)
+            )
+            max_width = min(int(self.max_x * 0.3), len(max_yx + max_label))
         yx = yx_str.format(yp + 1, xp + 1)
         pad = " " * (max_width - len(yx) - len(label))
         loc = f"{yx}{label}{pad}"
         if len(loc) > max_width:
-            loc = loc[:max_width - 1] + self.trunc_char
+            loc = loc[: max_width - 1] + self.trunc_char
         return loc
 
     def display(self):
@@ -779,7 +821,7 @@ class Viewer:
         if self.max_y < MIN_ROWS or self.max_x < MIN_COLS:
             self.scr.erase()
             try:
-                self.scr.addstr(0, 0, "Terminal too small"[:self.max_x - 1])
+                self.scr.addstr(0, 0, "Terminal too small"[: self.max_x - 1])
             except curses.error:
                 pass
             self.scr.refresh()
@@ -813,8 +855,9 @@ class Viewer:
                 self.scr.addstr(self.header_offset - 1, xc, s, curses.A_BOLD)
 
         # Print the table data
-        for y in range(0, self.max_y - self.header_offset -
-                       self._search_win_open):
+        for y in range(
+            0, self.max_y - self.header_offset - self._search_win_open
+        ):
             yc = y + self.header_offset
             self.scr.move(yc, 0)
             self.scr.clrtoeol()
@@ -838,11 +881,11 @@ class Viewer:
 
     def strpad(self, s, width):
         if width < 1:
-            return ''
+            return ""
         s = s.translate(CONTROL_ESCAPES)
 
         # take into account double-width characters
-        buf = ''
+        buf = ""
         buf_width = 0
         for c in s:
             w = char_width(c)
@@ -857,11 +900,11 @@ class Viewer:
                 w = char_width(buf[-1])
                 buf = buf[0:-1]
                 buf_width -= w
-            buf += ' ' * (width - buf_width - len(self.trunc_char))
+            buf += " " * (width - buf_width - len(self.trunc_char))
             buf += self.trunc_char
         elif buf_width < width:
             # padding required
-            buf += ' ' * (width - buf_width)
+            buf += " " * (width - buf_width)
 
         return buf
 
@@ -888,17 +931,16 @@ class Viewer:
         Returns: [len of col 1, len of col 2, ....]
 
         """
-        if width == 'max':
+        if width == "max":
             self.column_width = self._get_column_widths_max(self.data)
-        elif width == 'mode':
+        elif width == "mode":
             self.column_width = self._get_column_widths_mode(self.data)
         else:
             try:
                 width = max(1, int(width))
             except (TypeError, ValueError):
                 width = 25
-            self.column_width = [width for i in
-                                 range(0, self.num_data_columns)]
+            self.column_width = [width for i in range(0, self.num_data_columns)]
 
     @staticmethod
     def __cell_len_dw(s):
@@ -953,8 +995,7 @@ class Viewer:
         """
         # Rows are padded to the same length by process_data
         d = zip(*d, strict=True)
-        return [max(1, min(250, max(self._cell_len(j) for j in i)))
-                for i in d]
+        return [max(1, min(250, max(self._cell_len(j) for j in i))) for i in d]
 
     def _skip_to_value_change(self, x_inc, y_inc):
         m = self.consume_modifier()
@@ -964,9 +1005,13 @@ class Viewer:
             v = self.data[y][x]
             y += y_inc
             x += x_inc
-            while y >= 0 and y < len(self.data) \
-                    and x >= 0 and x < self.num_data_columns \
-                    and self.data[y][x] == v:
+            while (
+                y >= 0
+                and y < len(self.data)
+                and x >= 0
+                and x < self.num_data_columns
+                and self.data[y][x] == v
+            ):
                 y += y_inc
                 x += x_inc
             self.goto_yx(y + 1, x + 1)
@@ -985,15 +1030,14 @@ class Viewer:
 
 
 class TextBox:
-    """Display a scrollable text box in the bottom half of the screen.
+    """Display a scrollable text box in the bottom half of the screen."""
 
-    """
-    def __init__(self, scr, data='', title=""):
+    def __init__(self, scr, data="", title=""):
         self._running = False
         self.scr = scr
         self.data = data.translate(CONTROL_ESCAPES_ML)
         self.title = title.translate(CONTROL_ESCAPES)
-        self.tdata = []    # transformed data
+        self.tdata = []  # transformed data
         self.hid_rows = 0  # number of hidden rows from the beginning
         self.setup_handlers()
 
@@ -1001,24 +1045,26 @@ class TextBox:
         self.run()
 
     def setup_handlers(self):
-        self.handlers = {'\n': self.close,
-                         curses.KEY_ENTER: self.close,
-                         'q': self.close,
-                         curses.KEY_RESIZE: self.close,
-                         curses.KEY_DOWN: self.scroll_down,
-                         'j': self.scroll_down,
-                         curses.KEY_UP: self.scroll_up,
-                         'k': self.scroll_up,
-                         }
+        self.handlers = {
+            "\n": self.close,
+            curses.KEY_ENTER: self.close,
+            "q": self.close,
+            curses.KEY_RESIZE: self.close,
+            curses.KEY_DOWN: self.scroll_down,
+            "j": self.scroll_down,
+            curses.KEY_UP: self.scroll_up,
+            "k": self.scroll_up,
+        }
 
     def _calculate_layout(self):
-        """Setup popup window and format data. """
+        """Setup popup window and format data."""
         self.scr.touchwin()
         self.term_rows, self.term_cols = self.scr.getmaxyx()
         # The window is the bottom half of the screen
         self.box_height = self.term_rows // 2
-        self.win = curses.newwin(self.box_height, self.term_cols,
-                                 self.term_rows - self.box_height, 0)
+        self.win = curses.newwin(
+            self.box_height, self.term_cols, self.term_rows - self.box_height, 0
+        )
         try:
             curses.curs_set(False)
         except curses.error:
@@ -1061,12 +1107,12 @@ class TextBox:
 
     def display(self):
         self.win.erase()
-        visible_rows = self.tdata[self.hid_rows:self.hid_rows +
-                                  self.nlines]
+        visible_rows = self.tdata[self.hid_rows : self.hid_rows + self.nlines]
         try:
-            self.win.addstr(1, 1, self.title[:self.term_cols - 3],
-                            curses.A_STANDOUT)
-            self.win.addstr(2, 1, '\n '.join(visible_rows))
+            self.win.addstr(
+                1, 1, self.title[: self.term_cols - 3], curses.A_STANDOUT
+            )
+            self.win.addstr(2, 1, "\n ".join(visible_rows))
             self.win.box()
         except curses.error:
             # Terminal too small for the pop-up
@@ -1076,7 +1122,7 @@ class TextBox:
 
 # Characters considered when sniffing the delimiter. Without this list the
 # sniffer happily picks letters, e.g. 'm' for a single "Name" column.
-SNIFF_DELIMITERS = ',\t;| :\x01\x1f'
+SNIFF_DELIMITERS = ",\t;| :\x01\x1f"
 
 
 def csv_sniff(text):
@@ -1092,15 +1138,16 @@ def csv_sniff(text):
         delimiter character
 
     """
-    lines = [i for i in re.split(r'\r\n|\r|\n', text, maxsplit=50)[:50]
-             if i.strip()]
+    lines = [
+        i for i in re.split(r"\r\n|\r|\n", text, maxsplit=50)[:50] if i.strip()
+    ]
     sniffer = csv.Sniffer()
-    for sample in ('\n'.join(lines), lines[0] if lines else ''):
+    for sample in ("\n".join(lines), lines[0] if lines else ""):
         try:
             return sniffer.sniff(sample, delimiters=SNIFF_DELIMITERS).delimiter
         except csv.Error:
             continue
-    return '\t' if '\t' in text else ','
+    return "\t" if "\t" in text else ","
 
 
 def clean_space_delim(lines):
@@ -1111,7 +1158,7 @@ def clean_space_delim(lines):
     strip that off. Common pattern in Matlab and Numpy
 
     """
-    if lines and lines[0][:1] in ('#', '%'):
+    if lines and lines[0][:1] in ("#", "%"):
         lines[0] = lines[0][1:]
     return [i.strip() for i in lines]
 
@@ -1129,7 +1176,7 @@ def process_data(data, enc=None, delim=None, quoting=None, quote_char='"'):
         text = data
     elif not data:
         return []
-    elif data_list_or_file(data) == 'list':
+    elif data_list_or_file(data) == "list":
         # If data is from an object (list of lists) instead of a file
         return pad_data(data)
     else:
@@ -1137,20 +1184,26 @@ def process_data(data, enc=None, delim=None, quoting=None, quote_char='"'):
     if isinstance(text, bytes):
         text = text.decode(enc or detect_encoding(text))
     # A UTF-8 BOM survives decoding when the encoding was passed in
-    text = text.removeprefix('﻿')
+    text = text.removeprefix("﻿")
     if delim is None:
         delim = csv_sniff(text)
     quoting = getattr(csv, quoting) if quoting else csv.QUOTE_MINIMAL
     # newline='' splits lines on \n, \r\n and \r without translating them,
     # which is what csv.reader expects
-    lines = io.StringIO(text, newline='').readlines()
-    if delim == ' ':
+    lines = io.StringIO(text, newline="").readlines()
+    if delim == " ":
         lines = clean_space_delim(lines)
-        csv_obj = csv.reader(lines, delimiter=delim, quoting=quoting,
-                             quotechar=quote_char, skipinitialspace=True)
+        csv_obj = csv.reader(
+            lines,
+            delimiter=delim,
+            quoting=quoting,
+            quotechar=quote_char,
+            skipinitialspace=True,
+        )
     else:
-        csv_obj = csv.reader(lines, delimiter=delim, quoting=quoting,
-                             quotechar=quote_char)
+        csv_obj = csv.reader(
+            lines, delimiter=delim, quoting=quoting, quotechar=quote_char
+        )
     return pad_data(list(csv_obj))
 
 
@@ -1164,13 +1217,13 @@ def data_list_or_file(data):
 
     """
     f = isinstance(data[0], (str, bytes))
-    return 'file' if f is True else 'list'
+    return "file" if f is True else "list"
 
 
 def pad_data(d):
     """Pad data rows to the length of the longest row.
 
-        Args: d - list of lists (or other sequences)
+    Args: d - list of lists (or other sequences)
 
     """
     lens = {len(i) for i in d}
@@ -1191,20 +1244,27 @@ def clipboard_commands():
 
     """
     cmds = []
-    if sys.platform == 'darwin':
-        cmds.append(['pbcopy'])
-    if os.environ.get('WAYLAND_DISPLAY'):
-        cmds.append(['wl-copy'])
-    if os.environ.get('DISPLAY'):
-        cmds.extend([['xclip', '-selection', 'clipboard'],
-                     ['xsel', '--input', '--clipboard']])
+    if sys.platform == "darwin":
+        cmds.append(["pbcopy"])
+    if os.environ.get("WAYLAND_DISPLAY"):
+        cmds.append(["wl-copy"])
+    if os.environ.get("DISPLAY"):
+        cmds.extend(
+            [
+                ["xclip", "-selection", "clipboard"],
+                ["xsel", "--input", "--clipboard"],
+            ]
+        )
     return cmds
 
 
 def readme():
     """Return the lines of the README shipped with the package"""
-    text = resources.files(__package__).joinpath('README.md').read_text(
-        encoding='utf-8')
+    text = (
+        resources.files(__package__)
+        .joinpath("README.md")
+        .read_text(encoding="utf-8")
+    )
     return text.splitlines(keepends=True)
 
 
@@ -1214,8 +1274,8 @@ def help_text():
 
     """
     lines = readme()
-    start = lines.index('## Keybindings\n') + 1
-    return ''.join(i for i in lines[start:] if not i.startswith('```'))
+    start = lines.index("## Keybindings\n") + 1
+    return "".join(i for i in lines[start:] if not i.startswith("```"))
 
 
 def detect_encoding(data=None):
@@ -1234,16 +1294,18 @@ def detect_encoding(data=None):
     if data is None:
         return code
     if not isinstance(data, bytes):
-        data = b''.join(data)
-    for bom, enc in ((codecs.BOM_UTF32_LE, 'utf-32'),
-                     (codecs.BOM_UTF32_BE, 'utf-32'),
-                     (codecs.BOM_UTF8, 'utf-8-sig'),
-                     (codecs.BOM_UTF16_LE, 'utf-16'),
-                     (codecs.BOM_UTF16_BE, 'utf-16')):
+        data = b"".join(data)
+    for bom, enc in (
+        (codecs.BOM_UTF32_LE, "utf-32"),
+        (codecs.BOM_UTF32_BE, "utf-32"),
+        (codecs.BOM_UTF8, "utf-8-sig"),
+        (codecs.BOM_UTF16_LE, "utf-16"),
+        (codecs.BOM_UTF16_BE, "utf-16"),
+    ):
         if data.startswith(bom):
             return enc
     tried = set()
-    for enc in ('utf-8', code, 'cp1252'):
+    for enc in ("utf-8", code, "cp1252"):
         try:
             name = codecs.lookup(enc).name
         except LookupError:
@@ -1256,7 +1318,7 @@ def detect_encoding(data=None):
         except UnicodeDecodeError:
             continue
         return enc
-    return 'latin-1'
+    return "latin-1"
 
 
 def main(stdscr, *args, **kwargs):
@@ -1271,10 +1333,21 @@ def main(stdscr, *args, **kwargs):
     Viewer(stdscr, *args, **kwargs).run()
 
 
-def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
-         trunc_char='…', column_widths=None, search_str=None,
-         double_width=False, delimiter=None, quoting=None, info=None,
-         quote_char='"'):
+def view(
+    data,
+    enc=None,
+    start_pos=(0, 0),
+    column_width=20,
+    column_gap=2,
+    trunc_char="…",
+    column_widths=None,
+    search_str=None,
+    double_width=False,
+    delimiter=None,
+    quoting=None,
+    info=None,
+    quote_char='"',
+):
     """The curses.wrapper passes stdscr as the first argument to main +
     passes to main any other arguments passed to wrapper. Initializes
     and then puts screen back in a normal state after closing or
@@ -1315,24 +1388,25 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
         info = ""
     # curses uses LINES/COLUMNS over the real terminal size if they are set
     # (https://bugs.python.org/issue2675), so drop them before initscr
-    os.environ.pop('LINES', None)
-    os.environ.pop('COLUMNS', None)
+    os.environ.pop("LINES", None)
+    os.environ.pop("COLUMNS", None)
     buf = None
     while True:
         try:
             if isinstance(data, (str, os.PathLike)):
                 path = os.fspath(data)
-                with open(parse_path(path), 'rb') as fd:
+                with open(parse_path(path), "rb") as fd:
                     new_data = fd.read()
                 if info == "":
                     info = path
-            elif hasattr(data, 'read'):
+            elif hasattr(data, "read"):
                 new_data = data.read()
             else:
                 new_data = data
 
-            new_buf = process_data(new_data, enc, delimiter, quoting,
-                                   quote_char)
+            new_buf = process_data(
+                new_data, enc, delimiter, quoting, quote_char
+            )
             if has_data(new_buf):
                 buf = new_buf
             elif buf is None:
@@ -1340,15 +1414,18 @@ def view(data, enc=None, start_pos=(0, 0), column_width=20, column_gap=2,
                 return 1
             # else: the reloaded data is empty, keep showing the old data
 
-            curses.wrapper(main, buf,
-                           start_pos=start_pos,
-                           column_width=column_width,
-                           column_gap=column_gap,
-                           trunc_char=trunc_char,
-                           column_widths=column_widths,
-                           search_str=search_str,
-                           double_width=double_width,
-                           info=info)
+            curses.wrapper(
+                main,
+                buf,
+                start_pos=start_pos,
+                column_width=column_width,
+                column_gap=column_gap,
+                trunc_char=trunc_char,
+                column_widths=column_widths,
+                search_str=search_str,
+                double_width=double_width,
+                info=info,
+            )
         except QuitException:
             return 0
         except KeyboardInterrupt:
@@ -1367,6 +1444,6 @@ def parse_path(path):
     unchanged, so plain filenames may contain '#', '?', etc.
 
     """
-    if path.startswith('file://'):
+    if path.startswith("file://"):
         return url2pathname(urlparse(path).path)
     return path

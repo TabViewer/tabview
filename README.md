@@ -69,7 +69,8 @@ it are shown the contents of that cell.
 
   ```python
   import tabview as t
-  a = [["a","b","c"], ["d","e","f"]]
+
+  a = [["a", "b", "c"], ["d", "e", "f"]]
   t.view(a)
   ```
 
