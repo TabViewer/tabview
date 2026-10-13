@@ -3,6 +3,9 @@ PYTHON = $(VENV)/bin/python
 # Via the interpreter, so a venv whose console scripts are missing or
 # non-executable still works.
 PIP = $(PYTHON) -m pip
+# Prefer a ruff on PATH (e.g. the Nix dev shell's): pip's ruff binary may
+# not run on NixOS. Otherwise use the venv's.
+RUFF := $(or $(shell command -v ruff 2>/dev/null),$(VENV)/bin/ruff)
 
 all: venv
 
@@ -28,9 +31,9 @@ test: venv
 	$(PYTHON) -W error -m unittest discover $(TEST_ARGS)
 
 # Rules are configured in pyproject.toml ([tool.ruff])
-lint: venv
-	$(VENV)/bin/ruff check tabview test
-	$(VENV)/bin/ruff format --check tabview test
+lint: $(if $(filter $(VENV)/%,$(RUFF)),venv)
+	$(RUFF) check tabview test
+	$(RUFF) format --check tabview test
 
 # Print the version recorded in tabview/__init__.py
 version:
