@@ -1204,6 +1204,9 @@ def process_data(data, enc=None, delim=None, quoting=None, quote_char='"'):
     if delim is None:
         delim = csv_sniff(text)
     quoting = getattr(csv, quoting) if quoting else csv.QUOTE_MINIMAL
+    # csv rejects fields over 128 KiB by default (#150). No field can be
+    # longer than the whole text, so allow that.
+    csv.field_size_limit(max(csv.field_size_limit(), len(text)))
     # newline='' splits lines on \n, \r\n and \r without translating them,
     # which is what csv.reader expects
     lines = io.StringIO(text, newline="").readlines()

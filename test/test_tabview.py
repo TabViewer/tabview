@@ -423,6 +423,12 @@ class TestTabviewInput(unittest.TestCase):
             res, [["name", "city"], ["John Smith", "NYC"], ["it's", "LA"]]
         )
 
+    def test_large_field(self):
+        # Issue #150: fields over csv's default 128 KiB limit
+        big = "x" * 200_000
+        res = t.process_data(f"a,b\n1,{big}\n2,3\n".encode())
+        self.assertEqual(res, [["a", "b"], ["1", big], ["2", "3"]])
+
     def test_cr_newlines(self):
         self.assertEqual(
             t.process_data(b"a,b\r1,2\r"), [["a", "b"], ["1", "2"]]
