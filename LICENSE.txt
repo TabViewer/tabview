@@ -2,7 +2,7 @@ Scott Hansen <tech at firecat53 dot net>
 
 Based on code contributed by A.M. Kuchling <amk at amk dot ca>
 
-Copyright (c) 2020, Scott Hansen
+Copyright (c) 2026, Scott Hansen
 
 Copyright (c) 2010, Andrew M. Kuchling
 

@@ -1,6 +1,6 @@
 """tabview.py -- View a tab-delimited file in a spreadsheet-like display.
 
-Scott Hansen <firecat four one five three at gmail dot com>
+Scott Hansen <tech@firecat53.net>
 Based on code contributed by A.M. Kuchling <amk at amk dot ca>
 
 """
