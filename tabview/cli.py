@@ -41,6 +41,18 @@ def char_arg(value):
     return value
 
 
+def width_arg(value):
+    """argparse type for --width: 'max', 'mode', or an integer value."""
+    if value in ("max", "mode"):
+        return value
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        raise argparse.ArgumentTypeError(
+            "must be 'max', 'mode', or an integer"
+        )
+
+
 def build_parser():
     """Build the command line parser."""
     parser = argparse.ArgumentParser(
@@ -91,6 +103,7 @@ def build_parser():
         "--width",
         "-w",
         default=20,
+        type=width_arg,
         help="Specify column width. 'max' or 'mode' "
         "for variable widths, or an integer value for "
         "fixed column width (default: %(default)s).",

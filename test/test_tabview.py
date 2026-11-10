@@ -539,6 +539,19 @@ class TestTabviewCli(unittest.TestCase):
         self.assertEqual(view.call_args.kwargs["delimiter"], "\t")
         self.assertEqual(view.call_args.kwargs["column_width"], 20)
 
+    def test_width_arg(self):
+        self.assertEqual(cli.width_arg("max"), "max")
+        self.assertEqual(cli.width_arg("mode"), "mode")
+        self.assertEqual(cli.width_arg("30"), 30)
+        with self.assertRaises(argparse.ArgumentTypeError):
+            cli.width_arg("banana")
+
+    def test_main_bad_width(self):
+        res, view, err = self.run_main("f.csv", "-w", "banana")
+        self.assertEqual(res, 2)
+        self.assertIn("--width", err)
+        view.assert_not_called()
+
     def test_main_errors(self):
         for argv, msg in (
             (("f.csv", "--widht", "5"), "unrecognized"),
